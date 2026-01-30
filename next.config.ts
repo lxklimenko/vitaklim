@@ -1,18 +1,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* 1. Включаем статический экспорт */
-  output: 'export',
+  /* 1. Временно отключаем статический экспорт для разработки */
+  // output: 'export',
 
-  /* 2. Отключаем серверную оптимизацию изображений */
+  /* 2. Настройки изображений */
   images: {
     unoptimized: true,
   },
 
-  /* 3. Опционально: добавляем слеш в конце URL (помогает с роутингом на Beget) */
+  /* 3. Добавляем слеш в конце URL (помогает с роутингом на Beget) */
   trailingSlash: true,
 
-  /* 4. Позволяет игнорировать ошибки TypeScript при сборке (полезно для QA-тестов) */
+  /* 4. Настройки TypeScript */
   typescript: {
     ignoreBuildErrors: false,
   },
