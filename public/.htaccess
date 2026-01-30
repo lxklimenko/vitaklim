@@ -1,0 +1,13 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  
+  # Если запрашиваемый файл или папка существуют — отдаем их
+  RewriteCond %{REQUEST_FILENAME} -f [or]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Если файла нет — перенаправляем всё на главную страницу index.html
+  # Это позволяет React/Next.js самому управлять роутингом
+  RewriteRule ^ index.html [L]
+</IfModule>

@@ -1,65 +1,556 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+// app/page.tsx
+
+console.log("PAGE VERSION ALEX 999 - FULL STACK READY");
+
+import React, { useState, useMemo, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/lib/supabase'; 
+import type { User } from '@supabase/supabase-js';
+import { 
+  Search, 
+  Copy, 
+  Sparkles, 
+  Check, 
+  X, 
+  Home as HomeIcon, 
+  Star, 
+  Plus, 
+  Clock, 
+  User as UserIcon, 
+  Heart,
+  Send,
+  Zap,
+  Loader2,
+  UserPlus
+} from 'lucide-react';
+import { Toaster, toast } from 'sonner';
+import { PromptCard } from './components/PromptCard';
+import { ProfileModal } from './components/ProfileModal';
+import { Prompt } from './types/prompt';
+
+/**
+ * 2. КОНСТАНТЫ И ПОЛНЫЕ ДАННЫЕ
+ */
+const STORAGE_URL = "https://gmngqxwkgnuqtkwndjwx.supabase.co/storage/v1/object/public/prompts-images/";
+const CATEGORIES = ["Все", "Fashion", "Art", "Product", "Interior", "Lifestyle"];
+
+const PROMPTS: Prompt[] = [
+  {
+    id: 1,
+    title: "Промпт «Газеты»",
+    tool: "Nano Banano Pro", 
+    category: "Fashion",
+    price: 15,
+    prompt: `Создайте сцену, где молодая женщина в черном костюме в тонкую полоску, стоит в узкой комнате с английскими газетами на стенах. Она прислонена к углу с руками в карманах, волосы в небрежный пучок. Макияж winter glam, выражение лица серьезное. Снимок с теплым светом и мягкой резкостью, 35 мм объектив, киностиль. Используя представленные фото создай сцену где изображен кинематографический портрет молодой женщины в узкой комнате, стены которой полностью покрыты старыми Английскими газетами. Она небрежно прислонилась к углу, одним плечом опираясь о стену, Она одета в черный костюм в тонкую полоску с укороченным пиджаком, белую рубашку и черный галстук. Руки женщины- в карманах. Длинные волосы уложены в небрежный повседневный пучок, Макияж winter glam: выразительные брови, мягкая стрелка, аккуратные ресницы, губы нюд-розовые/розово-карамельные с влажным глянцем. Единственная лампа накаливания свисает с потолка над ней, создавая теплый оранжевый свет и мягкие тени, с тонким сине-зеленым оттенком на заднем плане. Вертикальный снимок, угол съемки на уровне глаз, небольшая глубина резкости, мягкий фокус на заднем плане, детализированные черты лица, слегка серьезное выражение. Высокое разрешение, ультрареалистичность, объектив 35 мм, f/1.8, цветовая градиентная коррекция в стиле кино, атмосферная, редакционная модная фотография.`,
+    image: { src: `${STORAGE_URL}photo.webp`, width: 1000, height: 1250, aspect: "4:5" },
+    description: "Кинематографичный fashion-портрет в стиле ретро-декора.",
+    bestFor: "Fashion Brands / Lookbooks"
+  },
+  {
+    id: 2,
+    title: "Промпт «Портрет»",
+    tool: "Nano Banano Pro", 
+    category: "Art",
+    price: 0,
+    prompt: `СТРОГО СОХРАНИ ВНЕШНОСТЬ девушки с прикреплённого фото, 1:1 её настоящее лицо, глаза, нос, кожа с порами - всё 100% без изменений. Используй отправленное фото как эталон. Ультрареалистичный beauty-portrait крупным планом (голова+плечи, крупный кадр), студийная съёмка на тёмно серым фоне. Поза: 3/4 поворот головы, взгляд прямо в камеру, подбородок слегка приподнят. Причёска - высокий гладкий хвост, идеально зачесанный лаком. Макияж глянцевый, стеклянный тон, тёплый контуринг, идеальные брови, суперчёткие длинные стрелки (cat-eye), длинные объёмные ресницы, нюдово-карамельные глянцевые губы с чётким контуром. Украшения: сверкающие серьги в форме цветка из камней. На пальцах крупные бриллиантовые кольца (одно с большим камнем). Свет мягкий beauty light, акцент на текстуре кожи и блеске украшений. Тени добавляют объём. Атмосфера - редакционная съёмка`,
+    image: { src: `${STORAGE_URL}photo1.webp`, width: 1024, height: 1024, aspect: "1:1" },
+    description: "Ультрареалистичный бьюти-портрет с акцентом на кожу.",
+    bestFor: "Art / Creative Posters"
+  },
+  {
+    id: 3,
+    title: "Промпт «Шампанское»",
+    tool: "Nano Banano Pro",
+    category: "Fashion",
+    price: 3,
+    prompt: `ВАЖНО: Используй загруженное селфи как точную визуальную основу. Лицо должно быть узнаваемым на 100%, без изменения анатомии, мимики, кожи, глаз, губ и волос. Ультрареалистичный новогодний fashion-портрет в студии. Девушка по пояс/до середины бёдер. Её выразительное лицо с мягким макияжем делает образ особенно притягательным и камерным. На девушке круглые большие золотые серьги. Волосы уложены в небрежный высокий пучок. На ней праздничное черное облегающее боди с высоким воротом, красный бархатный элемент и черные капроновые колготки. В руках она держит бутылку и бокал шампанского. Кадр в мягком студийном освещении, подчеркивающем текстуру ткани и детали. Общее настроение — гламурное и провокационное, в стиле модной журнальной статьи. Высокая детализация, 8k, кинематографичный свет.`,
+    image: { src: `${STORAGE_URL}photo3.webp`, width: 1024, height: 1024, aspect: "1:1" },
+    description: "Праздничный гламурный образ с шампанским.",
+    bestFor: "Interior Design / Web"
+  },
+  {
+    id: 4,
+    title: "Промпт «Машина»",
+    tool: "Nano Banano Pro",
+    category: "Fashion",
+    price: 12,
+    prompt: `Используя представленное фото как эталон, СТРОГО СОХРАНИ черты лица, мимику и взгляд женщины без изменений. Создай потрясающий портрет высокой чёткости в формате 9:16. Женщина с объёмными волнистыми волосами, пара прядей небрежно падают на лицо. Она одета в стильную серую двубортную дубленку с отделкой из белой овчины и большим английским воротником, тёмно-серое обтягивающее плотное трико и светлые дутые сапоги в тон меху. Макияж: легкий, чёткие чёрные стрелки, пышные ресницы, губы с коричневым матовым оттенком. Ногти покрашены в белый цвет. Она сидит в открытом багажнике большого белого внедорожника в горах зимой, одна нога игриво согнута. Поза в стиле профессиональной фэшн-съёмки (гламур и дерзость). Кадр по пояс. Освещение природное, мягкое, в спокойных серо-бирюзовых тонах зимнего солнечного дня. Фон горного пейзажа не размыт, видна текстура снега. Фото имеет легкую эстетичную зернистость пленки. Композиция подчеркивает элегантность наряда и красоту модели.`,
+    image: { src: `${STORAGE_URL}photo4.webp`, width: 1080, height: 1920, aspect: "9:16" },
+    description: "Зимняя fashion-съемка в горах.",
+    bestFor: "Instagram / Lookbook"
+  }
+];
+
+/**
+ * 3. ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ
+ */
+function SkeletonCard() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="rounded-[1.5rem] bg-white/[0.02] border border-white/[0.03] overflow-hidden flex flex-col h-full animate-pulse">
+      <div className="aspect-[4/5] bg-white/5" />
+      <div className="p-2 space-y-2">
+        <div className="h-2 w-1/2 bg-white/5 rounded-full" />
+        <div className="h-3 w-full bg-white/5 rounded-full" />
+        <div className="h-8 w-full bg-white/5 rounded-xl mt-2" />
+      </div>
+    </div>
+  );
+}
+
+function NavItem({ icon, label, active = false, onClick }: { icon: React.ReactNode, label: string, active?: boolean, onClick: () => void }) {
+  return (
+    <button 
+      onClick={onClick}
+      className="flex flex-col items-center gap-1 text-[9px] font-medium transition-all duration-500 ease-out active:scale-95 select-none"
+    >
+      <div className={active ? 'text-white' : 'text-white/20'}>
+        {icon}
+      </div>
+      <span className={`tracking-tight ${active ? 'text-white font-semibold' : 'text-white/20'}`}>
+        {label}
+      </span>
+    </button>
+  );
+}
+
+/**
+ * 4. ОСНОВНОЙ КОМПОНЕНТ ПРИЛОЖЕНИЯ
+ */
+export default function App() {
+  const [activeCategory, setActiveCategory] = useState("Все");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+   
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
+  const [favorites, setFavorites] = useState<number[]>([]);
+  const [isFavoritesView, setIsFavoritesView] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [isTopUpLoading, setIsTopUpLoading] = useState(false);
+  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
+
+  // Новые состояния для генерации изображений
+  const [generatePrompt, setGeneratePrompt] = useState("");
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const [user, setUser] = useState<User | null>(null);
+  const [balance, setBalance] = useState<number>(0);
+  const [purchases, setPurchases] = useState<any[]>([]);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [isLibLoading, setIsLibLoading] = useState(true);
+
+  const fetchFavorites = async (userId: string) => {
+    const { data, error } = await supabase.from('favorites').select('prompt_id').eq('user_id', userId);
+    if (!error && data) setFavorites(data.map((f: any) => f.prompt_id));
+  };
+
+  const fetchProfile = async (userId: string) => {
+    const { data, error } = await supabase.from('profiles').select('balance').eq('id', userId).single();
+    if (!error && data) setBalance(data.balance);
+  };
+
+  const fetchPurchases = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('purchases')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (!error && data) setPurchases(data)
+  };
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+        fetchFavorites(session.user.id);
+        fetchProfile(session.user.id);
+        fetchPurchases(session.user.id);
+      }
+      setIsLibLoading(false);
+    });
+
+    const { data: authData } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchFavorites(session.user.id);
+        fetchProfile(session.user.id);
+        fetchPurchases(session.user.id);
+      } else {
+        setFavorites([]);
+        setBalance(0);
+        setPurchases([]);
+      }
+    });
+
+    return () => authData.subscription.unsubscribe();
+  }, []);
+
+  const handleAuth = async () => {
+    if (!email.includes('@')) return toast.error("Введите корректный email");
+    if (password.length < 6) return toast.error("Пароль должен быть не менее 6 символов");
+    
+    try {
+      if (authMode === 'login') {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        toast.success("С возвращением");
+        setIsProfileOpen(false);
+      } else {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        toast.success("Аккаунт создан! Проверьте почту для подтверждения.");
+        setAuthMode('login');
+      }
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleTopUp = async (amount: number) => {
+    if (!user) return setIsProfileOpen(true);
+    setIsTopUpLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-payment', {
+        body: { amount }
+      });
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error("Ссылка на оплату не получена");
+      }
+    } catch (err: any) {
+      console.error("Ошибка вызова функции:", err);
+      toast.error("Ошибка платежа: " + (err.message || "Неизвестная ошибка"));
+    } finally {
+      setIsTopUpLoading(false);
+    }
+  };
+
+  const toggleFavorite = async (e: React.MouseEvent, promptId: number) => {
+    e.stopPropagation();
+    if (!user) return setIsProfileOpen(true);
+    const isFav = favorites.includes(promptId);
+    try {
+      if (isFav) {
+        const { error } = await supabase.from('favorites').delete().eq('user_id', user.id).eq('prompt_id', promptId);
+        if (!error) setFavorites(prev => prev.filter(id => id !== promptId));
+      } else {
+        const { error } = await supabase.from('favorites').insert({ user_id: user.id, prompt_id: promptId });
+        if (!error) setFavorites(prev => [...prev, promptId]);
+      }
+    } catch (err) { toast.error("Ошибка синхронизации"); }
+  };
+
+  const filteredPrompts = useMemo(() => {
+    return PROMPTS.filter((p) => {
+      const matchesCategory = activeCategory === "Все" || p.category === activeCategory;
+      const matchesFavorites = !isFavoritesView || favorites.includes(p.id);
+      const matchesSearch = p.title.toLowerCase().includes(debouncedSearch.toLowerCase()) || 
+                            p.tool.toLowerCase().includes(debouncedSearch.toLowerCase());
+      return matchesCategory && matchesFavorites && matchesSearch;
+    });
+  }, [activeCategory, isFavoritesView, favorites, debouncedSearch]);
+
+  const handleCopy = async (id: number, text: string, price: number) => {
+    if (!user) return setIsProfileOpen(true);
+
+    const { data: canBuy } = await supabase.rpc('can_make_purchase')
+    if (!canBuy) return toast.error("Слишком много операций, подожди минуту")
+
+    const { error: spendError } = await supabase.rpc('spend_balance', { amount_to_spend: price });
+    if (spendError) return toast.error("Недостаточно средств");
+
+    try {
+      await navigator.clipboard.writeText(text);
+
+      await supabase.from('purchases').insert({
+        user_id: user.id,
+        prompt_id: id,
+        amount: price
+      })
+
+      // Обновляем список покупок после успешной покупки
+      await fetchPurchases(user.id);
+      
+      setCopiedId(id);
+      fetchProfile(user.id);
+      toast.success(`Скопировано! -${price} ₽`);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      toast.error("Ошибка");
+    }
+  };
+
+  // Функция генерации изображения
+  const handleGenerate = async () => {
+    if (!generatePrompt.trim()) return;
+
+    setIsGenerating(true);
+    setGeneratedImage(null);
+
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt: generatePrompt }),
+      });
+
+      const data = await res.json();
+      
+      if (res.ok) {
+        setGeneratedImage(data.image);
+        toast.success("Изображение сгенерировано!");
+      } else {
+        toast.error(data.error || "Ошибка генерации");
+      }
+    } catch (error) {
+      console.error("Ошибка при генерации:", error);
+      toast.error("Ошибка соединения с сервером");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black text-white selection:bg-white/20 antialiased overflow-x-hidden">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .glass { 
+          background: rgba(255, 255, 255, 0.03); 
+          backdrop-filter: blur(20px) saturate(180%); 
+          -webkit-backdrop-filter: blur(20px) saturate(180%); 
+        }
+      `}</style>
+
+      <Toaster position="bottom-center" theme="dark" />
+
+      {/* NAVBAR */}
+      <header className="sticky top-0 z-[100] glass border-b border-white/[0.05] pt-safe">
+        <div className="max-w-7xl mx-auto px-6 h-[64px] flex items-center justify-between gap-4">
+          <div 
+            className={`flex items-center gap-2 cursor-pointer transition-all duration-500 active:scale-95 ${isSearchActive ? 'opacity-0 w-0 md:opacity-100 md:w-auto overflow-hidden' : 'opacity-100'}`} 
+            onClick={() => { setIsFavoritesView(false); setIsProfileOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+            <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center">
+              <span className="text-black"><Sparkles size={16} /></span>
+            </div>
+            <span className="text-base font-semibold tracking-tight hidden sm:inline">Vision</span>
+          </div>
+
+          <div className={`flex-grow flex items-center gap-2 bg-[#1c1c1e] rounded-full px-4 py-2.5 transition-all duration-500 border ${isSearchActive ? 'border-white/10 ring-4 ring-white/5' : 'border-transparent'}`}>
+            <Search size={16} className="text-white/30" />
+            <input 
+              type="text" 
+              placeholder="Поиск..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setIsSearchActive(true)}
+              onBlur={() => !searchQuery && setIsSearchActive(false)}
+              className="bg-transparent border-none outline-none text-[14px] w-full text-white placeholder:text-white/30 font-medium"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          </div>
+
+          <button onClick={() => setIsProfileOpen(true)} className="text-[12px] font-semibold text-white/70 hover:text-white transition-colors duration-500 select-none flex-shrink-0 px-2 tracking-tight">
+            {user ? user.email?.split('@')[0] : "Войти"}
+          </button>
         </div>
+      </header>
+
+      <main className="pb-28 pt-8">
+        {!isFavoritesView && !searchQuery && (
+          <div className="mb-6 px-4 text-center">
+            <h1 className="text-[32px] md:text-5xl font-bold tracking-tighter mb-1 text-white">
+              Создавай шедевры
+            </h1>
+            <p className="text-[13px] md:text-base text-white/40 max-w-xl mx-auto leading-relaxed">
+              Маркетплейс премиальных промптов.
+            </p>
+          </div>
+        )}
+
+        <section className="max-w-7xl mx-auto mb-6 flex justify-start md:justify-center gap-1.5 overflow-x-auto no-scrollbar px-6">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => { setActiveCategory(cat); setIsFavoritesView(false); }}
+              className={`px-5 py-2 rounded-full text-[13px] font-semibold tracking-tight border transition-all duration-500 ease-out flex-shrink-0 ${
+                activeCategory === cat && !isFavoritesView 
+                  ? 'bg-white text-black border-white shadow-md shadow-black/20' 
+                  : 'bg-transparent text-white/40 border-transparent hover:text-white/60'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </section>
+
+        <section className="max-w-7xl mx-auto pb-20">
+          <motion.div layout className="grid grid-cols-2 gap-4 px-4">
+            <AnimatePresence mode="popLayout">
+              {isLibLoading ? (
+                Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
+              ) : (isFavoritesView && filteredPrompts.length === 0) ? (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  key="empty-state"
+                  className="col-span-2 py-24 text-center flex flex-col items-center gap-4"
+                >
+                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5">
+                    <Heart size={24} className="text-white/10" />
+                  </div>
+                  <h3 className="text-sm font-semibold tracking-tight text-white/40">Пусто</h3>
+                </motion.div>
+              ) : (
+                filteredPrompts.map((p) => (
+                  <PromptCard 
+                    key={p.id}
+                    prompt={p}
+                    favorites={favorites}
+                    toggleFavorite={toggleFavorite}
+                    handleCopy={handleCopy}
+                    setSelectedPrompt={setSelectedPrompt}
+                    copiedId={copiedId}
+                  />
+                ))
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </section>
       </main>
+
+      {/* НИЖНИЙ БАР */}
+      <nav className="fixed bottom-0 left-0 right-0 z-[110] md:hidden pb-safe glass border-t border-white/[0.03]">
+        <div className="relative h-14 px-6 flex items-center justify-between">
+          <NavItem icon={<HomeIcon size={18} />} label="Дом" active={!isFavoritesView && !isProfileOpen} onClick={() => { setIsFavoritesView(false); setIsProfileOpen(false); }} />
+          <NavItem icon={<Star size={18} />} label="Избранное" active={isFavoritesView} onClick={() => { setIsFavoritesView(true); setIsProfileOpen(false); }} />
+          <div className="relative -mt-8 flex justify-center">
+            <button 
+              onClick={() => setIsGenerateOpen(true)}
+              className="w-14 h-14 rounded-2xl bg-white text-black flex items-center justify-center shadow-[0_8px_30px_rgb(255,255,255,0.2)] active:scale-90 transition-all border-[6px] border-black"
+            >
+              <Plus size={28} strokeWidth={3} />
+            </button>
+          </div>
+          <NavItem icon={<Clock size={18} />} label="История" onClick={() => toast.info("Скоро")} />
+          <NavItem icon={<UserIcon size={18} />} label="Профиль" active={isProfileOpen} onClick={() => setIsProfileOpen(true)} />
+        </div>
+      </nav>
+
+      {/* PROFILE MODAL */}
+      <ProfileModal
+        user={user}
+        balance={balance}
+        purchases={purchases}
+        isProfileOpen={isProfileOpen}
+        setIsProfileOpen={setIsProfileOpen}
+        handleTopUp={handleTopUp}
+        isTopUpLoading={isTopUpLoading}
+        email={email}
+        password={password}
+        setEmail={setEmail}
+        setPassword={setPassword}
+        authMode={authMode}
+        setAuthMode={setAuthMode}
+        handleAuth={handleAuth}
+      />
+
+      {/* DETAIL MODAL */}
+      <AnimatePresence>
+        {selectedPrompt && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setSelectedPrompt(null)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
+            <motion.div initial={{ scale: 0.97, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.97, opacity: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} className="relative bg-[#111] w-full max-w-3xl rounded-[2.5rem] overflow-hidden z-10 shadow-2xl">
+              <button onClick={() => setSelectedPrompt(null)} className="absolute top-6 right-6 p-2 rounded-full bg-black/40 text-white/50 z-20"><X size={20} /></button>
+              <div className="flex flex-col md:flex-row max-h-[85vh] overflow-y-auto no-scrollbar">
+                <div className="md:w-1/2 min-h-[40vh] md:h-auto bg-black flex items-center justify-center overflow-hidden">
+                  <img 
+                    src={selectedPrompt.image?.src} 
+                    alt={selectedPrompt.title} 
+                    className="w-full h-full object-contain" 
+                  />
+                </div>
+                <div className="md:w-1/2 p-10 space-y=8 flex flex-col">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/20 mb-2 block">{selectedPrompt.tool}</span>
+                    <h2 className="text-2xl font-semibold tracking-tight leading-tight">{selectedPrompt.title}</h2>
+                  </div>
+                  <div className="bg-white/5 border border-white/5 rounded-2xl p=6">
+                    <p className="text-[15px] leading-relaxed text-white/80 whitespace-pre-wrap select-all font-medium tracking-tight">{selectedPrompt.prompt}</p>
+                  </div>
+                  <button onClick={() => handleCopy(selectedPrompt.id, selectedPrompt.prompt, selectedPrompt.price)} className={`mt-auto w-full py-4 rounded-2xl font-semibold text-[15px] transition-all duration-500 flex items-center justify-center gap-2 ${copiedId === selectedPrompt.id ? 'bg-white text-black' : 'bg-white text-black active:scale-[0.98]'}`}>
+                    {copiedId === selectedPrompt.id ? <Check size={18} strokeWidth={2.5} /> : <Zap size={18} fill="black" />}
+                    {copiedId === selectedPrompt.id ? "Ok" : `Копия за ${selectedPrompt.price} ₽`}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Генерация изображений */}
+      {isGenerateOpen && (
+        <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#111] rounded-3xl p-6 w-full max-w-md space-y-4 border border-white/10">
+            <h2 className="text-lg font-semibold tracking-tight">
+              Генерация изображения
+            </h2>
+
+            <textarea
+              value={generatePrompt}
+              onChange={(e) => setGeneratePrompt(e.target.value)}
+              placeholder="Опиши изображение..."
+              className="w-full h-32 bg-black/40 rounded-xl p-3 text-sm text-white placeholder:text-white/30 outline-none border border-white/10 resize-none"
+            />
+
+            <button
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              className="w-full py-3 rounded-xl bg-white text-black font-semibold active:scale-95 transition disabled:opacity-40"
+            >
+              {isGenerating ? "Генерация..." : "Сгенерировать"}
+            </button>
+
+            {generatedImage && (
+              <img
+                src={generatedImage}
+                alt="Сгенерированное изображение"
+                className="w-full rounded-xl mt-4"
+              />
+            )}
+
+            <button
+              onClick={() => {
+                setIsGenerateOpen(false);
+                setGeneratedImage(null);
+                setGeneratePrompt("");
+              }}
+              className="w-full py-2 text-sm text-white/40"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
