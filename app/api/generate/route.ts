@@ -1,14 +1,28 @@
 import { NextResponse } from "next/server";
+import OpenAI from "openai";
 
-export async function POST() {
-  return NextResponse.json({
-    imageUrl: "https://picsum.photos/512",
-  });
-}
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
-// добавим GET для теста
-export async function GET() {
-  return NextResponse.json({
-    imageUrl: "https://picsum.photos/512",
-  });
+export async function POST(req: Request) {
+  try {
+    const { prompt } = await req.json();
+
+    const result = await openai.images.generate({
+      model: "gpt-image-1",
+      prompt,
+      size: "1024x1024"
+    });
+
+    return NextResponse.json({
+      imageUrl: result.data[0].url
+    });
+  } catch (error: any) {
+    console.error("OpenAI error:", error);
+    return NextResponse.json(
+      { error: "Ошибка генерации изображения" },
+      { status: 500 }
+    );
+  }
 }
