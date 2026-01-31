@@ -12,8 +12,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // URL для модели Imagen 3 (она же Nano Banano для картинок)
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}`;
+    // Используем модель Imagen 4 Fast (найдена в твоем списке)
+    // Она быстрая и поддерживает метод predict
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-fast-generate-001:predict?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: "POST",
@@ -29,6 +30,8 @@ export async function POST(req: Request) {
         parameters: {
           sampleCount: 1,
           aspectRatio: "1:1", // Квадратная картинка
+          // Можно добавить personGeneration: "allow_adult" если нужно разрешить людей,
+          // но Google может блокировать это.
         },
       }),
     });
@@ -36,16 +39,18 @@ export async function POST(req: Request) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Google API Error:", errorText);
-      throw new Error(`Google API error: ${response.statusText}`);
+      throw new Error(`Google API error: ${response.statusText} (${response.status})`);
     }
 
     const data = await response.json();
 
-    // Google отдает картинку в кодировке Base64, нам нужно превратить её в ссылку
+    // Проверяем, есть ли картинка в ответе
     if (!data.predictions || !data.predictions[0] || !data.predictions[0].bytesBase64Encoded) {
-      throw new Error("No image generated");
+      console.error("Google response data:", data);
+      throw new Error("No image generated (Google returned empty predictions)");
     }
 
+    // Google отдает картинку в кодировке Base64, превращаем её в ссылку для браузера
     const base64Image = data.predictions[0].bytesBase64Encoded;
     const imageUrl = `data:image/png;base64,${base64Image}`;
 
