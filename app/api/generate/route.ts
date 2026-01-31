@@ -16,12 +16,13 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({
-      imageUrl: result.data![0].url
+      imageUrl: result.data?.[0]?.url
     });
+
   } catch (error: any) {
-    console.error("OpenAI error:", error);
+    console.error("OPENAI ERROR:", error);
     return NextResponse.json(
-      { error: "OpenAI generation failed" },
+      { error: error.message || "OpenAI failed" },
       { status: 500 }
     );
   }
