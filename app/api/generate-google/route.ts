@@ -9,9 +9,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No API Key" }, { status: 500 });
     }
 
-    // Используем модель Gemini 2.0 Flash Experimental (она же Nano Banana)
-    // Она бесплатная и работает через AI Studio без сложного биллинга
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+    // Ищем модель "Gemini 2.0 Flash (Image Generation) Experimental" из твоего списка.
+    // Она бесплатная и экспериментальная, биллинг для неё обычно не нужен.
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: "POST",
@@ -22,32 +22,28 @@ export async function POST(req: Request) {
         contents: [
           {
             parts: [
-              { text: "Generate an image: " + prompt } 
+              { text: prompt }
             ]
           }
         ],
-        generationConfig: {
-          // Gemini умеет отдавать картинки, если попросить
-          responseMimeType: "image/jpeg" 
-        }
+        // УБРАЛИ generationConfig, который вызывал ошибку
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Google API Error:", errorText);
-      throw new Error(`Google API error: ${response.status}`);
+      throw new Error(`Google API error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
 
-    // Ищем картинку в ответе Gemini
-    // Обычно она лежит здесь: candidates[0].content.parts[0].inlineData.data
+    // Ищем картинку. В экспериментальных моделях она лежит в inlineData
     const part = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
     
     if (!part || !part.inlineData || !part.inlineData.data) {
-       console.error("No image data found:", JSON.stringify(data, null, 2));
-       throw new Error("Gemini returned no image. Try a different prompt.");
+       console.error("Full Google Response:", JSON.stringify(data, null, 2));
+       throw new Error("Gemini returned no image. Model might have refused the prompt.");
     }
 
     const base64Image = part.inlineData.data;
