@@ -137,10 +137,10 @@ export default function App() {
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
 
-  // Новые состояния для генерации изображений
+  // Состояния для генерации изображений
   const [generatePrompt, setGeneratePrompt] = useState("");
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   const [user, setUser] = useState<User | null>(null);
   const [balance, setBalance] = useState<number>(0);
@@ -299,7 +299,7 @@ export default function App() {
     if (!generatePrompt.trim()) return;
 
     setIsGenerating(true);
-    setGeneratedImage(null);
+    setImageUrl(null);
 
     try {
       const res = await fetch("/api/generate", {
@@ -313,7 +313,7 @@ export default function App() {
       const data = await res.json();
       
       if (res.ok) {
-        setGeneratedImage(data.image);
+        setImageUrl(data.imageUrl);
         toast.success("Изображение сгенерировано!");
       } else {
         toast.error(data.error || "Ошибка генерации");
@@ -488,12 +488,12 @@ export default function App() {
                     className="w-full h-full object-contain" 
                   />
                 </div>
-                <div className="md:w-1/2 p-10 space-y=8 flex flex-col">
+                <div className="md:w-1/2 p-10 space-y-8 flex flex-col">
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-widest text-white/20 mb-2 block">{selectedPrompt.tool}</span>
                     <h2 className="text-2xl font-semibold tracking-tight leading-tight">{selectedPrompt.title}</h2>
                   </div>
-                  <div className="bg-white/5 border border-white/5 rounded-2xl p=6">
+                  <div className="bg-white/5 border border-white/5 rounded-2xl p-6">
                     <p className="text-[15px] leading-relaxed text-white/80 whitespace-pre-wrap select-all font-medium tracking-tight">{selectedPrompt.prompt}</p>
                   </div>
                   <button onClick={() => handleCopy(selectedPrompt.id, selectedPrompt.prompt, selectedPrompt.price)} className={`mt-auto w-full py-4 rounded-2xl font-semibold text-[15px] transition-all duration-500 flex items-center justify-center gap-2 ${copiedId === selectedPrompt.id ? 'bg-white text-black' : 'bg-white text-black active:scale-[0.98]'}`}>
@@ -525,24 +525,42 @@ export default function App() {
             <button
               onClick={handleGenerate}
               disabled={isGenerating}
-              className="w-full py-3 rounded-xl bg-white text-black font-semibold active:scale-95 transition disabled:opacity-40"
+              className="w-full py-3 rounded-xl bg-white text-black font-semibold active:scale-95 transition disabled:opacity-40 flex items-center justify-center gap-2"
             >
-              {isGenerating ? "Генерация..." : "Сгенерировать"}
+              {isGenerating ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Генерация...
+                </>
+              ) : (
+                "Сгенерировать"
+              )}
             </button>
 
-            {generatedImage && (
-              <img
-                src={generatedImage}
-                alt="Сгенерированное изображение"
-                className="w-full rounded-xl mt-4"
-              />
+            {imageUrl && (
+              <div className="mt-4 space-y-2">
+                <img 
+                  src={imageUrl} 
+                  alt="Generated"
+                  className="rounded-xl w-full"
+                />
+                <a
+                  href={imageUrl}
+                  download="generated-image.png"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-center py-2 rounded-xl bg-white text-black font-semibold active:scale-95 transition"
+                >
+                  Скачать изображение
+                </a>
+              </div>
             )}
 
             <button
               onClick={() => {
                 setIsGenerateOpen(false);
-                setGeneratedImage(null);
                 setGeneratePrompt("");
+                setImageUrl(null);
               }}
               className="w-full py-2 text-sm text-white/40"
             >
