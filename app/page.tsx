@@ -76,7 +76,7 @@ const PROMPTS: Prompt[] = [
     tool: "Nano Banano Pro",
     category: "Fashion",
     price: 12,
-    prompt: `Используя представленное фото как эталон, СТРОГО СОХРАНИ черты лица, мимику и взгляд женщины без изменений. Создай потрясающий портрет высокой чёткости в формате 9:16. Женщина с объёмными волнистыми волосами, пара прядей небрежно падают на лицо. Она одета в стильную серую двубортную дубленку с отделкой из белой овчины и большим английским воротником, тёмно-серое обтягивающее плотное трико и светлые дутые сапоги в тон меху. Макияж: легкий, чёткие чёрные стрелки, пышные ресницы, губы с коричневым матовым оттенком. Ногти покрашены в белый цвет. Она сидит в открытом багажнике большого белого внедорожника в горах зимой, одна нога игриво согнута. Поза в стиле профессиональной фэшн-съёмки (гламур и дерзость). Кадр по пояс. Освещение природное, мягкое, в спокойных серо-бирюзовых тонах зимнего солнечного дня. Фон горного пейзажа не размыт, видна текстура снега. Фото имеет легкую эстетичную зернистость пленки. Композиция подчеркивает элегантность наряда и красоту модели.`,
+    prompt: `Используя представленное фото как эталон, СТРОГО СОХРАНИ черты лица, мимику и взгляд женщины без изменений. Создай потрясающий портрет высокой чёткости в формате 9:16. Женщина с объёмными волнистыми волосами, пара прядей небрежно падает на лицо. Она одета в стильную серую двубортную дубленку с отделкой из белой овчины и большим английским воротником, тёмно-серое обтягивающее плотное трико и светлые дутые сапоги в тон меху. Макияж: легкий, чёткие чёрные стрелки, пышные ресницы, губы с коричневым матовым оттенком. Ногти покрашены в белый цвет. Она сидит в открытом багажнике большого белого внедорожника в горах зимой, одна нога игриво согнута. Поза в стиле профессиональной фэшн-съёмки (гламур и дерзость). Кадр по пояс. Освещение природное, мягкое, в спокойных серо-бирюзовых тонах зимнего солнечного дня. Фон горного пейзажа не размыт, видна текстура снега. Фото имеет легкую эстетичную зернистость пленки. Композиция подчеркивает элегантность наряда и красоту модели.`,
     image: { src: `${STORAGE_URL}photo4.webp`, width: 1080, height: 1920, aspect: "9:16" },
     description: "Зимняя fashion-съемка в горах.",
     bestFor: "Instagram / Lookbook"
@@ -141,6 +141,9 @@ export default function App() {
   const [generatePrompt, setGeneratePrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  
+  // Добавляем состояние для выбора модели
+  const [model, setModel] = useState<"openai" | "google">("openai");
 
   const [user, setUser] = useState<User | null>(null);
   const [balance, setBalance] = useState<number>(0);
@@ -302,7 +305,10 @@ export default function App() {
     setImageUrl(null);
 
     try {
-      const res = await fetch("/api/generate/", {
+      // Выбираем адрес в зависимости от того, какая модель выбрана
+      const endpoint = model === "openai" ? "/api/generate/" : "/api/generate-google/";
+
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -521,6 +527,31 @@ export default function App() {
               placeholder="Опиши изображение..."
               className="w-full h-32 bg-black/40 rounded-xl p-3 text-sm text-white placeholder:text-white/30 outline-none border border-white/10 resize-none"
             />
+
+            {/* Добавляем переключатель выбора модели */}
+            <div className="flex gap-4 mb-4 p-4 bg-gray-800 rounded-lg">
+              <label className="flex items-center gap-2 cursor-pointer text-white">
+                <input
+                  type="radio"
+                  name="model"
+                  checked={model === "openai"}
+                  onChange={() => setModel("openai")}
+                  className="accent-blue-500"
+                />
+                <span>OpenAI (DALL-E 2)</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer text-white">
+                <input
+                  type="radio"
+                  name="model"
+                  checked={model === "google"}
+                  onChange={() => setModel("google")}
+                  className="accent-green-500"
+                />
+                <span>Google (Imagen 3)</span>
+              </label>
+            </div>
 
             <button
               onClick={handleGenerate}
