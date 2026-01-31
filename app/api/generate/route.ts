@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 export async function POST() {
-  console.log("API WORKS");
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    imageUrl: "https://picsum.photos/512",
+  });
 }
