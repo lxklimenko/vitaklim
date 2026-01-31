@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function POST(req: Request) {
@@ -12,17 +12,24 @@ export async function POST(req: Request) {
     const result = await openai.images.generate({
       model: "gpt-image-1",
       prompt,
-      size: "1024x1024"
+      size: "1024x1024",
     });
+
+    // Жёсткая проверка
+    if (!result.data || !result.data[0] || !result.data[0].url) {
+      return NextResponse.json(
+        { error: "OpenAI returned no image" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
-      imageUrl: result.data?.[0]?.url
+      imageUrl: result.data[0].url,
     });
-
   } catch (error: any) {
-    console.error("OPENAI ERROR:", error);
+    console.error("OpenAI error:", error);
     return NextResponse.json(
-      { error: error.message || "OpenAI failed" },
+      { error: error.message || "OpenAI error" },
       { status: 500 }
     );
   }
