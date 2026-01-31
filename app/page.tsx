@@ -302,7 +302,7 @@ export default function App() {
     setImageUrl(null);
 
     try {
-      const res = await fetch("/api/generate", {
+      const res = await fetch("/api/generate/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
