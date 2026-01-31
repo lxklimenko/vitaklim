@@ -6,15 +6,12 @@ export async function POST(req: Request) {
     const apiKey = process.env.GOOGLE_API_KEY;
 
     if (!apiKey) {
-      return NextResponse.json(
-        { error: "GOOGLE_API_KEY is missing" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "No API Key" }, { status: 500 });
     }
 
-    // Используем модель Imagen 4 Fast (найдена в твоем списке)
-    // Она быстрая и поддерживает метод predict
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-fast-generate-001:predict?key=${apiKey}`;
+    // Используем модель Gemini 2.0 Flash Experimental (она же Nano Banana)
+    // Она бесплатная и работает через AI Studio без сложного биллинга
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: "POST",
@@ -22,46 +19,48 @@ export async function POST(req: Request) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        instances: [
+        contents: [
           {
-            prompt: prompt,
-          },
+            parts: [
+              { text: "Generate an image: " + prompt } 
+            ]
+          }
         ],
-        parameters: {
-          sampleCount: 1,
-          aspectRatio: "1:1", // Квадратная картинка
-          // Можно добавить personGeneration: "allow_adult" если нужно разрешить людей,
-          // но Google может блокировать это.
-        },
+        generationConfig: {
+          // Gemini умеет отдавать картинки, если попросить
+          responseMimeType: "image/jpeg" 
+        }
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Google API Error:", errorText);
-      throw new Error(`Google API error: ${response.statusText} (${response.status})`);
+      throw new Error(`Google API error: ${response.status}`);
     }
 
     const data = await response.json();
 
-    // Проверяем, есть ли картинка в ответе
-    if (!data.predictions || !data.predictions[0] || !data.predictions[0].bytesBase64Encoded) {
-      console.error("Google response data:", data);
-      throw new Error("No image generated (Google returned empty predictions)");
+    // Ищем картинку в ответе Gemini
+    // Обычно она лежит здесь: candidates[0].content.parts[0].inlineData.data
+    const part = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
+    
+    if (!part || !part.inlineData || !part.inlineData.data) {
+       console.error("No image data found:", JSON.stringify(data, null, 2));
+       throw new Error("Gemini returned no image. Try a different prompt.");
     }
 
-    // Google отдает картинку в кодировке Base64, превращаем её в ссылку для браузера
-    const base64Image = data.predictions[0].bytesBase64Encoded;
-    const imageUrl = `data:image/png;base64,${base64Image}`;
+    const base64Image = part.inlineData.data;
+    const imageUrl = `data:image/jpeg;base64,${base64Image}`;
 
     return NextResponse.json({
       imageUrl: imageUrl,
     });
 
   } catch (error: any) {
-    console.error("Google Generation Error:", error);
+    console.error("Server Error:", error);
     return NextResponse.json(
-      { error: error.message || "Google generation failed" },
+      { error: error.message || "Failed to generate" },
       { status: 500 }
     );
   }
