@@ -15,13 +15,21 @@ export async function POST(req: Request) {
       size: "1024x1024"
     });
 
-    return NextResponse.json({
-      imageUrl: result.data[0].url
-    });
+    const imageUrl = result.data?.[0]?.url;
+
+    if (!imageUrl) {
+      return NextResponse.json(
+        { error: "No image returned from OpenAI" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ imageUrl });
+
   } catch (error: any) {
     console.error("OpenAI error:", error);
     return NextResponse.json(
-      { error: "Ошибка генерации изображения" },
+      { error: "OpenAI generation failed" },
       { status: 500 }
     );
   }
