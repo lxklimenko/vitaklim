@@ -23,7 +23,10 @@ import {
   Send,
   Zap,
   Loader2,
-  UserPlus
+  UserPlus,
+  Image as ImageIcon,
+  Calendar,
+  ExternalLink
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { PromptCard } from './components/PromptCard';
@@ -115,6 +118,15 @@ function NavItem({ icon, label, active = false, onClick }: { icon: React.ReactNo
   );
 }
 
+// Тип для генераций
+interface Generation {
+  id: string;
+  user_id: string;
+  prompt: string;
+  image_url: string;
+  created_at: string;
+}
+
 /**
  * 4. ОСНОВНОЙ КОМПОНЕНТ ПРИЛОЖЕНИЯ
  */
@@ -136,6 +148,7 @@ export default function App() {
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // Состояния для генерации изображений
   const [generatePrompt, setGeneratePrompt] = useState("");
@@ -148,6 +161,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [balance, setBalance] = useState<number>(0);
   const [purchases, setPurchases] = useState<any[]>([]);
+  const [generations, setGenerations] = useState<Generation[]>([]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -173,6 +187,16 @@ export default function App() {
     if (!error && data) setPurchases(data)
   };
 
+  const fetchGenerations = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('generations')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (!error && data) setGenerations(data)
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -180,6 +204,7 @@ export default function App() {
         fetchFavorites(session.user.id);
         fetchProfile(session.user.id);
         fetchPurchases(session.user.id);
+        fetchGenerations(session.user.id);
       }
       setIsLibLoading(false);
     });
@@ -190,10 +215,12 @@ export default function App() {
         fetchFavorites(session.user.id);
         fetchProfile(session.user.id);
         fetchPurchases(session.user.id);
+        fetchGenerations(session.user.id);
       } else {
         setFavorites([]);
         setBalance(0);
         setPurchases([]);
+        setGenerations([]);
       }
     });
 
@@ -328,6 +355,18 @@ export default function App() {
       if (res.ok) {
         setImageUrl(data.imageUrl);
         toast.success("Изображение сгенерировано!");
+        
+        // Сохраняем генерацию в базу данных, если пользователь авторизован
+        if (user) {
+          await supabase.from('generations').insert({
+            user_id: user.id,
+            prompt: generatePrompt,
+            image_url: data.imageUrl
+          });
+          
+          // Обновляем список генераций
+          await fetchGenerations(user.id);
+        }
       } else {
         toast.error(data.error || "Ошибка генерации");
       }
@@ -359,7 +398,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-6 h-[64px] flex items-center justify-between gap-4">
           <div 
             className={`flex items-center gap-2 cursor-pointer transition-all duration-500 active:scale-95 ${isSearchActive ? 'opacity-0 w-0 md:opacity-100 md:w-auto overflow-hidden' : 'opacity-100'}`} 
-            onClick={() => { setIsFavoritesView(false); setIsProfileOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            onClick={() => { setIsFavoritesView(false); setIsProfileOpen(false); setIsHistoryOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
           >
             <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center">
               <span className="text-black"><Sparkles size={16} /></span>
@@ -387,7 +426,7 @@ export default function App() {
       </header>
 
       <main className="pb-28 pt-8">
-        {!isFavoritesView && !searchQuery && (
+        {!isFavoritesView && !searchQuery && !isHistoryOpen && (
           <div className="mb-6 px-4 text-center">
             <h1 className="text-[32px] md:text-5xl font-bold tracking-tighter mb-1 text-white">
               Создавай шедевры
@@ -398,63 +437,155 @@ export default function App() {
           </div>
         )}
 
-        <section className="max-w-7xl mx-auto mb-6 flex justify-start md:justify-center gap-1.5 overflow-x-auto no-scrollbar px-6">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => { setActiveCategory(cat); setIsFavoritesView(false); }}
-              className={`px-5 py-2 rounded-full text-[13px] font-semibold tracking-tight border transition-all duration-500 ease-out flex-shrink-0 ${
-                activeCategory === cat && !isFavoritesView 
-                  ? 'bg-white text-black border-white shadow-md shadow-black/20' 
-                  : 'bg-transparent text-white/40 border-transparent hover:text-white/60'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </section>
+        {!isHistoryOpen && (
+          <section className="max-w-7xl mx-auto mb-6 flex justify-start md:justify-center gap-1.5 overflow-x-auto no-scrollbar px-6">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => { setActiveCategory(cat); setIsFavoritesView(false); setIsHistoryOpen(false); }}
+                className={`px-5 py-2 rounded-full text-[13px] font-semibold tracking-tight border transition-all duration-500 ease-out flex-shrink-0 ${
+                  activeCategory === cat && !isFavoritesView && !isHistoryOpen
+                    ? 'bg-white text-black border-white shadow-md shadow-black/20' 
+                    : 'bg-transparent text-white/40 border-transparent hover:text-white/60'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </section>
+        )}
 
         <section className="max-w-7xl mx-auto pb-20">
-          <motion.div layout className="grid grid-cols-2 gap-4 px-4">
-            <AnimatePresence mode="popLayout">
-              {isLibLoading ? (
-                Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
-              ) : (isFavoritesView && filteredPrompts.length === 0) ? (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.97 }}
-                  key="empty-state"
-                  className="col-span-2 py-24 text-center flex flex-col items-center gap-4"
-                >
-                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5">
-                    <Heart size={24} className="text-white/10" />
+          {isHistoryOpen ? (
+            <div className="px-4">
+              <div className="mb-6 text-center">
+                <h2 className="text-2xl font-bold tracking-tight mb-2 text-white">История генераций</h2>
+                <p className="text-sm text-white/40">Ваши созданные изображения</p>
+              </div>
+              
+              {!user ? (
+                <div className="text-center py-16">
+                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/5">
+                    <Clock size={24} className="text-white/20" />
                   </div>
-                  <h3 className="text-sm font-semibold tracking-tight text-white/40">Пусто</h3>
-                </motion.div>
+                  <h3 className="text-sm font-semibold tracking-tight text-white/40 mb-2">Войдите в аккаунт</h3>
+                  <p className="text-xs text-white/20 mb-6">История генераций доступна только авторизованным пользователям</p>
+                  <button 
+                    onClick={() => setIsProfileOpen(true)}
+                    className="px-6 py-3 rounded-xl bg-white text-black font-semibold text-sm active:scale-95 transition"
+                  >
+                    Войти
+                  </button>
+                </div>
+              ) : generations.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/5">
+                    <ImageIcon size={24} className="text-white/20" />
+                  </div>
+                  <h3 className="text-sm font-semibold tracking-tight text-white/40 mb-2">Пока пусто</h3>
+                  <p className="text-xs text-white/20">Создайте первое изображение в генераторе</p>
+                </div>
               ) : (
-                filteredPrompts.map((p) => (
-                  <PromptCard 
-                    key={p.id}
-                    prompt={p}
-                    favorites={favorites}
-                    toggleFavorite={toggleFavorite}
-                    handleCopy={handleCopy}
-                    setSelectedPrompt={setSelectedPrompt}
-                    copiedId={copiedId}
-                  />
-                ))
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="grid grid-cols-2 gap-4"
+                >
+                  {generations.map((generation) => (
+                    <div 
+                      key={generation.id} 
+                      className="rounded-[1.5rem] bg-white/[0.02] border border-white/[0.03] overflow-hidden"
+                    >
+                      <div className="aspect-square bg-black/40 relative overflow-hidden">
+                        <img 
+                          src={generation.image_url} 
+                          alt="Generated" 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="p-4 space-y-2">
+                        <p className="text-xs text-white/60 line-clamp-2">{generation.prompt}</p>
+                        <div className="flex items-center justify-between text-xs text-white/30">
+                          <div className="flex items-center gap-1">
+                            <Calendar size={12} />
+                            <span>{new Date(generation.created_at).toLocaleDateString('ru-RU')}</span>
+                          </div>
+                          <a 
+                            href={generation.image_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 hover:text-white/60 transition-colors"
+                          >
+                            <ExternalLink size={12} />
+                            Открыть
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </motion.div>
               )}
-            </AnimatePresence>
-          </motion.div>
+            </div>
+          ) : (
+            <motion.div layout className="grid grid-cols-2 gap-4 px-4">
+              <AnimatePresence mode="popLayout">
+                {isLibLoading ? (
+                  Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
+                ) : (isFavoritesView && filteredPrompts.length === 0) ? (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.97 }}
+                    key="empty-state"
+                    className="col-span-2 py-24 text-center flex flex-col items-center gap-4"
+                  >
+                    <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5">
+                      <Heart size={24} className="text-white/10" />
+                    </div>
+                    <h3 className="text-sm font-semibold tracking-tight text-white/40">Пусто</h3>
+                  </motion.div>
+                ) : (
+                  filteredPrompts.map((p) => (
+                    <PromptCard 
+                      key={p.id}
+                      prompt={p}
+                      favorites={favorites}
+                      toggleFavorite={toggleFavorite}
+                      handleCopy={handleCopy}
+                      setSelectedPrompt={setSelectedPrompt}
+                      copiedId={copiedId}
+                    />
+                  ))
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
         </section>
       </main>
 
       {/* НИЖНИЙ БАР */}
       <nav className="fixed bottom-0 left-0 right-0 z-[110] md:hidden pb-safe glass border-t border-white/[0.03]">
         <div className="relative h-14 px-6 flex items-center justify-between">
-          <NavItem icon={<HomeIcon size={18} />} label="Дом" active={!isFavoritesView && !isProfileOpen} onClick={() => { setIsFavoritesView(false); setIsProfileOpen(false); }} />
-          <NavItem icon={<Star size={18} />} label="Избранное" active={isFavoritesView} onClick={() => { setIsFavoritesView(true); setIsProfileOpen(false); }} />
+          <NavItem 
+            icon={<HomeIcon size={18} />} 
+            label="Дом" 
+            active={!isFavoritesView && !isProfileOpen && !isHistoryOpen} 
+            onClick={() => { 
+              setIsFavoritesView(false); 
+              setIsProfileOpen(false); 
+              setIsHistoryOpen(false); 
+            }} 
+          />
+          <NavItem 
+            icon={<Star size={18} />} 
+            label="Избранное" 
+            active={isFavoritesView} 
+            onClick={() => { 
+              setIsFavoritesView(true); 
+              setIsProfileOpen(false); 
+              setIsHistoryOpen(false); 
+            }} 
+          />
           <div className="relative -mt-8 flex justify-center">
             <button 
               onClick={() => setIsGenerateOpen(true)}
@@ -463,8 +594,26 @@ export default function App() {
               <Plus size={28} strokeWidth={3} />
             </button>
           </div>
-          <NavItem icon={<Clock size={18} />} label="История" onClick={() => toast.info("Скоро")} />
-          <NavItem icon={<UserIcon size={18} />} label="Профиль" active={isProfileOpen} onClick={() => setIsProfileOpen(true)} />
+          <NavItem 
+            icon={<Clock size={18} />} 
+            label="История" 
+            active={isHistoryOpen} 
+            onClick={() => { 
+              setIsHistoryOpen(true); 
+              setIsFavoritesView(false); 
+              setIsProfileOpen(false); 
+            }} 
+          />
+          <NavItem 
+            icon={<UserIcon size={18} />} 
+            label="Профиль" 
+            active={isProfileOpen} 
+            onClick={() => { 
+              setIsProfileOpen(true); 
+              setIsFavoritesView(false); 
+              setIsHistoryOpen(false); 
+            }} 
+          />
         </div>
       </nav>
 
