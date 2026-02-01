@@ -268,29 +268,36 @@ export default function App() {
   }, [activeCategory, isFavoritesView, favorites, debouncedSearch]);
 
   const handleCopy = async (id: number, text: string, price: number) => {
-    if (!user) return setIsProfileOpen(true);
+    if (!user && price > 0) {
+      return setIsProfileOpen(true);
+    }
 
-    const { data: canBuy } = await supabase.rpc('can_make_purchase')
-    if (!canBuy) return toast.error("Слишком много операций, подожди минуту")
+    if (price > 0) {
+      const { data: canBuy } = await supabase.rpc('can_make_purchase')
+      if (!canBuy) return toast.error("Слишком много операций, подожди минуту")
 
-    const { error: spendError } = await supabase.rpc('spend_balance', { amount_to_spend: price });
-    if (spendError) return toast.error("Недостаточно средств");
+      const { error: spendError } = await supabase.rpc('spend_balance', { amount_to_spend: price });
+      if (spendError) return toast.error("Недостаточно средств");
+    }
 
     try {
       await navigator.clipboard.writeText(text);
 
-      await supabase.from('purchases').insert({
-        user_id: user.id,
-        prompt_id: id,
-        amount: price
-      })
+      if (price > 0) {
+        if (!user) return;
 
-      // Обновляем список покупок после успешной покупки
-      await fetchPurchases(user.id);
-      
+        await supabase.from('purchases').insert({
+          user_id: user.id,
+          prompt_id: id,
+          amount: price
+        })
+      }
+
+      if (user) await fetchPurchases(user.id);
+      if (user) fetchProfile(user.id);
+
       setCopiedId(id);
-      fetchProfile(user.id);
-      toast.success(`Скопировано! -${price} ₽`);
+      toast.success(`Скопировано!`);
       setTimeout(() => setCopiedId(null), 2000);
     } catch {
       toast.error("Ошибка");
@@ -502,9 +509,20 @@ export default function App() {
                   <div className="bg-white/5 border border-white/5 rounded-2xl p-6">
                     <p className="text-[15px] leading-relaxed text-white/80 whitespace-pre-wrap select-all font-medium tracking-tight">{selectedPrompt.prompt}</p>
                   </div>
+                  {/* Добавленная кнопка генерации */}
+                  <button
+                    onClick={() => {
+                      setIsGenerateOpen(true);
+                      setGeneratePrompt(selectedPrompt.prompt);
+                    }}
+                    className="w-full py-4 rounded-2xl font-semibold text-[15px] bg-white/10 text-white active:scale-[0.98]"
+                  >
+                    Сгенерировать по этому промпту
+                  </button>
+                  
                   <button onClick={() => handleCopy(selectedPrompt.id, selectedPrompt.prompt, selectedPrompt.price)} className={`mt-auto w-full py-4 rounded-2xl font-semibold text-[15px] transition-all duration-500 flex items-center justify-center gap-2 ${copiedId === selectedPrompt.id ? 'bg-white text-black' : 'bg-white text-black active:scale-[0.98]'}`}>
                     {copiedId === selectedPrompt.id ? <Check size={18} strokeWidth={2.5} /> : <Zap size={18} fill="black" />}
-                    {copiedId === selectedPrompt.id ? "Ok" : `Копия за ${selectedPrompt.price} ₽`}
+                    {copiedId === selectedPrompt.id ? "Ok" : selectedPrompt.price > 0 ? `Копия за ${selectedPrompt.price} ₽` : "Скопировать бесплатно"}
                   </button>
                 </div>
               </div>
