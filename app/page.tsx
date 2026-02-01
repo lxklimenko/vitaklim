@@ -503,22 +503,44 @@ export default function App() {
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <div className="p-4 space-y-2">
+                      <div className="p-4 space-y-3">
                         <p className="text-xs text-white/60 line-clamp-2">{generation.prompt}</p>
                         <div className="flex items-center justify-between text-xs text-white/30">
                           <div className="flex items-center gap-1">
                             <Calendar size={12} />
                             <span>{new Date(generation.created_at).toLocaleDateString('ru-RU')}</span>
                           </div>
-                          <a 
-                            href={generation.image_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 hover:text-white/60 transition-colors"
-                          >
-                            <ExternalLink size={12} />
-                            Открыть
-                          </a>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => {
+                                navigator.clipboard.writeText(generation.prompt);
+                                toast.success("Промпт скопирован!");
+                              }}
+                              className="hover:text-white/60 transition-colors"
+                              title="Копировать промпт"
+                            >
+                              <Copy size={14} />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setGeneratePrompt(generation.prompt);
+                                setIsGenerateOpen(true);
+                              }}
+                              className="hover:text-white/60 transition-colors"
+                              title="Сгенерировать снова"
+                            >
+                              <Zap size={14} />
+                            </button>
+                            <a 
+                              href={generation.image_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="hover:text-white/60 transition-colors"
+                              title="Открыть изображение"
+                            >
+                              <ExternalLink size={14} />
+                            </a>
+                          </div>
                         </div>
                       </div>
                     </div>
