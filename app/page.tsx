@@ -26,7 +26,8 @@ import {
   UserPlus,
   Image as ImageIcon,
   Calendar,
-  ExternalLink
+  ExternalLink,
+  Share2
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { PromptCard } from './components/PromptCard';
@@ -125,6 +126,7 @@ interface Generation {
   prompt: string;
   image_url: string;
   created_at: string;
+  is_favorite: boolean; // Добавлено новое поле
 }
 
 /**
@@ -149,6 +151,7 @@ export default function App() {
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false); // Новое состояние для фильтра
 
   // Состояния для генерации изображений
   const [generatePrompt, setGeneratePrompt] = useState("");
@@ -195,6 +198,72 @@ export default function App() {
       .order('created_at', { ascending: false })
 
     if (!error && data) setGenerations(data)
+  };
+
+  // Функция для переключения избранного
+  const toggleGenerationFavorite = async (generation: Generation) => {
+    if (!user) return;
+    
+    try {
+      const newFavoriteStatus = !generation.is_favorite;
+      
+      // Оптимистичное обновление
+      setGenerations(prev => 
+        prev.map(gen => 
+          gen.id === generation.id 
+            ? { ...gen, is_favorite: newFavoriteStatus } 
+            : gen
+        )
+      );
+
+      // Обновление в базе данных
+      const { error } = await supabase
+        .from('generations')
+        .update({ is_favorite: newFavoriteStatus })
+        .eq('id', generation.id);
+
+      if (error) {
+        // В случае ошибки откатываем изменения
+        setGenerations(prev => 
+          prev.map(gen => 
+            gen.id === generation.id 
+              ? { ...gen, is_favorite: generation.is_favorite } 
+              : gen
+          )
+        );
+        toast.error('Ошибка при обновлении избранного');
+      } else {
+        toast.success(newFavoriteStatus ? 'Добавлено в избранное' : 'Удалено из избранного');
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast.error('Ошибка при обновлении избранного');
+    }
+  };
+
+  // Функция для шаринга изображения
+  const handleShare = async (imageUrl: string) => {
+    try {
+      if (navigator.share) {
+        // Используем Web Share API если доступен
+        await navigator.share({
+          title: "AI image",
+          text: "Сгенерировал с помощью Vision",
+          url: imageUrl
+        });
+        toast.success("Поделились!");
+      } else {
+        // Fallback: копируем ссылку в буфер обмена
+        await navigator.clipboard.writeText(imageUrl);
+        toast.success("Ссылка скопирована в буфер обмена!");
+      }
+    } catch (error) {
+      // Если пользователь отменил шаринг, не показываем ошибку
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error('Error sharing:', error);
+        toast.error("Не удалось поделиться");
+      }
+    }
   };
 
   useEffect(() => {
@@ -294,6 +363,14 @@ export default function App() {
     });
   }, [activeCategory, isFavoritesView, favorites, debouncedSearch]);
 
+  // Фильтрация генераций по избранным
+  const filteredGenerations = useMemo(() => {
+    if (showOnlyFavorites) {
+      return generations.filter(gen => gen.is_favorite);
+    }
+    return generations;
+  }, [generations, showOnlyFavorites]);
+
   const handleCopy = async (id: number, text: string, price: number) => {
     if (!user && price > 0) {
       return setIsProfileOpen(true);
@@ -361,7 +438,8 @@ export default function App() {
           await supabase.from('generations').insert({
             user_id: user.id,
             prompt: generatePrompt,
-            image_url: data.imageUrl
+            image_url: data.imageUrl,
+            is_favorite: false // По умолчанию не избранное
           });
           
           // Обновляем список генераций
@@ -461,6 +539,22 @@ export default function App() {
               <div className="mb-6 text-center">
                 <h2 className="text-2xl font-bold tracking-tight mb-2 text-white">История генераций</h2>
                 <p className="text-sm text-white/40">Ваши созданные изображения</p>
+                
+                {/* Фильтр "Только избранные" */}
+                {user && generations.length > 0 && (
+                  <div className="mt-4">
+                    <button
+                      onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                        showOnlyFavorites 
+                          ? 'bg-yellow-500 text-black' 
+                          : 'bg-white/5 text-white/70 hover:bg-white/10'
+                      }`}
+                    >
+                      {showOnlyFavorites ? 'Все генерации' : 'Только избранные'}
+                    </button>
+                  </div>
+                )}
               </div>
               
               {!user ? (
@@ -477,13 +571,17 @@ export default function App() {
                     Войти
                   </button>
                 </div>
-              ) : generations.length === 0 ? (
+              ) : filteredGenerations.length === 0 ? (
                 <div className="text-center py-16">
                   <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/5">
                     <ImageIcon size={24} className="text-white/20" />
                   </div>
-                  <h3 className="text-sm font-semibold tracking-tight text-white/40 mb-2">Пока пусто</h3>
-                  <p className="text-xs text-white/20">Создайте первое изображение в генераторе</p>
+                  <h3 className="text-sm font-semibold tracking-tight text-white/40 mb-2">
+                    {showOnlyFavorites ? 'Нет избранных генераций' : 'Пока пусто'}
+                  </h3>
+                  <p className="text-xs text-white/20">
+                    {showOnlyFavorites ? 'Добавьте генерации в избранное, нажав на звездочку' : 'Создайте первое изображение в генераторе'}
+                  </p>
                 </div>
               ) : (
                 <motion.div 
@@ -491,11 +589,23 @@ export default function App() {
                   animate={{ opacity: 1 }}
                   className="grid grid-cols-2 gap-4"
                 >
-                  {generations.map((generation) => (
+                  {filteredGenerations.map((generation) => (
                     <div 
                       key={generation.id} 
-                      className="rounded-[1.5rem] bg-white/[0.02] border border-white/[0.03] overflow-hidden"
+                      className="rounded-[1.5rem] bg-white/[0.02] border border-white/[0.03] overflow-hidden relative group"
                     >
+                      {/* Кнопка избранного */}
+                      <button
+                        onClick={() => toggleGenerationFavorite(generation)}
+                        className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/60 backdrop-blur-sm hover:bg-black/80 transition-all"
+                        title={generation.is_favorite ? "Удалить из избранного" : "Добавить в избранное"}
+                      >
+                        <Star 
+                          size={18} 
+                          className={generation.is_favorite ? "text-yellow-400 fill-yellow-400" : "text-white/60"} 
+                        />
+                      </button>
+                      
                       <div className="aspect-square bg-black/40 relative overflow-hidden">
                         <img 
                           src={generation.image_url} 
@@ -530,6 +640,13 @@ export default function App() {
                               title="Сгенерировать снова"
                             >
                               <Zap size={14} />
+                            </button>
+                            <button 
+                              onClick={() => handleShare(generation.image_url)}
+                              className="hover:text-white/60 transition-colors"
+                              title="Поделиться"
+                            >
+                              <Share2 size={14} />
                             </button>
                             <a 
                               href={generation.image_url} 
