@@ -820,17 +820,30 @@ export default function App() {
                   />
                 </div>
                 
-                {/* 1. Заменили строку с <div className="md:w-1/2 p-10..."> на эту (уменьшили p-10 до p-5 на мобильных): */}
+                {/* КОНТЕЙНЕР: Текст + Лайк в один ряд */}
                 <div className="md:w-1/2 p-5 md:p-10 space-y-4 md:space-y-8 flex flex-col">
                   
-                  {/* Блок с текстом: уменьшил шрифт до 13px и внутренние отступы */}
-                  <div className="bg-white/5 border border-white/10 rounded-2xl p-3 h-32 overflow-y-auto">
-                    <p className="text-[13px] leading-relaxed text-white/90 whitespace-pre-wrap select-all font-medium">
-                      {selectedPrompt.prompt}
-                    </p>
+                  <div className="flex gap-3">
+                    {/* Левая часть: Текст промпта (flex-1 заставляет его сжаться) */}
+                    <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-3 h-32 overflow-y-auto">
+                      <p className="text-[13px] leading-relaxed text-white/90 whitespace-pre-wrap select-all font-medium">
+                        {selectedPrompt.prompt}
+                      </p>
+                    </div>
+
+                    {/* Правая часть: Кнопка лайка (фиксированная ширина, высота как у текста) */}
+                    <button
+                      onClick={(e) => toggleFavorite(e, selectedPrompt.id)}
+                      className="w-14 h-32 flex items-center justify-center bg-white/5 border border-white/10 rounded-2xl active:scale-95 transition-all flex-shrink-0 hover:bg-white/10"
+                    >
+                      <Heart 
+                        size={24} 
+                        className={favorites.includes(selectedPrompt.id) ? "text-red-500 fill-red-500" : "text-white/40"} 
+                      />
+                    </button>
                   </div>
 
-                  {/* Кнопка генерации (оставляем как есть, но она подтянется выше из-за space-y-4) */}
+                  {/* Кнопка генерации */}
                   <button
                     onClick={() => {
                       setIsGenerateOpen(true);
@@ -840,7 +853,7 @@ export default function App() {
                   >
                     Сгенерировать по этому промпту
                   </button>
-
+                  
                   {/* Кнопка копирования */}
                   <button onClick={() => handleCopy(selectedPrompt.id, selectedPrompt.prompt, selectedPrompt.price)} className={`mt-auto w-full py-4 rounded-2xl font-semibold text-[15px] transition-all duration-500 flex items-center justify-center gap-2 ${copiedId === selectedPrompt.id ? 'bg-white text-black' : 'bg-white text-black active:scale-[0.98]'}`}>
                     {copiedId === selectedPrompt.id ? <Check size={18} strokeWidth={2.5} /> : <Zap size={18} fill="black" />}
