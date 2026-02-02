@@ -43,10 +43,7 @@ export const PromptCard = React.memo(({
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
         
-        {/* Цена слева сверху */}
-        <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-xl border border-white/10">
-          <span className="text-[11px] font-medium text-white">${prompt.price}</span>
-        </div>
+        {/* УДАЛЕН БЛОК С ЦЕНОЙ */}
 
         {/* Избранное справа сверху */}
         <button 
@@ -79,7 +76,7 @@ export const PromptCard = React.memo(({
         >
           {copiedId === prompt.id ? <Check size={12} /> : <Copy size={12} />}
           <span className="text-[12px] font-medium">
-            {copiedId === prompt.id ? "Скопировано" : "Копировать"}
+            {copiedId === prompt.id ? "Скопировано" : prompt.price > 0 ? `Копия за ${prompt.price} ₽` : "Скопировать бесплатно"}
           </span>
         </button>
       </div>
