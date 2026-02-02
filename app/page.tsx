@@ -126,7 +126,7 @@ interface Generation {
   prompt: string;
   image_url: string;
   created_at: string;
-  is_favorite: boolean; // Добавлено новое поле
+  is_favorite: boolean;
 }
 
 /**
@@ -151,7 +151,7 @@ export default function App() {
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false); // Новое состояние для фильтра
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
 
   // Состояния для генерации изображений
   const [generatePrompt, setGeneratePrompt] = useState("");
@@ -173,17 +173,13 @@ export default function App() {
   // ИСПРАВЛЕННЫЙ useEffect для блокировки скролла
   useEffect(() => {
     if (selectedPrompt) {
-      // Блокируем весь скролл, чтобы фон не ездил
       document.body.style.overflow = "hidden";
-      // Можно добавить touch-action: none для body, чтобы наверняка
       document.body.style.touchAction = "none";
     } else {
-      // Возвращаем как было
       document.body.style.overflow = "";
       document.body.style.touchAction = "";
     }
 
-    // Чистим стили при уходе со страницы
     return () => {
       document.body.style.overflow = "";
       document.body.style.touchAction = "";
@@ -243,7 +239,6 @@ export default function App() {
         .eq('id', generation.id);
 
       if (error) {
-        // В случае ошибки откатываем изменения
         setGenerations(prev => 
           prev.map(gen => 
             gen.id === generation.id 
@@ -265,7 +260,6 @@ export default function App() {
   const handleShare = async (imageUrl: string) => {
     try {
       if (navigator.share) {
-        // Используем Web Share API если доступен
         await navigator.share({
           title: "AI image",
           text: "Сгенерировал с помощью Vision",
@@ -273,12 +267,10 @@ export default function App() {
         });
         toast.success("Поделились!");
       } else {
-        // Fallback: копируем ссылку в буфер обмена
         await navigator.clipboard.writeText(imageUrl);
         toast.success("Ссылка скопирована в буфер обмена!");
       }
     } catch (error) {
-      // Если пользователь отменил шаринг, не показываем ошибку
       if (error instanceof Error && error.name !== 'AbortError') {
         console.error('Error sharing:', error);
         toast.error("Не удалось поделиться");
@@ -436,7 +428,6 @@ export default function App() {
     setImageUrl(null);
 
     try {
-      // Выбираем адрес в зависимости от того, какая модель выбрана
       const endpoint = model === "openai" ? "/api/generate/" : "/api/generate-google/";
 
       const res = await fetch(endpoint, {
@@ -453,16 +444,14 @@ export default function App() {
         setImageUrl(data.imageUrl);
         toast.success("Изображение сгенерировано!");
         
-        // Сохраняем генерацию в базу данных, если пользователь авторизован
         if (user) {
           await supabase.from('generations').insert({
             user_id: user.id,
             prompt: generatePrompt,
             image_url: data.imageUrl,
-            is_favorite: false // По умолчанию не избранное
+            is_favorite: false
           });
           
-          // Обновляем список генераций
           await fetchGenerations(user.id);
         }
       } else {
@@ -635,7 +624,12 @@ export default function App() {
                         />
                       </div>
                       <div className="p-4 space-y-3">
-                        <p className="text-xs text-white/60 line-clamp-2">{generation.prompt}</p>
+                        {/* ОБНОВЛЁННЫЙ БЛОК С ПРОМПТОМ */}
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-3 h-24 overflow-y-auto">
+                          <p className="text-xs leading-relaxed text-white/90 whitespace-pre-wrap select-all font-medium">
+                            {generation.prompt}
+                          </p>
+                        </div>
                         <div className="flex items-center justify-between text-xs text-white/30">
                           <div className="flex items-center gap-1">
                             <Calendar size={12} />
@@ -799,9 +793,8 @@ export default function App() {
       <AnimatePresence>
         {selectedPrompt && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-            {/* Отключение жестов на фоне - добавлен touch-none */}
             <motion.div 
-              className="absolute inset-0 bg-black/90 backdrop-blur-md touch-none" // <-- ДОБАВЛЕНО touch-none
+              className="absolute inset-0 bg-black/90 backdrop-blur-md touch-none"
               onClick={() => setSelectedPrompt(null)} 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
@@ -827,10 +820,11 @@ export default function App() {
                   />
                 </div>
                 <div className="md:w-1/2 p-10 space-y-8 flex flex-col">
-                  {/* УДАЛЕН БЛОК С ЗАГОЛОВКОМ */}
-                  
-                  <div className="bg-white/5 border border-white/5 rounded-2xl p-6">
-                    <p className="text-[15px] leading-relaxed text-white/80 whitespace-pre-wrap select-all font-medium tracking-tight">{selectedPrompt.prompt}</p>
+                  {/* ОБНОВЛЁННЫЙ БЛОК С ПРОМПТОМ */}
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4 h-32 overflow-y-auto">
+                    <p className="text-[14px] leading-relaxed text-white/90 whitespace-pre-wrap select-all font-medium">
+                      {selectedPrompt.prompt}
+                    </p>
                   </div>
                   {/* Добавленная кнопка генерации */}
                   <button
