@@ -60,7 +60,7 @@ const PROMPTS: Prompt[] = [
     price: 0,
     prompt: `СТРОГО СОХРАНИ ВНЕШНОСТЬ девушки с прикреплённого фото, 1:1 её настоящее лицо, глаза, нос, кожа с порами - всё 100% без изменений. Используй отправленное фото как эталон. Ультрареалистичный beauty-portrait крупным планом (голова+плечи, крупный кадр), студийная съёмка на тёмно серым фоне. Поза: 3/4 поворот головы, взгляд прямо в камеру, подбородок слегка приподнят. Причёска - высокий гладкий хвост, идеально зачесанный лаком. Макияж глянцевый, стеклянный тон, тёплый контуринг, идеальные брови, суперчёткие длинные стрелки (cat-eye), длинные объёмные ресницы, нюдово-карамельные глянцевые губы с чётким контуром. Украшения: сверкающие серьги в форме цветка из камней. На пальцах крупные бриллиантовые кольца (одно с большим камнем). Свет мягкий beauty light, акцент на текстуре кожи и блеске украшений. Тени добавляют объём. Атмосфера - редакционная съёмка`,
     image: { src: `${STORAGE_URL}photo1.webp`, width: 1024, height: 1024, aspect: "1:1" },
-    description: "Ультрареалистичный бьюти-портрет с акцентом на кожу.",
+    description: "Ультрареалистичный бьюти -портрет с акцентом на кожу.",
     bestFor: "Art / Creative Posters"
   },
   {
@@ -170,27 +170,23 @@ export default function App() {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [isLibLoading, setIsLibLoading] = useState(true);
 
-  // 1. ИСПРАВЛЕННЫЙ useEffect для блокировки скролла
+  // ИСПРАВЛЕННЫЙ useEffect для блокировки скролла
   useEffect(() => {
     if (selectedPrompt) {
-      // Запоминаем ширину скроллбара
-      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-      
-      // Блокируем скролл полностью (и вертикальный тоже)
+      // Блокируем весь скролл, чтобы фон не ездил
       document.body.style.overflow = "hidden";
-      
-      // Добавляем отступ справа, чтобы контент не прыгал
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
+      // Можно добавить touch-action: none для body, чтобы наверняка
+      document.body.style.touchAction = "none";
     } else {
       // Возвращаем как было
       document.body.style.overflow = "";
-      document.body.style.paddingRight = "0px";
+      document.body.style.touchAction = "";
     }
 
-    // Очистка при размонтировании компонента
+    // Чистим стили при уходе со страницы
     return () => {
       document.body.style.overflow = "";
-      document.body.style.paddingRight = "0px";
+      document.body.style.touchAction = "";
     };
   }, [selectedPrompt]);
 
@@ -803,9 +799,9 @@ export default function App() {
       <AnimatePresence>
         {selectedPrompt && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-            {/* 2. Исправляем "шатание" на мобильных - добавляем touch-none */}
+            {/* Отключение жестов на фоне - добавлен touch-none */}
             <motion.div 
-              className="absolute inset-0 bg-black/90 backdrop-blur-md touch-none" // <-- добавил touch-none
+              className="absolute inset-0 bg-black/90 backdrop-blur-md touch-none" // <-- ДОБАВЛЕНО touch-none
               onClick={() => setSelectedPrompt(null)} 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
