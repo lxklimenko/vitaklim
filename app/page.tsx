@@ -793,7 +793,7 @@ export default function App() {
                   />
                 </div>
                 <div className="md:w-1/2 p-10 space-y-8 flex flex-col">
-                  <div>
+                  <div className="mt-2">  {/* Добавлен класс mt-2 */}
                     <span className="text-[10px] font-bold uppercase tracking-widest text-white/20 mb-2 block">{selectedPrompt.tool}</span>
                     <h2 className="text-2xl font-semibold tracking-tight leading-tight">{selectedPrompt.title}</h2>
                   </div>
