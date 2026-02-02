@@ -467,6 +467,7 @@ export default function App() {
           backdrop-filter: blur(20px) saturate(180%); 
           -webkit-backdrop-filter: blur(20px) saturate(180%); 
         }
+        .hidden { display: none !important; }
       `}</style>
 
       <Toaster position="bottom-center" theme="dark" />
@@ -791,9 +792,12 @@ export default function App() {
                     src={selectedPrompt.image?.src}
                     className="relative z-10 max-h-full w-auto object-contain"
                   />
+                  {/* Скрытые элементы */}
+                  <p className="hidden">NANO BANANO PRO</p>
+                  <h2 className="hidden">Промпт «{selectedPrompt.title}»</h2>
                 </div>
                 <div className="md:w-1/2 p-10 space-y-8 flex flex-col">
-                  <div className="mt-2">  {/* Добавлен класс mt-2 */}
+                  <div className="mt-2">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-white/20 mb-2 block">{selectedPrompt.tool}</span>
                     <h2 className="text-2xl font-semibold tracking-tight leading-tight">{selectedPrompt.title}</h2>
                   </div>
