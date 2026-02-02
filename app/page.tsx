@@ -801,9 +801,6 @@ export default function App() {
                     src={selectedPrompt.image?.src}
                     className="relative z-10 max-h-full w-auto object-contain"
                   />
-                  {/* Скрытые элементы */}
-                  <p className="hidden">NANO BANANO PRO</p>
-                  <h2 className="hidden">Промпт «{selectedPrompt.title}»</h2>
                 </div>
                 <div className="md:w-1/2 p-10 space-y-8 flex flex-col">
                   <div className="mt-2">

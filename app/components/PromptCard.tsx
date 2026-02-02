@@ -34,10 +34,6 @@ export const PromptCard = React.memo(({
       className="flex flex-col group cursor-pointer"
       onClick={() => setSelectedPrompt(prompt)}
     >
-      {/* Скрытые элементы для SEO */}
-      <p className="hidden">NANO BANANO PRO</p>
-      <h2 className="hidden">Промпт «{prompt.title}»</h2>
-      
       {/* Контейнер изображения */}
       <div className="relative aspect-[3/4] rounded-[1.25rem] overflow-hidden bg-[#111] mb-2">
         <img 
