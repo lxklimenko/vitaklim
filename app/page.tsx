@@ -782,7 +782,7 @@ export default function App() {
             <motion.div initial={{ scale: 0.97, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.97, opacity: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} className="relative bg-[#111] w-full max-w-3xl rounded-[2.5rem] overflow-hidden z-10 shadow-2xl">
               <button onClick={() => setSelectedPrompt(null)} className="absolute top-6 right-6 p-2 rounded-full bg-black/40 text-white/50 z-20"><X size={20} /></button>
               <div className="flex flex-col md:flex-row max-h-[85vh] overflow-y-auto no-scrollbar">
-                <div className="relative w-full h-[58vh] flex items-start justify-center">
+                <div className="relative w-full h-[70vh]">
                   <img
                     src={selectedPrompt.image?.src}
                     className="absolute inset-0 w-full h-full object-cover blur-2xl scale-110 opacity-40"
@@ -792,9 +792,6 @@ export default function App() {
                     className="relative z-10 w-full h-full object-contain"
                   />
                 </div>
-                <p className="mt-2 text-xs opacity-50 text-center">
-                  NANO BANANO PRO
-                </p>
                 <div className="md:w-1/2 p-10 space-y-8 flex flex-col">
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-widest text-white/20 mb-2 block">{selectedPrompt.tool}</span>
