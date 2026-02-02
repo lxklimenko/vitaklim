@@ -170,6 +170,15 @@ export default function App() {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [isLibLoading, setIsLibLoading] = useState(true);
 
+  // Управление горизонтальным скроллингом при открытии модального окна
+  useEffect(() => {
+    if (selectedPrompt) {
+      document.body.style.overflowX = "hidden";
+    } else {
+      document.body.style.overflowX = "auto";
+    }
+  }, [selectedPrompt]);
+
   const fetchFavorites = async (userId: string) => {
     const { data, error } = await supabase.from('favorites').select('prompt_id').eq('user_id', userId);
     if (!error && data) setFavorites(data.map((f: any) => f.prompt_id));
