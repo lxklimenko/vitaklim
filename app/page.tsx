@@ -170,13 +170,28 @@ export default function App() {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [isLibLoading, setIsLibLoading] = useState(true);
 
-  // Управление горизонтальным скроллингом при открытии модального окна
+  // 1. ИСПРАВЛЕННЫЙ useEffect для блокировки скролла
   useEffect(() => {
     if (selectedPrompt) {
-      document.body.style.overflowX = "hidden";
+      // Запоминаем ширину скроллбара
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      
+      // Блокируем скролл полностью (и вертикальный тоже)
+      document.body.style.overflow = "hidden";
+      
+      // Добавляем отступ справа, чтобы контент не прыгал
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
     } else {
-      document.body.style.overflowX = "auto";
+      // Возвращаем как было
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "0px";
     }
+
+    // Очистка при размонтировании компонента
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "0px";
+    };
   }, [selectedPrompt]);
 
   const fetchFavorites = async (userId: string) => {
@@ -788,8 +803,21 @@ export default function App() {
       <AnimatePresence>
         {selectedPrompt && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-            <motion.div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setSelectedPrompt(null)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
-            <motion.div initial={{ scale: 0.97, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.97, opacity: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} className="relative bg-[#111] w-full max-w-3xl rounded-[2.5rem] overflow-hidden z-10 shadow-2xl">
+            {/* 2. Исправляем "шатание" на мобильных - добавляем touch-none */}
+            <motion.div 
+              className="absolute inset-0 bg-black/90 backdrop-blur-md touch-none" // <-- добавил touch-none
+              onClick={() => setSelectedPrompt(null)} 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+            />
+            <motion.div 
+              initial={{ scale: 0.97, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.97, opacity: 0 }} 
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} 
+              className="relative bg-[#111] w-full max-w-3xl rounded-[2.5rem] overflow-hidden z-10 shadow-2xl"
+            >
               <button onClick={() => setSelectedPrompt(null)} className="absolute top-6 right-6 p-2 rounded-full bg-black/40 text-white/50 z-20"><X size={20} /></button>
               <div className="flex flex-col md:flex-row max-h-[85vh] overflow-y-auto no-scrollbar">
                 <div className="relative w-full h-[70vh] flex items-start justify-center">
@@ -803,10 +831,8 @@ export default function App() {
                   />
                 </div>
                 <div className="md:w-1/2 p-10 space-y-8 flex flex-col">
-                  <div className="mt-2">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/20 mb-2 block">{selectedPrompt.tool}</span>
-                    <h2 className="text-2xl font-semibold tracking-tight leading-tight">{selectedPrompt.title}</h2>
-                  </div>
+                  {/* УДАЛЕН БЛОК С ЗАГОЛОВКОМ */}
+                  
                   <div className="bg-white/5 border border-white/5 rounded-2xl p-6">
                     <p className="text-[15px] leading-relaxed text-white/80 whitespace-pre-wrap select-all font-medium tracking-tight">{selectedPrompt.prompt}</p>
                   </div>
