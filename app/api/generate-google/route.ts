@@ -38,7 +38,8 @@ export async function POST(req: Request) {
       body = {
         contents: [{ parts }],
         generationConfig: { 
-          aspectRatio: aspectRatio || "1:1"
+          // ИСПРАВЛЕНИЕ: замена aspectRatio на aspect_ratio
+          aspect_ratio: aspectRatio || "1:1"
         }
       };
     } else {
