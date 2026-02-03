@@ -167,6 +167,7 @@ export default function App() {
   
   // Состояние для соотношения сторон
   const [aspectRatio, setAspectRatio] = useState("auto");
+  const [isRatioMenuOpen, setIsRatioMenuOpen] = useState(false); // <-- Добавить это
 
   const [user, setUser] = useState<User | null>(null);
   const [balance, setBalance] = useState<number>(0);
@@ -442,7 +443,10 @@ export default function App() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt: generatePrompt }),
+        body: JSON.stringify({ 
+          prompt: generatePrompt,
+          aspectRatio: aspectRatio === "auto" ? "1:1" : aspectRatio 
+        }),
       });
 
       const data = await res.json();
@@ -971,14 +975,55 @@ export default function App() {
                 />
               </div>
 
-              {/* Соотношение сторон */}
-              <div className="space-y-2 pb-20">
+              {/* Соотношение сторон (Dropdown) */}
+              <div className="space-y-2 pb-24 relative"> {/* relative нужен для позиционирования меню */}
                 <label className="text-[13px] font-medium text-white/60 ml-1">Соотношение сторон</label>
-                <div className="w-full bg-[#1c1c1e] border border-white/10 rounded-xl p-3 flex items-center justify-between cursor-pointer">
-                  <span className="text-[15px]">Автоматически</span>
-                  <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center">
-                    <HelpCircle size={14} className="text-yellow-500" />
-                  </div>
+                
+                <div className="relative">
+                  <button 
+                    onClick={() => setIsRatioMenuOpen(!isRatioMenuOpen)}
+                    className="w-full bg-[#1c1c1e] border border-white/10 rounded-xl p-3 flex items-center justify-between active:border-white/30 transition-colors"
+                  >
+                     <span className="text-[15px] font-medium text-white">
+                       {aspectRatio === "auto" ? "Автоматически" : aspectRatio}
+                     </span>
+                     <div className={`transition-transform duration-300 ${isRatioMenuOpen ? 'rotate-180' : ''}`}>
+                        <ChevronDown size={16} className="text-white/40" />
+                     </div>
+                  </button>
+
+                  {/* ВЫПАДАЮЩЕЕ МЕНЮ (Открывается вверх) */}
+                  <AnimatePresence>
+                    {isRatioMenuOpen && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="absolute bottom-full mb-2 left-0 right-0 bg-[#1c1c1e] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 max-h-60 overflow-y-auto"
+                      >
+                        {/* Опция Автоматически */}
+                        <button
+                            onClick={() => { setAspectRatio("auto"); setIsRatioMenuOpen(false); }}
+                            className="w-full text-left px-4 py-3 text-[14px] text-white hover:bg-white/5 flex items-center justify-between border-b border-white/5"
+                          >
+                            <span>Автоматически</span>
+                            {aspectRatio === "auto" && <Check size={14} className="text-yellow-500" />}
+                        </button>
+
+                        {/* Список форматов */}
+                        {["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"].map((ratio) => (
+                          <button
+                            key={ratio}
+                            onClick={() => { setAspectRatio(ratio); setIsRatioMenuOpen(false); }}
+                            className="w-full text-left px-4 py-3 text-[14px] text-white hover:bg-white/5 flex items-center justify-between border-b border-white/5 last:border-0"
+                          >
+                            <span>{ratio}</span>
+                            {aspectRatio === ratio && <Check size={14} className="text-yellow-500" />}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
             </div>
