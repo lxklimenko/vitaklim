@@ -31,7 +31,8 @@ import {
   ChevronLeft, 
   ChevronDown, 
   HelpCircle,
-  Upload
+  Upload,
+  Trash2
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { PromptCard } from './components/PromptCard';
@@ -209,6 +210,26 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [isLibLoading, setIsLibLoading] = useState(true);
+
+  // Новое состояние для референсного изображения
+  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+
+  // Функция для обработки выбора файла
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setReferenceImage(reader.result as string); // Сохраняем как Base64
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Функция для удаления загруженного изображения
+  const handleRemoveImage = () => {
+    setReferenceImage(null);
+  };
 
   // ИСПРАВЛЕННЫЙ useEffect для блокировки скролла
   useEffect(() => {
@@ -475,8 +496,9 @@ export default function App() {
         },
         body: JSON.stringify({ 
           prompt: generatePrompt,
-          modelId: modelId, // Теперь передаем конкретный ID модели
-          aspectRatio: aspectRatio === "auto" ? "1:1" : aspectRatio 
+          modelId: modelId,
+          aspectRatio: aspectRatio === "auto" ? "1:1" : aspectRatio,
+          image: referenceImage // Отправляем строку Base64 (включая заголовок data:image/...)
         }),
       });
 
@@ -1025,17 +1047,40 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Загрузка изображения (Референс) */}
+              {/* Загрузка изображения (Референс) - ОБНОВЛЕННЫЙ БЛОК */}
               <div className="space-y-2">
                 <label className="text-[13px] font-medium text-white/60 ml-1">Изображения</label>
                 <div className="grid grid-cols-4 gap-2">
                   {/* Кнопка загрузки */}
-                  <label className="aspect-square bg-[#1c1c1e] border border-white/10 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 transition-colors">
-                    <input type="file" className="hidden" accept="image/*" />
-                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                      <ImageIcon size={16} className="text-white/60" />
-                    </div>
-                    <span className="text-[9px] text-center text-white/40 px-1 leading-tight">Загрузить фото</span>
+                  <label className="aspect-square bg-[#1c1c1e] border border-white/10 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 transition-colors overflow-hidden relative">
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*" 
+                      onChange={handleFileChange} 
+                    />
+                    {referenceImage ? (
+                      <>
+                        <img src={referenceImage} className="w-full h-full object-cover absolute inset-0" alt="Preview" />
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleRemoveImage();
+                          }}
+                          className="absolute top-2 right-2 p-1.5 bg-black/70 backdrop-blur-sm rounded-full z-10 hover:bg-black/90 transition-colors"
+                        >
+                          <Trash2 size={14} className="text-white/80" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                          <ImageIcon size={16} className="text-white/60" />
+                        </div>
+                        <span className="text-[9px] text-center text-white/40 px-1 leading-tight">Загрузить фото</span>
+                      </>
+                    )}
                   </label>
                   
                   {/* Плейсхолдер текста (как на скрине) */}
