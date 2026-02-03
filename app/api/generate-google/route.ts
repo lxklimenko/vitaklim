@@ -21,48 +21,45 @@ export async function POST(req: Request) {
       const parts: any[] = [{ text: prompt }];
       
       if (image) {
-        // Извлекаем чистые данные base64
-        const base64Data = image.startsWith('data:') ? image.split(',')[1] : image;
-        const mimeType = image.startsWith('data:') 
-          ? image.split(';')[0].split(':')[1] 
-          : 'image/jpeg';
-        
         parts.push({
           inlineData: {
-            mimeType: mimeType,
-            data: base64Data
+            mimeType: image.split(';')[0].split(':')[1],
+            data: image.split(',')[1]
           }
         });
       }
       
       body = {
         contents: [{ parts }],
-        generationConfig: { 
-          // ИСПРАВЛЕНИЕ: замена aspectRatio на aspect_ratio
-          aspect_ratio: aspectRatio || "1:1"
+        generationConfig: {
+          // ПРАВИЛЬНАЯ СТРУКТУРА ДЛЯ GEMINI 3 / NANO BANANA PRO
+          image_generation_config: {
+            aspect_ratio: aspectRatio || "1:1"
+          }
         }
       };
     } else {
       // Логика для Imagen 4
-      const instance: any = { 
-        prompt,
-        // Для редактирования или создания вариаций
-        image: image ? {
-          bytesBase64Encoded: image.startsWith('data:') ? image.split(',')[1] : image
-        } : undefined
-      };
+      const instance: any = { prompt };
 
-      // Добавляем maskMode для редактирования изображений
-      if (imageMode === "edit" && image) {
-        instance.maskMode = "automatic";
+      if (image) {
+        // Чтобы фото учитывалось как референс:
+        instance.image = {
+          bytesBase64Encoded: image.split(',')[1]
+        };
       }
-      
+
       body = {
         instances: [instance],
         parameters: {
           sampleCount: 1,
           aspectRatio: aspectRatio || "1:1",
-          outputOptions: { mimeType: "image/jpeg" }
+          outputOptions: { mimeType: "image/jpeg" },
+          // ВАЖНО: Добавь эти параметры для Image-to-Image
+          editConfig: image ? {
+            editMode: "variation", // Создает вариацию на основе твоего фото
+            guidanceScale: 60      // Насколько сильно следовать фото (0-100)
+          } : undefined
         }
       };
     }
