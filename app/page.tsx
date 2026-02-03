@@ -133,6 +133,34 @@ interface Generation {
   is_favorite: boolean;
 }
 
+// Обновленный массив моделей
+const MODELS = [
+  { 
+    id: "imagen-4.0-ultra-generate-001", 
+    name: "Imagen 4 Ultra", 
+    badge: "PREMIUM", 
+    color: "from-amber-400 to-orange-600",
+    desc: "Максимальное качество и фотореализм",
+    price: 10
+  },
+  { 
+    id: "nano-banana-pro-preview", 
+    name: "Nano Banana Pro", 
+    badge: "SMART", 
+    color: "from-yellow-300 to-yellow-500",
+    desc: "Творчество и понимание сложных промптов",
+    price: 5
+  },
+  { 
+    id: "imagen-4.0-fast-generate-001", 
+    name: "Imagen 4 Fast", 
+    badge: "FAST", 
+    color: "from-blue-400 to-cyan-500",
+    desc: "Генерация за 1-2 секунды",
+    price: 2
+  }
+];
+
 /**
  * 4. ОСНОВНОЙ КОМПОНЕНТ ПРИЛОЖЕНИЯ
  */
@@ -162,21 +190,16 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   
-  // Добавляем состояние для выбора модели
-  const [model, setModel] = useState<"openai" | "google">("openai");
+  // Обновленные состояния для модели
+  const [modelId, setModelId] = useState(MODELS[0].id);
+  const currentModel = MODELS.find(m => m.id === modelId) || MODELS[0];
   
   // Состояние для соотношения сторон
   const [aspectRatio, setAspectRatio] = useState("auto");
   const [isRatioMenuOpen, setIsRatioMenuOpen] = useState(false);
 
-  // Добавьте это состояние для открытия/закрытия меню моделей
+  // Состояние для открытия/закрытия меню моделей
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
-
-  // Обновленный список моделей с Nano Banana Pro
-  const MODELS = [
-    { id: "openai", name: "DALL-E 2 (Fast)", badge: "D2", color: "from-purple-500 to-blue-500" },
-    { id: "google", name: "Nano Banana Pro", badge: "NB", color: "from-yellow-400 to-orange-500" },
-  ];
 
   const [user, setUser] = useState<User | null>(null);
   const [balance, setBalance] = useState<number>(0);
@@ -445,15 +468,14 @@ export default function App() {
     setImageUrl(null);
 
     try {
-      const endpoint = model === "openai" ? "/api/generate/" : "/api/generate-google/";
-
-      const res = await fetch(endpoint, {
+      const res = await fetch("/api/generate-google/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ 
           prompt: generatePrompt,
+          modelId: modelId, // Теперь передаем конкретный ID модели
           aspectRatio: aspectRatio === "auto" ? "1:1" : aspectRatio 
         }),
       });
@@ -938,7 +960,7 @@ export default function App() {
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
               
               {/* Выбор модели (Dropdown) */}
-              <div className="space-y-2 relative z-50"> {/* z-50 чтобы меню было поверх всего */}
+              <div className="space-y-2 relative z-50">
                 <label className="text-[13px] font-medium text-white/60 ml-1">Модель</label>
                 
                 <div className="relative">
@@ -948,16 +970,21 @@ export default function App() {
                   >
                     <div className="flex items-center gap-3">
                       {/* Иконка текущей модели */}
-                      <div className={`w-6 h-6 rounded-full bg-gradient-to-tr ${MODELS.find(m => m.id === model)?.color} flex items-center justify-center text-[10px] font-bold shadow-lg`}>
-                        {MODELS.find(m => m.id === model)?.badge}
+                      <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${currentModel.color} flex items-center justify-center text-[10px] font-bold shadow-lg`}>
+                        {currentModel.badge}
                       </div>
-                      <span className="text-[15px] font-medium text-white">
-                        {MODELS.find(m => m.id === model)?.name}
-                      </span>
+                      <div className="flex flex-col items-start">
+                        <span className="text-[15px] font-medium text-white">
+                          {currentModel.name}
+                        </span>
+                        <span className="text-[11px] text-white/40 text-left">
+                          {currentModel.desc}
+                        </span>
+                      </div>
                     </div>
                     
                     <div className={`transition-transform duration-300 ${isModelMenuOpen ? 'rotate-180' : ''}`}>
-                       <ChevronDown size={16} className="text-white/40" />
+                      <ChevronDown size={16} className="text-white/40" />
                     </div>
                   </button>
 
@@ -973,20 +1000,23 @@ export default function App() {
                         {MODELS.map((m) => (
                           <button
                             key={m.id}
-                            onClick={() => { setModel(m.id as "openai" | "google"); setIsModelMenuOpen(false); }}
+                            onClick={() => { setModelId(m.id); setIsModelMenuOpen(false); }}
                             className="w-full text-left px-3 py-3 hover:bg-white/5 flex items-center justify-between border-b border-white/5 last:border-0 transition-colors"
                           >
                             <div className="flex items-center gap-3">
-                              <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${m.color} flex items-center justify-center text-[10px] font-bold shadow-inner`}>
+                              <div className={`w-10 h-10 rounded-full bg-gradient-to-tr ${m.color} flex items-center justify-center text-[10px] font-bold shadow-inner`}>
                                 {m.badge}
                               </div>
                               <div className="flex flex-col">
-                                 <span className="text-[14px] font-medium text-white">{m.name}</span>
-                                 <span className="text-[10px] text-white/40">Premium AI Model</span>
+                                <span className="text-[14px] font-medium text-white">{m.name}</span>
+                                <span className="text-[10px] text-white/40">{m.desc}</span>
+                                <span className="text-[11px] text-amber-400 font-medium mt-1">
+                                  {m.price} монет
+                                </span>
                               </div>
                             </div>
                             
-                            {model === m.id && <Check size={16} className="text-yellow-500" />}
+                            {modelId === m.id && <Check size={16} className="text-yellow-500" />}
                           </button>
                         ))}
                       </motion.div>
@@ -1031,7 +1061,7 @@ export default function App() {
               </div>
 
               {/* Соотношение сторон (Dropdown) */}
-              <div className="space-y-2 pb-24 relative"> {/* relative нужен для позиционирования меню */}
+              <div className="space-y-2 pb-24 relative">
                 <label className="text-[13px] font-medium text-white/60 ml-1">Соотношение сторон</label>
                 
                 <div className="relative">
@@ -1098,7 +1128,7 @@ export default function App() {
                 ) : (
                   <>
                     <Sparkles size={18} fill="black" />
-                    <span>Сгенерировать – {model === "google" ? "10" : "5"}</span>
+                    <span>Сгенерировать – {currentModel.price} монет</span>
                   </>
                 )}
               </button>
