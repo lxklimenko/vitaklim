@@ -2,21 +2,23 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    // 1. Получаем prompt и aspectRatio с фронтенда
-    const { prompt, aspectRatio } = await req.json();
+    const { prompt } = await req.json();
     const apiKey = process.env.GOOGLE_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json({ error: "No API Key" }, { status: 500 });
     }
 
-    // 2. Используем актуальную модель Imagen 3
-    const modelName = "imagen-3.0-generate-001";
+    // --- НАСТРОЙКИ ---
+    // Используем самую мощную модель из вашего списка
+    const modelName = "imagen-4.0-ultra-generate-001";
     
-    // URL для генерации через API ключ (Generative Language API)
+    // ВАЖНО: Для картинок используем метод :predict, а не :generateContent
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:predict?key=${apiKey}`;
 
-    // 3. Формируем тело запроса
+    // --- ТЕЛО ЗАПРОСА (JSON) ---
+    // У Imagen структура отличается от Gemini.
+    // Тут используются 'instances' (ваши запросы) и 'parameters' (настройки)
     const body = {
       instances: [
         {
@@ -24,13 +26,10 @@ export async function POST(req: Request) {
         },
       ],
       parameters: {
-        sampleCount: 1,
-        // Передаем выбранное соотношение сторон (или 1:1 по умолчанию)
-        // Imagen поддерживает: "1:1", "16:9", "9:16", "3:4", "4:3"
-        aspectRatio: aspectRatio === "auto" ? "1:1" : aspectRatio,
+        sampleCount: 1, // Количество картинок (обычно 1-4)
+        aspectRatio: "1:1", // Пропорции: "1:1", "16:9", "3:4", "4:3"
         outputOptions: {
-           mimeType: "image/jpeg",
-           // compressionQuality: 80 // Можно раскомментировать, если упретесь в лимиты Vercel
+           mimeType: "image/jpeg"
         }
       },
     };
@@ -46,13 +45,13 @@ export async function POST(req: Request) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Google API Error:", errorText);
-      // Часто ошибка бывает из-за Safety Filters (цензуры)
-      return NextResponse.json({ error: `Google API Error: ${errorText}` }, { status: response.status });
+      throw new Error(`Google API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
 
-    // 4. Достаем картинку
+    // --- ПОЛУЧЕНИЕ КАРТИНКИ ---
+    // Imagen возвращает массив 'predictions'. Внутри байты в base64.
     const predictions = data.predictions;
     
     if (!predictions || predictions.length === 0) {
