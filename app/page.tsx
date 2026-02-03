@@ -167,7 +167,16 @@ export default function App() {
   
   // Состояние для соотношения сторон
   const [aspectRatio, setAspectRatio] = useState("auto");
-  const [isRatioMenuOpen, setIsRatioMenuOpen] = useState(false); // <-- Добавить это
+  const [isRatioMenuOpen, setIsRatioMenuOpen] = useState(false);
+
+  // Добавьте это состояние для открытия/закрытия меню моделей
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
+
+  // Список ваших моделей (можете добавить свои названия и цвета)
+  const MODELS = [
+    { id: "openai", name: "NanoBanana v1", badge: "NB", color: "from-purple-500 to-blue-500" },
+    { id: "google", name: "Google Imagen 3", badge: "G", color: "from-green-500 to-emerald-500" },
+  ];
 
   const [user, setUser] = useState<User | null>(null);
   const [balance, setBalance] = useState<number>(0);
@@ -928,15 +937,61 @@ export default function App() {
             {/* 2. ОСНОВНОЙ КОНТЕНТ (Скроллируемый) */}
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
               
-              {/* Выбор модели */}
-              <div className="space-y-2">
+              {/* Выбор модели (Dropdown) */}
+              <div className="space-y-2 relative z-50"> {/* z-50 чтобы меню было поверх всего */}
                 <label className="text-[13px] font-medium text-white/60 ml-1">Модель</label>
-                <div className="w-full bg-[#1c1c1e] border border-white/10 rounded-xl p-3 flex items-center justify-between cursor-pointer active:border-white/30 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-purple-500 to-blue-500 flex items-center justify-center text-[10px] font-bold">NB</div>
-                    <span className="text-[15px] font-medium">NanoBanana</span>
-                  </div>
-                  <ChevronDown size={16} className="text-white/40" />
+                
+                <div className="relative">
+                  <button 
+                    onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
+                    className="w-full bg-[#1c1c1e] border border-white/10 rounded-xl p-3 flex items-center justify-between cursor-pointer active:border-white/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      {/* Иконка текущей модели */}
+                      <div className={`w-6 h-6 rounded-full bg-gradient-to-tr ${MODELS.find(m => m.id === model)?.color} flex items-center justify-center text-[10px] font-bold shadow-lg`}>
+                        {MODELS.find(m => m.id === model)?.badge}
+                      </div>
+                      <span className="text-[15px] font-medium text-white">
+                        {MODELS.find(m => m.id === model)?.name}
+                      </span>
+                    </div>
+                    
+                    <div className={`transition-transform duration-300 ${isModelMenuOpen ? 'rotate-180' : ''}`}>
+                       <ChevronDown size={16} className="text-white/40" />
+                    </div>
+                  </button>
+
+                  {/* ВЫПАДАЮЩЕЕ МЕНЮ МОДЕЛЕЙ */}
+                  <AnimatePresence>
+                    {isModelMenuOpen && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        className="absolute top-full mt-2 left-0 right-0 bg-[#1c1c1e] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-[60]"
+                      >
+                        {MODELS.map((m) => (
+                          <button
+                            key={m.id}
+                            onClick={() => { setModel(m.id as "openai" | "google"); setIsModelMenuOpen(false); }}
+                            className="w-full text-left px-3 py-3 hover:bg-white/5 flex items-center justify-between border-b border-white/5 last:border-0 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${m.color} flex items-center justify-center text-[10px] font-bold shadow-inner`}>
+                                {m.badge}
+                              </div>
+                              <div className="flex flex-col">
+                                 <span className="text-[14px] font-medium text-white">{m.name}</span>
+                                 <span className="text-[10px] text-white/40">Premium AI Model</span>
+                              </div>
+                            </div>
+                            
+                            {model === m.id && <Check size={16} className="text-yellow-500" />}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
 
