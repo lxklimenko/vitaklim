@@ -27,7 +27,11 @@ import {
   Image as ImageIcon,
   Calendar,
   ExternalLink,
-  Share2
+  Share2,
+  ChevronLeft, 
+  ChevronDown, 
+  HelpCircle,
+  Upload
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { PromptCard } from './components/PromptCard';
@@ -47,7 +51,7 @@ const PROMPTS: Prompt[] = [
     tool: "Nano Banano Pro", 
     category: "Fashion",
     price: 15,
-    prompt: `Создайте сцену, где молодая женщина в черном костюме в тонкую полоску, стоит в узкой комнате с английскими газетами на стенах. Она прислонена к углу с руками в карманах, волосы в небрежный пучок. Макияж winter glam, выражение лица серьезное. Снимок с теплым светом и мягкой резкостью, 35 мм объектив, киностиль. Используя представленные фото создай сцену где изображен кинематографический портрет молодой женщины в узкой комнате, стены которой полностью покрыты старыми Английскими газетами. Она небрежно прислонилась к углу, одним плечом опираясь о стену, Она одета в черный костюм в тонкую полоску с укороченным пиджаком, белую рубашку и черный галстук. Руки женщины- в карманах. Длинные волосы уложены в небрежный повседневный пучок, Макияж winter glam: выразительные брови, мягкая стрелка, аккуратные ресницы, губы нюд-розовые/розово-карамельные с влажным глянцем. Единственная лампа накаливания свисает с потолка над ней, создавая теплый оранжевый свет и мягкие тени, с тонким сине-зеленым оттенком на заднем плане. Вертикальный снимок, угол съемки на уровне глаз, небольшая глубина резкости, мягкий фокус на заднем плане, детализированные черты лица, слегка серьезное выражение. Высокое разрешение, ультрареалистичность, объектив 35 мм, f/1.8, цветовая градиентная коррекция в стиле кино, атмосферная, редакционная модная фотография.`,
+    prompt: `Создайте сцену, где молодая женщина в черном костюме в тонкую полоску, стоит в узкой комнате с английскими газетами на стенах. Она прислонена к углу с руками в карманах, волосы в небрежный пучок. Макияж winter glam, выражение лица серьезное. Снимок с теплым светом и мягкой резкостью, 35 мм объектив, киностиль. Используя представленные фото создай сцену где изображен кинематографический портрет молодой женщины в узкой комнате, стены которой полностью покрыты старыми Английскими газетами. Она небрежно прислонилась к углу, одним плечом опираясь о стену, Она одета в черный костюм в тонкую полоску с укороченным пиджаком, белую рубашку и черный галстук. Руки женщины- в карманах. Длинные волосы уложены в небрежный повседневный пучок, Макияж winter glam: выразительные брови, мягкая стрелка, аккуратные ресницы, губы нюд-розовые/розово-карамельные с влажным глянцем. Единственная лампа накаливания свисает с потолка над ней, создавая теплый оранжевый свет и мягкие тени, с тонким сине-зеленым оттенком на заднем плане. Вертикальный снимок, угол съемки на уровня глаз, небольшая глубина резкости, мягкий фокус на заднем плане, детализированные черты лица, слегка серьезное выражение. Высокое разрешение, ультрареалистичность, объектив 35 мм, f/1.8, цветовая градиентная коррекция в стиле кино, атмосферная, редакционная модная фотография.`,
     image: { src: `${STORAGE_URL}photo.webp`, width: 1000, height: 1250, aspect: "4:5" },
     description: "Кинематографичный fashion-портрет в стиле ретро-декора.",
     bestFor: "Fashion Brands / Lookbooks"
@@ -160,6 +164,9 @@ export default function App() {
   
   // Добавляем состояние для выбора модели
   const [model, setModel] = useState<"openai" | "google">("openai");
+  
+  // Состояние для соотношения сторон
+  const [aspectRatio, setAspectRatio] = useState("auto");
 
   const [user, setUser] = useState<User | null>(null);
   const [balance, setBalance] = useState<number>(0);
@@ -820,61 +827,65 @@ export default function App() {
                   />
                 </div>
                 
-                {/* Замени весь блок с описанием и кнопками на этот код: */}
-                <div className="md:w-1/2 p-5 md:p-10 space-y-3 flex flex-col justify-end">
-                  
-                  {/* ГРИД: Слева текст, Справа кнопки */}
-                  <div className="flex gap-2 h-32">
+                {/* ОБНОВЛЕННЫЙ БЛОК С ОПИСАНИЕМ И КНОПКАМИ */}
+                <div className="md:w-1/2 relative flex flex-col justify-end">
+                  {/* ГРАДИЕНТНАЯ ПОДЛОЖКА (Кинематографичный эффект) */}
+                  <div className="absolute -inset-x-6 -bottom-6 h-[50vh] bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none z-0" />
+
+                  {/* КОНТЕЙНЕР КОНТЕНТА */}
+                  <div className="relative z-10 p-5 md:p-10 space-y-3">
                     
-                    {/* 1. ТЕКСТ (Слева) */}
-                    <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-3 overflow-y-auto">
-                      <p className="text-[13px] leading-relaxed text-white/90 whitespace-pre-wrap select-all font-medium">
-                        {selectedPrompt.prompt}
-                      </p>
-                    </div>
-
-                    {/* 2. КНОПКИ (Справа, колонка) */}
-                    <div className="flex flex-col gap-2 w-14 flex-shrink-0">
+                    {/* ГРИД: Текст + Кнопки */}
+                    <div className="flex gap-3 h-32">
                       
-                      {/* Кнопка ЛАЙК (Верхняя) */}
-                      <button
-                        onClick={(e) => toggleFavorite(e, selectedPrompt.id)}
-                        className="flex-1 flex items-center justify-center bg-white/5 border border-white/10 rounded-2xl active:scale-90 transition-all hover:bg-white/10"
-                      >
-                        <Heart 
-                          size={20} 
-                          className={favorites.includes(selectedPrompt.id) ? "text-red-500 fill-red-500" : "text-white/40"} 
-                        />
-                      </button>
+                      {/* ТЕКСТ: Убрал leading-[1.6], сделал leading-snug (плотнее) */}
+                      <div className="flex-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 overflow-y-auto shadow-2xl">
+                        <p className="text-[13px] leading-snug text-white/80 whitespace-pre-wrap select-all font-medium">
+                          {selectedPrompt.prompt}
+                        </p>
+                      </div>
 
-                      {/* Кнопка КОПИРОВАТЬ (Нижняя) */}
-                      <button
-                        onClick={() => handleCopy(selectedPrompt.id, selectedPrompt.prompt, selectedPrompt.price)}
-                        className={`flex-1 flex items-center justify-center border rounded-2xl active:scale-90 transition-all ${
-                          copiedId === selectedPrompt.id 
-                            ? 'bg-white border-white text-black' 
-                            : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
-                        }`}
-                      >
-                         {copiedId === selectedPrompt.id ? <Check size={20} /> : <Copy size={20} />}
-                      </button>
+                      {/* КНОПКИ СПРАВА */}
+                      <div className="flex flex-col gap-2 w-14 flex-shrink-0">
+                        
+                        {/* Лайк */}
+                        <button
+                          onClick={(e) => toggleFavorite(e, selectedPrompt.id)}
+                          className="flex-1 flex items-center justify-center bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl active:scale-90 transition-all hover:bg-white/10"
+                        >
+                          <Heart 
+                            size={20} 
+                            className={`transition-colors duration-300 ${favorites.includes(selectedPrompt.id) ? "text-red-500 fill-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]" : "text-white/60"}`} 
+                          />
+                        </button>
 
+                        {/* Копировать */}
+                        <button
+                          onClick={() => handleCopy(selectedPrompt.id, selectedPrompt.prompt, selectedPrompt.price)}
+                          className={`flex-1 flex items-center justify-center backdrop-blur-xl border rounded-2xl active:scale-90 transition-all ${
+                            copiedId === selectedPrompt.id 
+                              ? 'bg-white border-white text-black' 
+                              : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                          }`}
+                        >
+                          {copiedId === selectedPrompt.id ? <Check size={20} /> : <Copy size={20} />}
+                        </button>
+
+                      </div>
                     </div>
+
+                    {/* КНОПКА ГЕНЕРАЦИИ */}
+                    <button
+                      onClick={() => {
+                        setIsGenerateOpen(true);
+                        setGeneratePrompt(selectedPrompt.prompt);
+                      }}
+                      className="w-full py-4 rounded-2xl font-semibold text-[14px] bg-white text-black active:scale-[0.98] shadow-[0_0_20px_rgba(255,255,255,0.15)] hover:shadow-[0_0_25px_rgba(255,255,255,0.3)] transition-all tracking-tight"
+                    >
+                      Сгенерировать
+                    </button>
+
                   </div>
-
-                  {/* 3. Кнопка СГЕНЕРИРОВАТЬ (Снизу) */}
-                  <button
-                    onClick={() => {
-                      setIsGenerateOpen(true);
-                      setGeneratePrompt(selectedPrompt.prompt);
-                    }}
-                    className="w-full py-3.5 rounded-2xl font-semibold text-[14px] bg-white text-black active:scale-[0.98] shadow-lg shadow-white/10"
-                  >
-                    Сгенерировать
-                  </button>
-                  
-                  {/* Старую длинную кнопку "Скопировать" я удалил, так как она теперь справа в маленьком квадрате */}
-
                 </div>
               </div>
             </motion.div>
@@ -882,93 +893,120 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Генерация изображений */}
-      {isGenerateOpen && (
-        <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#111] rounded-3xl p-6 w-full max-w-md space-y-4 border border-white/10">
-            <h2 className="text-lg font-semibold tracking-tight">
-              Генерация изображения
-            </h2>
+      {/* ПОЛНОЭКРАННЫЙ РЕДАКТОР ГЕНЕРАЦИИ */}
+      <AnimatePresence>
+        {isGenerateOpen && (
+          <div className="fixed inset-0 z-[300] bg-black flex flex-col">
+            
+            {/* 1. ШАПКА (HEADER) */}
+            <div className="flex items-center justify-between px-4 py-4 border-b border-white/5 bg-[#111]">
+              <button 
+                onClick={() => setIsGenerateOpen(false)}
+                className="flex items-center gap-1 text-white/60 hover:text-white transition-colors"
+              >
+                <ChevronLeft size={20} />
+                <span className="text-[15px] font-medium">Назад</span>
+              </button>
 
-            <textarea
-              value={generatePrompt}
-              onChange={(e) => setGeneratePrompt(e.target.value)}
-              placeholder="Опиши изображение..."
-              className="w-full h-32 bg-black/40 rounded-xl p-3 text-sm text-white placeholder:text-white/30 outline-none border border-white/10 resize-none"
-            />
+              <div className="flex items-center gap-2 cursor-pointer">
+                <span className="text-[15px] font-semibold">Картинка</span>
+                <ChevronDown size={14} className="text-white/60" />
+              </div>
 
-            {/* Добавляем переключатель выбора модели */}
-            <div className="flex gap-4 mb-4 p-4 bg-gray-800 rounded-lg">
-              <label className="flex items-center gap-2 cursor-pointer text-white">
-                <input
-                  type="radio"
-                  name="model"
-                  checked={model === "openai"}
-                  onChange={() => setModel("openai")}
-                  className="accent-blue-500"
-                />
-                <span>OpenAI (DALL-E 2)</span>
-              </label>
-
-              <label className="flex items-center gap-2 cursor-pointer text-white">
-                <input
-                  type="radio"
-                  name="model"
-                  checked={model === "google"}
-                  onChange={() => setModel("google")}
-                  className="accent-green-500"
-                />
-                <span>Google (Imagen 3)</span>
-              </label>
+              <button 
+                onClick={() => setIsGenerateOpen(false)}
+                className="p-2 bg-white/5 rounded-full text-white/60 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
             </div>
 
-            <button
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              className="w-full py-3 rounded-xl bg-white text-black font-semibold active:scale-95 transition disabled:opacity-40 flex items-center justify-center gap-2"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  Генерация...
-                </>
-              ) : (
-                "Сгенерировать"
-              )}
-            </button>
-
-            {imageUrl && (
-              <div className="mt-4 space-y-2">
-                <img 
-                  src={imageUrl} 
-                  alt="Generated"
-                  className="rounded-xl w-full"
-                />
-                <a
-                  href={imageUrl}
-                  download="generated-image.png"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full text-center py-2 rounded-xl bg-white text-black font-semibold active:scale-95 transition"
-                >
-                  Скачать изображение
-                </a>
+            {/* 2. ОСНОВНОЙ КОНТЕНТ (Скроллируемый) */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-6">
+              
+              {/* Выбор модели */}
+              <div className="space-y-2">
+                <label className="text-[13px] font-medium text-white/60 ml-1">Модель</label>
+                <div className="w-full bg-[#1c1c1e] border border-white/10 rounded-xl p-3 flex items-center justify-between cursor-pointer active:border-white/30 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-purple-500 to-blue-500 flex items-center justify-center text-[10px] font-bold">NB</div>
+                    <span className="text-[15px] font-medium">NanoBanana</span>
+                  </div>
+                  <ChevronDown size={16} className="text-white/40" />
+                </div>
               </div>
-            )}
 
-            <button
-              onClick={() => {
-                setIsGenerateOpen(false);
-                setGeneratePrompt("");
-                setImageUrl(null);
-              }}
-              className="w-full py-2 text-sm text-white/40"
-            >
-              Отмена
-            </button>
+              {/* Загрузка изображения (Референс) */}
+              <div className="space-y-2">
+                <label className="text-[13px] font-medium text-white/60 ml-1">Изображения</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {/* Кнопка загрузки */}
+                  <label className="aspect-square bg-[#1c1c1e] border border-white/10 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 transition-colors">
+                    <input type="file" className="hidden" accept="image/*" />
+                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                      <ImageIcon size={16} className="text-white/60" />
+                    </div>
+                    <span className="text-[9px] text-center text-white/40 px-1 leading-tight">Загрузить фото</span>
+                  </label>
+                  
+                  {/* Плейсхолдер текста (как на скрине) */}
+                  <div className="col-span-3 bg-[#1c1c1e] border border-white/10 rounded-xl p-4 flex items-center justify-center text-center">
+                    <p className="text-[11px] text-white/30 leading-snug">
+                      Загрузите одно или несколько изображений для редактирования.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ввод промпта */}
+              <div className="space-y-2">
+                <label className="text-[13px] font-medium text-white/60 ml-1">
+                  Запрос <span className="text-yellow-500">*</span>
+                </label>
+                <textarea
+                  value={generatePrompt}
+                  onChange={(e) => setGeneratePrompt(e.target.value)}
+                  placeholder="Опишите, что должно быть на изображении..."
+                  className="w-full h-32 bg-[#1c1c1e] border border-white/10 rounded-xl p-4 text-[15px] text-white placeholder:text-white/20 outline-none focus:border-white/30 resize-none transition-colors"
+                />
+              </div>
+
+              {/* Соотношение сторон */}
+              <div className="space-y-2 pb-20">
+                <label className="text-[13px] font-medium text-white/60 ml-1">Соотношение сторон</label>
+                <div className="w-full bg-[#1c1c1e] border border-white/10 rounded-xl p-3 flex items-center justify-between cursor-pointer">
+                  <span className="text-[15px]">Автоматически</span>
+                  <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center">
+                    <HelpCircle size={14} className="text-yellow-500" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. НИЖНЯЯ ПАНЕЛЬ (Кнопка) */}
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-[#111] border-t border-white/5 pb-safe">
+              <button
+                onClick={handleGenerate}
+                disabled={isGenerating || !generatePrompt.trim()}
+                className="w-full py-4 rounded-xl bg-gradient-to-r from-[#FFD700] to-[#FFC000] text-black font-bold text-[16px] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,215,0,0.2)]"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" />
+                    <span>Генерация...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={18} fill="black" />
+                    <span>Сгенерировать – 5</span>
+                  </>
+                )}
+              </button>
+            </div>
+
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }
