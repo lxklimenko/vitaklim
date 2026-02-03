@@ -5,9 +5,11 @@ export async function POST(req: Request) {
     const { prompt, aspectRatio, modelId, image, imageMode } = await req.json();
     const apiKey = process.env.GOOGLE_API_KEY;
 
-    if (!apiKey) return NextResponse.json({ error: "No API Key" }, { status: 500 });
+    if (!apiKey) {
+      return NextResponse.json({ error: "No API Key" }, { status: 500 });
+    }
 
-    // Определяем тип модели
+    // Определяем метод на основе ID модели
     const isNanoBanana = modelId.includes("nano-banana") || modelId.includes("gemini-3");
     const method = isNanoBanana ? "generateContent" : "predict";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:${method}?key=${apiKey}`;
@@ -15,15 +17,15 @@ export async function POST(req: Request) {
     let body;
 
     if (isNanoBanana) {
-      // Gemini 3 Pro Image (Nano Banana) - мультимодальный запрос
+      // Логика для Nano Banana Pro (Gemini 3 Pro)
       const parts: any[] = [{ text: prompt }];
-
+      
       if (image) {
         // Извлекаем чистые данные base64
         const base64Data = image.startsWith('data:') ? image.split(',')[1] : image;
         const mimeType = image.startsWith('data:') 
           ? image.split(';')[0].split(':')[1] 
-          : 'image/jpeg'; // default MIME type
+          : 'image/jpeg';
         
         parts.push({
           inlineData: {
@@ -32,7 +34,7 @@ export async function POST(req: Request) {
           }
         });
       }
-
+      
       body = {
         contents: [{ parts }],
         generationConfig: { 
@@ -40,27 +42,20 @@ export async function POST(req: Request) {
         }
       };
     } else {
-      // Imagen 4 - для редактирования изображений используется другой формат
+      // Логика для Imagen 4
       const instance: any = { 
         prompt,
-        // Для Imagen 4 редактирование работает через параметры изображения
+        // Для редактирования или создания вариаций
+        image: image ? {
+          bytesBase64Encoded: image.startsWith('data:') ? image.split(',')[1] : image
+        } : undefined
       };
 
-      // Если есть исходное изображение и режим "редактирование"
-      if (image && imageMode === "edit") {
-        // Для Imagen 3 редактирование через maskMode, для Imagen 4 может быть по-другому
-        instance.image = {
-          bytesBase64Encoded: image.startsWith('data:') ? image.split(',')[1] : image
-        };
-        // Дополнительные параметры для редактирования
+      // Добавляем maskMode для редактирования изображений
+      if (imageMode === "edit" && image) {
         instance.maskMode = "automatic";
-      } else if (image && imageMode === "variations") {
-        // Для создания вариаций
-        instance.image = {
-          bytesBase64Encoded: image.startsWith('data:') ? image.split(',')[1] : image
-        };
       }
-
+      
       body = {
         instances: [instance],
         parameters: {

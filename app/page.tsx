@@ -1060,19 +1060,15 @@ export default function App() {
                       onChange={handleFileChange} 
                     />
                     {referenceImage ? (
-                      <>
-                        <img src={referenceImage} className="w-full h-full object-cover absolute inset-0" alt="Preview" />
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleRemoveImage();
-                          }}
-                          className="absolute top-2 right-2 p-1.5 bg-black/70 backdrop-blur-sm rounded-full z-10 hover:bg-black/90 transition-colors"
+                      <div className="relative w-full h-full">
+                        <img src={referenceImage} className="w-full h-full object-cover" alt="Preview" />
+                        <button 
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRemoveImage(); }}
+                          className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white/70 hover:bg-black/90"
                         >
-                          <Trash2 size={14} className="text-white/80" />
+                          <X size={14} />
                         </button>
-                      </>
+                      </div>
                     ) : (
                       <>
                         <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
