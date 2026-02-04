@@ -33,11 +33,8 @@ export async function POST(req: Request) {
 
       body = {
         contents: [{ parts }],
+        // УБИРАЕМ aspect_ratio, так как модель его не поддерживает в этом блоке
         generationConfig: {
-          // ИСПРАВЛЕНИЕ: В Gemini 3 параметр называется строго aspect_ratio
-          // и он находится ПРЯМО в generationConfig без лишних вложений
-          aspect_ratio: aspectRatio === "auto" ? "1:1" : aspectRatio,
-          // Можно добавить количество вариантов (обычно 1 для экономии)
           candidateCount: 1
         }
       };
