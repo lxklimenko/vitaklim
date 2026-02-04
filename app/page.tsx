@@ -233,24 +233,14 @@ export default function App() {
   };
 
   // Функция для скачивания изображения
-  const handleDownload = async (url: string, filename: string) => {
-    if (!url) return;
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename || 'vision-image.jpg';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-      toast.success("Загрузка завершена!");
-    } catch (error) {
-      console.error('Download error:', error);
-      toast.error("Ошибка при скачивании");
-    }
+  const handleDownload = (url: string, filename: string = 'vision-image.jpg') => {
+    const link = document.createElement('a');
+    link.href = url; // Используем base64 URL изображения 
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Изображение сохранено!");
   };
 
   // ИСПРАВЛЕННЫЙ useEffect для блокировки скролла
@@ -753,6 +743,16 @@ export default function App() {
                             >
                               <Share2 size={14} />
                             </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownload(generation.image_url, `generation-${generation.id}.jpg`);
+                              }}
+                              className="hover:text-white/60 transition-colors"
+                              title="Скачать"
+                            >
+                              <Upload size={14} />
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -890,7 +890,7 @@ export default function App() {
             >
               <button onClick={() => setSelectedPrompt(null)} className="absolute top-6 right-6 p-2 rounded-full bg-black/40 text-white/50 z-20"><X size={20} /></button>
               <div className="flex flex-col md:flex-row max-h-[85vh] overflow-y-auto no-scrollbar">
-                <div className="relative w-full h-[70vh] flex items-start justify-center group/img">
+                <div className="relative w-full h-[70vh] flex items-start justify-center">
                   <img
                     src={selectedPrompt.image?.src}
                     className="absolute inset-0 w-full h-full object-cover blur-2xl scale-110 opacity-40"
@@ -899,18 +899,6 @@ export default function App() {
                     src={selectedPrompt.image?.src}
                     className="relative z-10 max-h-full w-auto object-contain"
                   />
-                  
-                  {/* Кнопка скачать снизу слева */}
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownload(selectedPrompt.image?.src, `vision-${Date.now()}.jpg`);
-                    }}
-                    className="absolute bottom-6 left-6 z-20 p-3 rounded-2xl bg-black/40 backdrop-blur-xl text-white/70 hover:text-white transition-all active:scale-90 border border-white/10"
-                    title="Скачать в лучшем качестве"
-                  >
-                    <Download size={20} />
-                  </button>
                 </div>
                 
                 <div className="md:w-1/2 relative flex flex-col justify-end">
@@ -955,6 +943,15 @@ export default function App() {
                           }`}
                         >
                           {copiedId === selectedPrompt.id ? <Check size={20} /> : <Copy size={20} />}
+                        </button>
+
+                        {/* Кнопка скачать в модальном окне */}
+                        <button
+                          onClick={() => handleDownload(selectedPrompt.image?.src || "", 'vision-prompt.jpg')}
+                          className="flex-1 flex items-center justify-center bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl active:scale-90 transition-all hover:bg-white/10 text-white/60"
+                          title="Скачать изображение"
+                        >
+                          <Upload size={20} />
                         </button>
                       </div>
                     </div>
