@@ -2,14 +2,12 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const { prompt, aspectRatio, modelId, image, imageMode } = await req.json();
+    const { prompt, aspectRatio, modelId, image } = await req.json();
     const apiKey = process.env.GOOGLE_API_KEY;
 
-    if (!apiKey) {
-      return NextResponse.json({ error: "No API Key" }, { status: 500 });
-    }
+    if (!apiKey) return NextResponse.json({ error: "No API Key" }, { status: 500 });
 
-    // Определяем метод на основе ID модели
+    // Определяем семейство модели
     const isNanoBanana = modelId.includes("nano-banana") || modelId.includes("gemini-3");
     const method = isNanoBanana ? "generateContent" : "predict";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:${method}?key=${apiKey}`;
@@ -17,7 +15,8 @@ export async function POST(req: Request) {
     let body;
 
     if (isNanoBanana) {
-      // Логика для Nano Banana Pro (Gemini 3 Pro)
+      // 1. ЛОГИКА ДЛЯ NANO BANANA PRO (Gemini 3 Pro)
+      // Использует generateContent и поддерживает мультимодальность (текст + фото)
       const parts: any[] = [{ text: prompt }];
       
       if (image) {
@@ -28,22 +27,22 @@ export async function POST(req: Request) {
           }
         });
       }
-      
+
       body = {
         contents: [{ parts }],
         generationConfig: {
-          // ПРАВИЛЬНАЯ СТРУКТУРА ДЛЯ GEMINI 3 / NANO BANANA PRO
-          image_generation_config: {
-            aspect_ratio: aspectRatio || "1:1"
-          }
+          // ВАЖНО: Gemini требует snake_case (aspect_ratio)
+          aspect_ratio: aspectRatio === "auto" ? "1:1" : aspectRatio
         }
       };
     } else {
-      // Логика для Imagen 4
+      // 2. ЛОГИКА ДЛЯ IMAGEN 4 (Ultra и Fast)
+      // Использует predict. Большинство Vertex-моделей Imagen 4 
+      // сейчас работают как Text-to-Image.
       const instance: any = { prompt };
 
+      // Если модель поддерживает Image-to-Image через predict, передаем картинку
       if (image) {
-        // Добавляем референс
         instance.image = {
           bytesBase64Encoded: image.split(',')[1]
         };
@@ -53,25 +52,12 @@ export async function POST(req: Request) {
         instances: [instance],
         parameters: {
           sampleCount: 1,
-          
-          // ШАГ 1: Если есть картинка, НЕ передаем aspectRatio. 
-          // Модель должна использовать пропорции оригинала, иначе она часто игнорирует фото.
-          ...(image ? {} : { aspectRatio: aspectRatio === "auto" ? "1:1" : aspectRatio }),
-          
-          outputOptions: { mimeType: "image/jpeg" },
-          
-          // ШАГ 2: Настраиваем режим вариации
-          editConfig: image ? {
-            editMode: "variation",
-            // Повышаем силу промпта до 75. 
-            // Это заставит модель активнее менять фото согласно вашему тексту.
-            guidanceScale: 75 
-          } : undefined
+          // ВАЖНО: Imagen требует camelCase (aspectRatio)
+          aspectRatio: aspectRatio === "auto" ? "1:1" : aspectRatio,
+          outputOptions: { mimeType: "image/jpeg" }
         }
       };
     }
-
-    console.log("Request body:", JSON.stringify(body, null, 2));
 
     const response = await fetch(url, {
       method: "POST",
@@ -83,32 +69,13 @@ export async function POST(req: Request) {
     
     if (!response.ok) {
       console.error("Google API Error:", data);
-      throw new Error(data.error?.message || data.error || "Google API Error");
+      throw new Error(data.error?.message || "Ошибка Google API");
     }
 
-    let base64Image;
-    if (isNanoBanana) {
-      // Ищем часть с изображением в ответе Gemini
-      const candidate = data.candidates?.[0];
-      if (!candidate) {
-        throw new Error("No candidates in response");
-      }
-      
-      const imagePart = candidate.content?.parts?.find((part: any) => part.inlineData);
-      if (!imagePart) {
-        console.error("No image in Gemini response:", data);
-        throw new Error("No image generated in response");
-      }
-      
-      base64Image = imagePart.inlineData.data;
-    } else {
-      // Imagen 4 ответ
-      if (!data.predictions?.[0]?.bytesBase64Encoded) {
-        console.error("No image in Imagen response:", data);
-        throw new Error("No image generated in response");
-      }
-      base64Image = data.predictions[0].bytesBase64Encoded;
-    }
+    // Извлекаем результат в зависимости от метода
+    const base64Image = isNanoBanana 
+      ? data.candidates[0].content.parts[0].inlineData.data 
+      : data.predictions[0].bytesBase64Encoded;
 
     return NextResponse.json({ 
       imageUrl: `data:image/jpeg;base64,${base64Image}` 
@@ -116,8 +83,6 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("Server Error:", error);
-    return NextResponse.json({ 
-      error: error.message || "Internal server error" 
-    }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

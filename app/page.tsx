@@ -134,7 +134,7 @@ interface Generation {
   is_favorite: boolean;
 }
 
-// Обновленный массив моделей
+// ОБНОВЛЕННЫЙ массив моделей
 const MODELS = [
   { 
     id: "imagen-4.0-ultra-generate-001", 
