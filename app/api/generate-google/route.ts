@@ -15,11 +15,11 @@ export async function POST(req: Request) {
     let body;
 
     if (isNanoBanana) {
-      // 1. Формируем "части" запроса (текст + опционально фото)
+      // 1. ЛОГИКА ДЛЯ NANO BANANA PRO (Gemini 3 Pro)
+      // Работает и с текстом, и с фото.
       const parts: any[] = [{ text: prompt }];
       
       if (image) {
-        // Извлекаем чистый base64 и mimeType
         const base64Data = image.split(',')[1];
         const mimeType = image.split(';')[0].split(':')[1];
         
@@ -33,29 +33,22 @@ export async function POST(req: Request) {
 
       body = {
         contents: [{ parts }],
-        // УБИРАЕМ aspect_ratio, так как модель его не поддерживает в этом блоке
+        // Оставляем пустой конфиг, так как aspect_ratio здесь вызывал ошибку
         generationConfig: {
           candidateCount: 1
         }
       };
     } else {
       // 2. ЛОГИКА ДЛЯ IMAGEN 4 (Ultra и Fast)
-      // Использует predict. Большинство Vertex-моделей Imagen 4 
-      // сейчас работают как Text-to-Image.
+      // ВАЖНО: Эти модели поддерживают ТОЛЬКО текст. 
+      // Если передать поле 'image', будет ошибка "Image in input is not supported".
       const instance: any = { prompt };
-
-      // Если модель поддерживает Image-to-Image через predict, передаем картинку
-      if (image) {
-        instance.image = {
-          bytesBase64Encoded: image.split(',')[1]
-        };
-      }
 
       body = {
         instances: [instance],
         parameters: {
           sampleCount: 1,
-          // ВАЖНО: Imagen требует camelCase (aspectRatio)
+          // Imagen 4 принимает пропорции в формате camelCase (aspectRatio)
           aspectRatio: aspectRatio === "auto" ? "1:1" : aspectRatio,
           outputOptions: { mimeType: "image/jpeg" }
         }
@@ -71,23 +64,25 @@ export async function POST(req: Request) {
     const data = await response.json();
     
     if (!response.ok) {
-      console.error("Nano Banana API Error:", data);
-      throw new Error(data.error?.message || "Ошибка генерации Nano Banana");
+      console.error("API Error Details:", data);
+      throw new Error(data.error?.message || "Ошибка генерации");
     }
 
+    // Извлекаем картинку в зависимости от структуры ответа модели
     let base64Image;
     if (isNanoBanana) {
-      // Ищем картинку в кандидатах ответа Gemini
       const candidate = data.candidates?.[0];
       const imagePart = candidate?.content?.parts?.find((part: any) => part.inlineData);
       
       if (!imagePart) {
         throw new Error("Модель не вернула изображение. Проверьте промпт на безопасность.");
       }
-      
       base64Image = imagePart.inlineData.data;
     } else {
-      // Логика для Imagen остается прежней
+      // Для Imagen 4 (Ultra / Fast)
+      if (!data.predictions?.[0]?.bytesBase64Encoded) {
+        throw new Error("Изображение не найдено в ответе модели.");
+      }
       base64Image = data.predictions[0].bytesBase64Encoded;
     }
 

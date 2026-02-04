@@ -176,7 +176,7 @@ export default function App() {
   }, [searchQuery]);
    
   const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
+  const [selectedPrompt, setSelectedPrompt] = useState<any | null>(null);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [isFavoritesView, setIsFavoritesView] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -666,11 +666,22 @@ export default function App() {
                   {filteredGenerations.map((generation) => (
                     <div 
                       key={generation.id} 
-                      className="rounded-[1.5rem] bg-white/[0.02] border border-white/[0.03] overflow-hidden relative group"
+                      className="rounded-[1.5rem] bg-white/[0.02] border border-white/[0.03] overflow-hidden relative group cursor-pointer"
+                      onClick={() => setSelectedPrompt({
+                        id: generation.id as any,
+                        title: "Моя генерация",
+                        tool: "Vision AI",
+                        category: "История",
+                        price: 0,
+                        prompt: generation.prompt,
+                        image: { src: generation.image_url, width: 1024, height: 1024, aspect: "1:1" },
+                        description: "Сгенерированное изображение",
+                        bestFor: "Личное использование",
+                        isHistory: true
+                      })}
                     >
-                      {/* Кнопка избранного */}
                       <button
-                        onClick={() => toggleGenerationFavorite(generation)}
+                        onClick={(e) => { e.stopPropagation(); toggleGenerationFavorite(generation); }}
                         className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/60 backdrop-blur-sm hover:bg-black/80 transition-all"
                         title={generation.is_favorite ? "Удалить из избранного" : "Добавить в избранное"}
                       >
@@ -688,7 +699,6 @@ export default function App() {
                         />
                       </div>
                       <div className="p-4 space-y-3">
-                        {/* ОБНОВЛЁННЫЙ БЛОК С ПРОМПТОМ */}
                         <div className="bg-white/5 border border-white/10 rounded-xl p-3 h-24 overflow-y-auto">
                           <p className="text-xs leading-relaxed text-white/90 whitespace-pre-wrap select-all font-medium">
                             {generation.prompt}
@@ -701,41 +711,26 @@ export default function App() {
                           </div>
                           <div className="flex items-center gap-2">
                             <button 
-                              onClick={() => {
-                                navigator.clipboard.writeText(generation.prompt);
-                                toast.success("Промпт скопирован!");
-                              }}
+                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(generation.prompt); toast.success("Промпт скопирован!"); }}
                               className="hover:text-white/60 transition-colors"
                               title="Копировать промпт"
                             >
                               <Copy size={14} />
                             </button>
                             <button 
-                              onClick={() => {
-                                setGeneratePrompt(generation.prompt);
-                                setIsGenerateOpen(true);
-                              }}
+                              onClick={(e) => { e.stopPropagation(); setGeneratePrompt(generation.prompt); setIsGenerateOpen(true); }}
                               className="hover:text-white/60 transition-colors"
                               title="Сгенерировать снова"
                             >
                               <Zap size={14} />
                             </button>
                             <button 
-                              onClick={() => handleShare(generation.image_url)}
+                              onClick={(e) => { e.stopPropagation(); handleShare(generation.image_url); }}
                               className="hover:text-white/60 transition-colors"
                               title="Поделиться"
                             >
                               <Share2 size={14} />
                             </button>
-                            <a 
-                              href={generation.image_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="hover:text-white/60 transition-colors"
-                              title="Открыть изображение"
-                            >
-                              <ExternalLink size={14} />
-                            </a>
                           </div>
                         </div>
                       </div>
@@ -770,7 +765,7 @@ export default function App() {
                       favorites={favorites}
                       toggleFavorite={toggleFavorite}
                       handleCopy={handleCopy}
-                      setSelectedPrompt={setSelectedPrompt}
+                      setSelectedPrompt={setSelectedPrompt as any}
                       copiedId={copiedId}
                     />
                   ))
@@ -884,41 +879,41 @@ export default function App() {
                   />
                 </div>
                 
-                {/* ОБНОВЛЕННЫЙ БЛОК С ОПИСАНИЕМ И КНОПКАМИ */}
                 <div className="md:w-1/2 relative flex flex-col justify-end">
-                  {/* ГРАДИЕНТНАЯ ПОДЛОЖКА (Кинематографичный эффект) */}
                   <div className="absolute -inset-x-6 -bottom-6 h-[50vh] bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none z-0" />
 
-                  {/* КОНТЕЙНЕР КОНТЕНТА */}
                   <div className="relative z-10 p-5 md:p-10 space-y-3">
-                    
-                    {/* ГРИД: Текст + Кнопки */}
                     <div className="flex gap-3 h-32">
-                      
-                      {/* ТЕКСТ: Убрал leading-[1.6], сделал leading-snug (плотнее) */}
                       <div className="flex-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 overflow-y-auto shadow-2xl">
                         <p className="text-[13px] leading-snug text-white/80 whitespace-pre-wrap select-all font-medium">
                           {selectedPrompt.prompt}
                         </p>
                       </div>
 
-                      {/* КНОПКИ СПРАВА */}
                       <div className="flex flex-col gap-2 w-14 flex-shrink-0">
-                        
-                        {/* Лайк */}
                         <button
-                          onClick={(e) => toggleFavorite(e, selectedPrompt.id)}
+                          onClick={(e) => {
+                            if (selectedPrompt?.isHistory) {
+                              const gen = generations.find((g: any) => g.id === selectedPrompt.id);
+                              if (gen) toggleGenerationFavorite(gen);
+                            } else {
+                              toggleFavorite(e, selectedPrompt.id as number);
+                            }
+                          }}
                           className="flex-1 flex items-center justify-center bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl active:scale-90 transition-all hover:bg-white/10"
                         >
                           <Heart 
                             size={20} 
-                            className={`transition-colors duration-300 ${favorites.includes(selectedPrompt.id) ? "text-red-500 fill-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]" : "text-white/60"}`} 
+                            className={`transition-colors duration-300 ${
+                              selectedPrompt.isHistory
+                                ? (generations.find((g: any) => g.id === selectedPrompt.id)?.is_favorite ? "text-red-500 fill-red-500" : "text-white/60")
+                                : (favorites.includes(selectedPrompt.id as number) ? "text-red-500 fill-red-500" : "text-white/60")
+                            }`} 
                           />
                         </button>
 
-                        {/* Копировать */}
                         <button
-                          onClick={() => handleCopy(selectedPrompt.id, selectedPrompt.prompt, selectedPrompt.price)}
+                          onClick={() => handleCopy(selectedPrompt.id as number, selectedPrompt.prompt, selectedPrompt.price)}
                           className={`flex-1 flex items-center justify-center backdrop-blur-xl border rounded-2xl active:scale-90 transition-all ${
                             copiedId === selectedPrompt.id 
                               ? 'bg-white border-white text-black' 
@@ -927,11 +922,9 @@ export default function App() {
                         >
                           {copiedId === selectedPrompt.id ? <Check size={20} /> : <Copy size={20} />}
                         </button>
-
                       </div>
                     </div>
 
-                    {/* КНОПКА ГЕНЕРАЦИИ */}
                     <button
                       onClick={() => {
                         setIsGenerateOpen(true);
@@ -941,7 +934,6 @@ export default function App() {
                     >
                       Сгенерировать
                     </button>
-
                   </div>
                 </div>
               </div>
@@ -991,7 +983,6 @@ export default function App() {
                     className="w-full bg-[#1c1c1e] border border-white/10 rounded-xl p-3 flex items-center justify-between cursor-pointer active:border-white/30 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      {/* Иконка текущей модели */}
                       <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${currentModel.color} flex items-center justify-center text-[10px] font-bold shadow-lg`}>
                         {currentModel.badge}
                       </div>
@@ -1010,7 +1001,6 @@ export default function App() {
                     </div>
                   </button>
 
-                  {/* ВЫПАДАЮЩЕЕ МЕНЮ МОДЕЛЕЙ */}
                   <AnimatePresence>
                     {isModelMenuOpen && (
                       <motion.div 
@@ -1047,11 +1037,9 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Загрузка изображения (Референс) - ОБНОВЛЕННЫЙ БЛОК */}
               <div className="space-y-2">
                 <label className="text-[13px] font-medium text-white/60 ml-1">Изображения</label>
                 <div className="grid grid-cols-4 gap-2">
-                  {/* Кнопка загрузки */}
                   <label className="aspect-square bg-[#1c1c1e] border border-white/10 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 transition-colors overflow-hidden relative">
                     <input 
                       type="file" 
@@ -1079,7 +1067,6 @@ export default function App() {
                     )}
                   </label>
                   
-                  {/* Плейсхолдер текста (как на скрине) */}
                   <div className="col-span-3 bg-[#1c1c1e] border border-white/10 rounded-xl p-4 flex items-center justify-center text-center">
                     <p className="text-[11px] text-white/30 leading-snug">
                       Загрузите одно или несколько изображений для редактирования.
@@ -1088,7 +1075,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Ввод промпта */}
               <div className="space-y-2">
                 <label className="text-[13px] font-medium text-white/60 ml-1">
                   Запрос <span className="text-yellow-500">*</span>
@@ -1101,7 +1087,6 @@ export default function App() {
                 />
               </div>
 
-              {/* Соотношение сторон (Dropdown) */}
               <div className="space-y-2 pb-24 relative">
                 <label className="text-[13px] font-medium text-white/60 ml-1">Соотношение сторон</label>
                 
@@ -1118,7 +1103,6 @@ export default function App() {
                      </div>
                   </button>
 
-                  {/* ВЫПАДАЮЩЕЕ МЕНЮ (Открывается вверх) */}
                   <AnimatePresence>
                     {isRatioMenuOpen && (
                       <motion.div 
@@ -1127,7 +1111,6 @@ export default function App() {
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         className="absolute bottom-full mb-2 left-0 right-0 bg-[#1c1c1e] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 max-h-60 overflow-y-auto"
                       >
-                        {/* Опция Автоматически */}
                         <button
                             onClick={() => { setAspectRatio("auto"); setIsRatioMenuOpen(false); }}
                             className="w-full text-left px-4 py-3 text-[14px] text-white hover:bg-white/5 flex items-center justify-between border-b border-white/5"
@@ -1136,7 +1119,6 @@ export default function App() {
                             {aspectRatio === "auto" && <Check size={14} className="text-yellow-500" />}
                         </button>
 
-                        {/* Список форматов */}
                         {["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"].map((ratio) => (
                           <button
                             key={ratio}
@@ -1154,7 +1136,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* 3. НИЖНЯЯ ПАНЕЛЬ (Кнопка) */}
             <div className="fixed bottom-0 left-0 right-0 p-4 bg-[#111] border-t border-white/5 pb-safe">
               <button
                 onClick={handleGenerate}
