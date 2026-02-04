@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       const instance: any = { prompt };
 
       if (image) {
-        // Чтобы фото учитывалось как референс:
+        // Добавляем референс
         instance.image = {
           bytesBase64Encoded: image.split(',')[1]
         };
@@ -53,12 +53,19 @@ export async function POST(req: Request) {
         instances: [instance],
         parameters: {
           sampleCount: 1,
-          aspectRatio: aspectRatio || "1:1",
+          
+          // ШАГ 1: Если есть картинка, НЕ передаем aspectRatio. 
+          // Модель должна использовать пропорции оригинала, иначе она часто игнорирует фото.
+          ...(image ? {} : { aspectRatio: aspectRatio === "auto" ? "1:1" : aspectRatio }),
+          
           outputOptions: { mimeType: "image/jpeg" },
-          // ВАЖНО: Добавь эти параметры для Image-to-Image
+          
+          // ШАГ 2: Настраиваем режим вариации
           editConfig: image ? {
-            editMode: "variation", // Создает вариацию на основе твоего фото
-            guidanceScale: 60      // Насколько сильно следовать фото (0-100)
+            editMode: "variation",
+            // Повышаем силу промпта до 75. 
+            // Это заставит модель активнее менять фото согласно вашему тексту.
+            guidanceScale: 75 
           } : undefined
         }
       };
