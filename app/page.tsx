@@ -32,6 +32,7 @@ import {
   ChevronDown, 
   HelpCircle,
   Upload,
+  Download,
   Trash2
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
@@ -229,6 +230,27 @@ export default function App() {
   // Функция для удаления загруженного изображения
   const handleRemoveImage = () => {
     setReferenceImage(null);
+  };
+
+  // Функция для скачивания изображения
+  const handleDownload = async (url: string, filename: string) => {
+    if (!url) return;
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || 'vision-image.jpg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success("Загрузка завершена!");
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error("Ошибка при скачивании");
+    }
   };
 
   // ИСПРАВЛЕННЫЙ useEffect для блокировки скролла
@@ -868,7 +890,7 @@ export default function App() {
             >
               <button onClick={() => setSelectedPrompt(null)} className="absolute top-6 right-6 p-2 rounded-full bg-black/40 text-white/50 z-20"><X size={20} /></button>
               <div className="flex flex-col md:flex-row max-h-[85vh] overflow-y-auto no-scrollbar">
-                <div className="relative w-full h-[70vh] flex items-start justify-center">
+                <div className="relative w-full h-[70vh] flex items-start justify-center group/img">
                   <img
                     src={selectedPrompt.image?.src}
                     className="absolute inset-0 w-full h-full object-cover blur-2xl scale-110 opacity-40"
@@ -877,6 +899,18 @@ export default function App() {
                     src={selectedPrompt.image?.src}
                     className="relative z-10 max-h-full w-auto object-contain"
                   />
+                  
+                  {/* Кнопка скачать снизу слева */}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownload(selectedPrompt.image?.src, `vision-${Date.now()}.jpg`);
+                    }}
+                    className="absolute bottom-6 left-6 z-20 p-3 rounded-2xl bg-black/40 backdrop-blur-xl text-white/70 hover:text-white transition-all active:scale-90 border border-white/10"
+                    title="Скачать в лучшем качестве"
+                  >
+                    <Download size={20} />
+                  </button>
                 </div>
                 
                 <div className="md:w-1/2 relative flex flex-col justify-end">
