@@ -15,15 +15,18 @@ export async function POST(req: Request) {
     let body;
 
     if (isNanoBanana) {
-      // 1. ЛОГИКА ДЛЯ NANO BANANA PRO (Gemini 3 Pro)
-      // Использует generateContent и поддерживает мультимодальность (текст + фото)
+      // 1. Формируем "части" запроса (текст + опционально фото)
       const parts: any[] = [{ text: prompt }];
       
       if (image) {
+        // Извлекаем чистый base64 и mimeType
+        const base64Data = image.split(',')[1];
+        const mimeType = image.split(';')[0].split(':')[1];
+        
         parts.push({
           inlineData: {
-            mimeType: image.split(';')[0].split(':')[1],
-            data: image.split(',')[1]
+            mimeType: mimeType,
+            data: base64Data
           }
         });
       }
@@ -31,8 +34,11 @@ export async function POST(req: Request) {
       body = {
         contents: [{ parts }],
         generationConfig: {
-          // ВАЖНО: Gemini требует snake_case (aspect_ratio)
-          aspect_ratio: aspectRatio === "auto" ? "1:1" : aspectRatio
+          // ИСПРАВЛЕНИЕ: В Gemini 3 параметр называется строго aspect_ratio
+          // и он находится ПРЯМО в generationConfig без лишних вложений
+          aspect_ratio: aspectRatio === "auto" ? "1:1" : aspectRatio,
+          // Можно добавить количество вариантов (обычно 1 для экономии)
+          candidateCount: 1
         }
       };
     } else {
@@ -68,14 +74,25 @@ export async function POST(req: Request) {
     const data = await response.json();
     
     if (!response.ok) {
-      console.error("Google API Error:", data);
-      throw new Error(data.error?.message || "Ошибка Google API");
+      console.error("Nano Banana API Error:", data);
+      throw new Error(data.error?.message || "Ошибка генерации Nano Banana");
     }
 
-    // Извлекаем результат в зависимости от метода
-    const base64Image = isNanoBanana 
-      ? data.candidates[0].content.parts[0].inlineData.data 
-      : data.predictions[0].bytesBase64Encoded;
+    let base64Image;
+    if (isNanoBanana) {
+      // Ищем картинку в кандидатах ответа Gemini
+      const candidate = data.candidates?.[0];
+      const imagePart = candidate?.content?.parts?.find((part: any) => part.inlineData);
+      
+      if (!imagePart) {
+        throw new Error("Модель не вернула изображение. Проверьте промпт на безопасность.");
+      }
+      
+      base64Image = imagePart.inlineData.data;
+    } else {
+      // Логика для Imagen остается прежней
+      base64Image = data.predictions[0].bytesBase64Encoded;
+    }
 
     return NextResponse.json({ 
       imageUrl: `data:image/jpeg;base64,${base64Image}` 
