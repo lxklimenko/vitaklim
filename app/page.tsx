@@ -267,16 +267,23 @@ export default function App() {
   // ИСПРАВЛЕННЫЙ useEffect для блокировки скролла
   useEffect(() => {
     if (selectedPrompt) {
+      const scrollBarWidth =
+          window.innerWidth - document.documentElement.clientWidth;
+
       document.body.style.overflow = "hidden";
       document.body.style.touchAction = "none";
+      document.body.style.paddingRight =
+          scrollBarWidth > 0 ? `${scrollBarWidth}px` : "";
     } else {
       document.body.style.overflow = "";
       document.body.style.touchAction = "";
+      document.body.style.paddingRight = "";
     }
 
     return () => {
       document.body.style.overflow = "";
       document.body.style.touchAction = "";
+      document.body.style.paddingRight = "";
     };
   }, [selectedPrompt]);
 
@@ -881,7 +888,7 @@ export default function App() {
               className="relative bg-[#111] w-full max-w-3xl rounded-[2.5rem] overflow-hidden z-10 shadow-2xl"
             >
               <button onClick={() => setSelectedPrompt(null)} className="absolute top-6 right-6 p-2 rounded-full bg-black/40 text-white/50 z-20"><X size={20} /></button>
-              <div className="flex flex-col md:flex-row max-h-[85vh] overflow-y-auto no-scrollbar min-w-0">
+              <div className="flex flex-col md:flex-row max-h-[85vh] overflow-y-scroll overflow-x-hidden [scrollbar-gutter:stable] no-scrollbar min-w-0">
                 <div className="relative w-full h-[70vh] flex items-start justify-center">
                   {/* ИЗМЕНЕНИЕ №2: Убираем scale-110 */}
                   <img
