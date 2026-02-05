@@ -758,38 +758,34 @@ export default function App() {
               )}
             </div>
           ) : (
-            <motion.div layout className="grid grid-cols-2 gap-4 px-4">
-              <AnimatePresence mode="popLayout">
-                {isLibLoading ? (
-                  Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
-                ) : (isFavoritesView && filteredPrompts.length === 0) ? (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.97 }}
-                    key="empty-state"
-                    className="col-span-2 py-24 text-center flex flex-col items-center gap-4"
-                  >
-                    <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5">
-                      <Heart size={24} className="text-white/10" />
-                    </div>
-                    <h3 className="text-sm font-semibold tracking-tight text-white/40">Пусто</h3>
-                  </motion.div>
-                ) : (
-                  filteredPrompts.map((p) => (
-                    <PromptCard 
-                      key={p.id}
-                      prompt={p}
-                      favorites={favorites}
-                      toggleFavorite={toggleFavorite}
-                      handleCopy={handleCopy}
-                      setSelectedPrompt={setSelectedPrompt as any}
-                      copiedId={copiedId}
-                    />
-                  ))
-                )}
-              </AnimatePresence>
-            </motion.div>
+            /* ИЗМЕНЕНИЕ №1: Убираем motion.div и AnimatePresence */
+            <div className="grid grid-cols-2 gap-4 px-4">
+              {isLibLoading ? (
+                Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
+              ) : (isFavoritesView && filteredPrompts.length === 0) ? (
+                <div 
+                  key="empty-state"
+                  className="col-span-2 py-24 text-center flex flex-col items-center gap-4"
+                >
+                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5">
+                    <Heart size={24} className="text-white/10" />
+                  </div>
+                  <h3 className="text-sm font-semibold tracking-tight text-white/40">Пусто</h3>
+                </div>
+              ) : (
+                filteredPrompts.map((p) => (
+                  <PromptCard 
+                    key={p.id}
+                    prompt={p}
+                    favorites={favorites}
+                    toggleFavorite={toggleFavorite}
+                    handleCopy={handleCopy}
+                    setSelectedPrompt={setSelectedPrompt as any}
+                    copiedId={copiedId}
+                  />
+                ))
+              )}
+            </div>
           )}
         </section>
       </main>
@@ -869,7 +865,7 @@ export default function App() {
       {/* DETAIL MODAL */}
       <AnimatePresence>
         {selectedPrompt && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 overflow-x-hidden overscroll-none">
             <motion.div 
               className="absolute inset-0 bg-black/90 backdrop-blur-md touch-none"
               onClick={() => setSelectedPrompt(null)} 
@@ -878,24 +874,24 @@ export default function App() {
               exit={{ opacity: 0 }} 
             />
             <motion.div 
-              initial={{ scale: 0.97, opacity: 0 }} 
-              animate={{ scale: 1, opacity: 1 }} 
-              exit={{ scale: 0.97, opacity: 0 }} 
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              transition={{ duration: 0.25 }} 
               className="relative bg-[#111] w-full max-w-3xl rounded-[2.5rem] overflow-hidden z-10 shadow-2xl"
             >
               <button onClick={() => setSelectedPrompt(null)} className="absolute top-6 right-6 p-2 rounded-full bg-black/40 text-white/50 z-20"><X size={20} /></button>
-              <div className="flex flex-col md:flex-row max-h-[85vh] overflow-y-auto no-scrollbar">
+              <div className="flex flex-col md:flex-row max-h-[85vh] overflow-y-auto no-scrollbar min-w-0">
                 <div className="relative w-full h-[70vh] flex items-start justify-center">
+                  {/* ИЗМЕНЕНИЕ №2: Убираем scale-110 */}
                   <img
                     src={selectedPrompt.image?.src}
-                    className="absolute inset-0 w-full h-full object-cover blur-2xl scale-110 opacity-40"
+                    className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-40"
                   />
                   <img
                     src={selectedPrompt.image?.src}
                     className="relative z-10 max-h-full w-auto object-contain"
                   />
-                  {/* 1️⃣ Добавляем градиент снизу изображения */}
                   <div
                     className="
                       absolute inset-x-0 bottom-0 h-28
@@ -910,14 +906,12 @@ export default function App() {
 
                   <div className="relative z-10 p-5 md:p-10 space-y-3">
                     <div className="flex gap-3 h-32">
-                      {/* 2️⃣ Текст → оставить весь, но сделать вторичным */}
                       <div className="flex-1 bg-white/4 border border-white/8 rounded-xl px-4 py-3 overflow-y-auto">
-                        <p className="text-[13px] leading-relaxed text-white/80 whitespace-pre-wrap select-all">
+                        <p className="text-[13px] leading-relaxed text-white/80 whitespace-pre-wrap select-all min-w-0 break-words">
                           {selectedPrompt.prompt}
                         </p>
                       </div>
 
-                      {/* 3️⃣ Кнопки справа → сделать "control panel" */}
                       <div
                         className="
                           flex flex-col gap-2
@@ -974,7 +968,6 @@ export default function App() {
                           {copiedId === selectedPrompt.id ? <Check size={18} strokeWidth={1.5} /> : <Copy size={18} strokeWidth={1.5} />}
                         </button>
 
-                        {/* Кнопка скачать в модальном окне */}
                         <button
                           onClick={() => handleDownload(selectedPrompt.image?.src || "", 'vision-prompt.jpg')}
                           className="
@@ -994,7 +987,6 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* 4️⃣ CTA «Сгенерировать» → усилить */}
                     <button
                       onClick={() => {
                         setIsGenerateOpen(true);
@@ -1025,7 +1017,6 @@ export default function App() {
         {isGenerateOpen && (
           <div className="fixed inset-0 z-[300] bg-black flex flex-col">
             
-            {/* 1. ШАПКА (HEADER) */}
             <div className="flex items-center justify-between px-4 py-4 border-b border-white/5 bg-[#111]">
               <button 
                 onClick={() => setIsGenerateOpen(false)}
@@ -1048,10 +1039,8 @@ export default function App() {
               </button>
             </div>
 
-            {/* 2. ОСНОВНОЙ КОНТЕНТ (Скроллируемый) */}
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
               
-              {/* Выбор модели (Dropdown) */}
               <div className="space-y-2 relative z-50">
                 <label className="text-[13px] font-medium text-white/60 ml-1">Модель</label>
                 
