@@ -895,6 +895,14 @@ export default function App() {
                     src={selectedPrompt.image?.src}
                     className="relative z-10 max-h-full w-auto object-contain"
                   />
+                  {/* 1️⃣ Добавляем градиент снизу изображения */}
+                  <div
+                    className="
+                      absolute inset-x-0 bottom-0 h-28
+                      bg-gradient-to-t from-black/60 to-transparent
+                      pointer-events-none
+                    "
+                  />
                 </div>
                 
                 <div className="md:w-1/2 relative flex flex-col justify-end">
@@ -902,13 +910,21 @@ export default function App() {
 
                   <div className="relative z-10 p-5 md:p-10 space-y-3">
                     <div className="flex gap-3 h-32">
-                      <div className="flex-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 overflow-y-auto shadow-2xl">
-                        <p className="text-[13px] leading-snug text-white/80 whitespace-pre-wrap select-all font-medium">
+                      {/* 2️⃣ Текст → оставить весь, но сделать вторичным */}
+                      <div className="flex-1 bg-white/4 border border-white/8 rounded-xl px-4 py-3 overflow-y-auto">
+                        <p className="text-[13px] leading-relaxed text-white/80 whitespace-pre-wrap select-all">
                           {selectedPrompt.prompt}
                         </p>
                       </div>
 
-                      <div className="flex flex-col gap-2 w-14 flex-shrink-0">
+                      {/* 3️⃣ Кнопки справа → сделать "control panel" */}
+                      <div
+                        className="
+                          flex flex-col gap-2
+                          bg-white/4 border border-white/8
+                          rounded-xl p-2 w-14 items-center
+                        "
+                      >
                         <button
                           onClick={(e) => {
                             if (selectedPrompt?.isHistory) {
@@ -918,46 +934,81 @@ export default function App() {
                               toggleFavorite(e, selectedPrompt.id as number);
                             }
                           }}
-                          className="flex-1 flex items-center justify-center bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl active:scale-90 transition-all hover:bg-white/10"
+                          className="
+                            w-11 h-11
+                            rounded-lg
+                            flex items-center justify-center
+                            text-white/70
+                            hover:text-white
+                            hover:bg-white/10
+                            active:scale-95
+                            transition
+                          "
+                          title="Добавить в избранное"
                         >
                           <Heart 
-                            size={20} 
+                            size={18} 
+                            strokeWidth={1.5}
                             className={`transition-colors duration-300 ${
                               selectedPrompt.isHistory
-                                ? (generations.find((g: any) => g.id === selectedPrompt.id)?.is_favorite ? "text-red-500 fill-red-500" : "text-white/60")
-                                : (favorites.includes(selectedPrompt.id as number) ? "text-red-500 fill-red-500" : "text-white/60")
+                                ? (generations.find((g: any) => g.id === selectedPrompt.id)?.is_favorite ? "text-red-500 fill-red-500" : "text-white/70")
+                                : (favorites.includes(selectedPrompt.id as number) ? "text-red-500 fill-red-500" : "text-white/70")
                             }`} 
                           />
                         </button>
 
                         <button
                           onClick={() => handleCopy(selectedPrompt.id as number, selectedPrompt.prompt, selectedPrompt.price)}
-                          className={`flex-1 flex items-center justify-center backdrop-blur-xl border rounded-2xl active:scale-90 transition-all ${
-                            copiedId === selectedPrompt.id 
-                              ? 'bg-white border-white text-black' 
-                              : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
-                          }`}
+                          className="
+                            w-11 h-11
+                            rounded-lg
+                            flex items-center justify-center
+                            text-white/70
+                            hover:text-white
+                            hover:bg-white/10
+                            active:scale-95
+                            transition
+                          "
+                          title="Копировать промпт"
                         >
-                          {copiedId === selectedPrompt.id ? <Check size={20} /> : <Copy size={20} />}
+                          {copiedId === selectedPrompt.id ? <Check size={18} strokeWidth={1.5} /> : <Copy size={18} strokeWidth={1.5} />}
                         </button>
 
                         {/* Кнопка скачать в модальном окне */}
                         <button
                           onClick={() => handleDownload(selectedPrompt.image?.src || "", 'vision-prompt.jpg')}
-                          className="flex-1 flex items-center justify-center bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl active:scale-90 transition-all hover:bg-white/10 text-white/60"
+                          className="
+                            w-11 h-11
+                            rounded-lg
+                            flex items-center justify-center
+                            text-white/70
+                            hover:text-white
+                            hover:bg-white/10
+                            active:scale-95
+                            transition
+                          "
                           title="Скачать изображение"
                         >
-                          <Upload size={20} />
+                          <Upload size={18} strokeWidth={1.5} />
                         </button>
                       </div>
                     </div>
 
+                    {/* 4️⃣ CTA «Сгенерировать» → усилить */}
                     <button
                       onClick={() => {
                         setIsGenerateOpen(true);
                         setGeneratePrompt(selectedPrompt.prompt);
                       }}
-                      className="w-full py-4 rounded-2xl font-semibold text-[14px] bg-white text-black active:scale-[0.98] shadow-[0_0_20px_rgba(255,255,255,0.15)] hover:shadow-[0_0_25px_rgba(255,255,255,0.3)] transition-all tracking-tight"
+                      className="
+                        w-full py-4
+                        rounded-2xl
+                        text-[15px] font-semibold
+                        bg-white text-black
+                        shadow-[0_-12px_40px_rgba(0,0,0,0.55)]
+                        active:scale-[0.98]
+                        transition
+                      "
                     >
                       Сгенерировать
                     </button>
