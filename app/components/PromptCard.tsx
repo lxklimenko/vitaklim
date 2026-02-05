@@ -27,26 +27,42 @@ export const PromptCard = React.memo(({
   return (
     <motion.div 
       layout
-      initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.97 }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
       className="flex flex-col group cursor-pointer"
       onClick={() => setSelectedPrompt(prompt)}
     >
       {/* Контейнер изображения */}
-      <div className="relative aspect-[3/4] rounded-[1.25rem] overflow-hidden bg-[#111] mb-2">
+      <div className="relative aspect-[3/4] rounded-[1.25rem] overflow-hidden bg-[#111] mb-2 group">
         <img 
           src={prompt.image?.src} 
           alt={prompt.title}
           loading="lazy" 
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className="
+            w-full h-full object-cover
+            transition-all duration-300 ease-out
+            group-hover:brightness-110
+            group-hover:contrast-105
+            active:brightness-95
+          "
+        />
+        
+        {/* Overlay для затемнения при наведении */}
+        <div
+          className="
+            absolute inset-0
+            bg-black/0
+            transition-colors duration-300
+            group-hover:bg-black/10
+          "
         />
         
         {/* Избранное справа сверху */}
         <button 
           onClick={(e) => { e.stopPropagation(); toggleFavorite(e, prompt.id); }}
-          className="absolute top-3 right-3 p-1.5 rounded-full bg-black/30 backdrop-blur-sm text-white/50 hover:text-white transition-colors"
+          className="absolute top-3 right-3 p-1.5 rounded-full bg-black/30 backdrop-blur-sm text-white/50 hover:text-white transition-colors z-10"
         >
           <Heart size={14} fill={isFavorite ? "white" : "none"} className={isFavorite ? "text-white" : ""} />
         </button>

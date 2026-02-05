@@ -185,7 +185,6 @@ export default function App() {
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
 
   // Состояния для генерации изображений
   const [generatePrompt, setGeneratePrompt] = useState("");
@@ -241,6 +240,28 @@ export default function App() {
     link.click();
     document.body.removeChild(link);
     toast.success("Изображение сохранено!");
+  };
+
+  // Функция для удаления генерации
+  const handleDeleteGeneration = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation(); // Чтобы не открывалась модалка при клике на кнопку
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('generations')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Обновляем локальный стейт, чтобы карточка исчезла сразу
+      setGenerations(prev => prev.filter(gen => gen.id !== id));
+      toast.success("Генерация удалена");
+    } catch (error: any) {
+      console.error('Error deleting generation:', error);
+      toast.error("Ошибка при удалении");
+    }
   };
 
   // ИСПРАВЛЕННЫЙ useEffect для блокировки скролла
@@ -448,13 +469,10 @@ export default function App() {
     });
   }, [activeCategory, isFavoritesView, favorites, debouncedSearch]);
 
-  // Фильтрация генераций по избранным
+  // Фильтрация генераций
   const filteredGenerations = useMemo(() => {
-    if (showOnlyFavorites) {
-      return generations.filter(gen => gen.is_favorite);
-    }
     return generations;
-  }, [generations, showOnlyFavorites]);
+  }, [generations]);
 
   const handleCopy = async (id: number, text: string, price: number) => {
     if (!user && price > 0) {
@@ -625,22 +643,6 @@ export default function App() {
               <div className="mb-6 text-center">
                 <h2 className="text-2xl font-bold tracking-tight mb-2 text-white">История генераций</h2>
                 <p className="text-sm text-white/40">Ваши созданные изображения</p>
-                
-                {/* Фильтр "Только избранные" */}
-                {user && generations.length > 0 && (
-                  <div className="mt-4">
-                    <button
-                      onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                        showOnlyFavorites 
-                          ? 'bg-yellow-500 text-black' 
-                          : 'bg-white/5 text-white/70 hover:bg-white/10'
-                      }`}
-                    >
-                      {showOnlyFavorites ? 'Все генерации' : 'Только избранные'}
-                    </button>
-                  </div>
-                )}
               </div>
               
               {!user ? (
@@ -662,12 +664,8 @@ export default function App() {
                   <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/5">
                     <ImageIcon size={24} className="text-white/20" />
                   </div>
-                  <h3 className="text-sm font-semibold tracking-tight text-white/40 mb-2">
-                    {showOnlyFavorites ? 'Нет избранных генераций' : 'Пока пусто'}
-                  </h3>
-                  <p className="text-xs text-white/20">
-                    {showOnlyFavorites ? 'Добавьте генерации в избранное, нажав на звездочку' : 'Создайте первое изображение в генераторе'}
-                  </p>
+                  <h3 className="text-sm font-semibold tracking-tight text-white/40 mb-2">Пока пусто</h3>
+                  <p className="text-xs text-white/20">Создайте первое изображение в генераторе</p>
                 </div>
               ) : (
                 <motion.div 
@@ -692,15 +690,13 @@ export default function App() {
                         isHistory: true
                       })}
                     >
+                      {/* Кнопка удаления вместо избранного */}
                       <button
-                        onClick={(e) => { e.stopPropagation(); toggleGenerationFavorite(generation); }}
-                        className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/60 backdrop-blur-sm hover:bg-black/80 transition-all"
-                        title={generation.is_favorite ? "Удалить из избранного" : "Добавить в избранное"}
+                        onClick={(e) => handleDeleteGeneration(e, generation.id)}
+                        className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/60 backdrop-blur-sm hover:bg-red-500/80 text-white/60 hover:text-white transition-all group/del"
+                        title="Удалить из истории"
                       >
-                        <Star 
-                          size={18} 
-                          className={generation.is_favorite ? "text-yellow-400 fill-yellow-400" : "text-white/60"} 
-                        />
+                        <Trash2 size={18} />
                       </button>
                       
                       <div className="aspect-square bg-black/40 relative overflow-hidden">
