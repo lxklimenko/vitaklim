@@ -14,11 +14,11 @@ import {
   Sparkles, 
   Check, 
   X, 
-  Home as HomeIcon, 
+  Home as HomeIcon,
   Star, 
   Plus, 
   Clock, 
-  User as UserIcon, 
+  User as UserIcon,
   Heart,
   Send,
   Zap,
@@ -38,92 +38,10 @@ import {
 import { Toaster, toast } from 'sonner';
 import { PromptCard } from './components/PromptCard';
 import { ProfileModal } from './components/ProfileModal';
-import { Prompt } from './types/prompt';
-
-/**
- * 2. КОНСТАНТЫ И ПОЛНЫЕ ДАННЫЕ
- */
-const STORAGE_URL = "https://gmngqxwkgnuqtkwndjwx.supabase.co/storage/v1/object/public/prompts-images/";
-const CATEGORIES = ["Все", "Fashion", "Art", "Product", "Interior", "Lifestyle"];
-
-const PROMPTS: Prompt[] = [
-  {
-    id: 1,
-    title: "Промпт «Газеты»",
-    tool: "Nano Banana Pro", 
-    category: "Fashion",
-    price: 15,
-    prompt: `Создайте сцену, где молодая женщина в черном костюме в тонкую полоску, стоит в узкой комнате с английскими газетами на стенах. Она прислонена к углу с руками в карманах, волосы в небрежный пучок. Макияж winter glam, выражение лица серьезное. Снимок с теплым светом и мягкой резкостью, 35 мм объектив, киностиль. Используя представленные фото создай сцену где изображен кинематографический портрет молодой женщины в узкой комнате, стены которой полностью покрыты старыми Английскими газетами. Она небрежно прислонилась к углу, одним плечом опираясь о стену, Она одета в черный костюм в тонкую полоску с укороченным пиджаком, белую рубашку и черный галстук. Руки женщины- в карманах. Длинные волосы уложены в небрежный повседневный пучок, Макияж winter glam: выразительные брови, мягкая стрелка, аккуратные ресницы, губы нюд-розовые/розово-карамельные с влажным глянцем. Единственная лампа накаливания свисает с потолка над ней, создавая теплый оранжевый свет и мягкие тени, с тонким сине-зеленым оттенком на заднем плане. Вертикальный снимок, угол съемки на уровня глаз, небольшая глубина резкости, мягкий фокус на заднем плане, детализированные черты лица, слегка серьезное выражение. Высокое разрешение, ультрареалистичность, объектив 35 мм, f/1.8, цветовая градиентная коррекция в стиле кино, атмосферная, редакционная модная фотография.`,
-    image: { src: `${STORAGE_URL}photo.webp`, width: 1000, height: 1250, aspect: "4:5" },
-    description: "Кинематографичный fashion-портрет в стиле ретро-декора.",
-    bestFor: "Fashion Brands / Lookbooks"
-  },
-  {
-    id: 2,
-    title: "Промпт «Портрет»",
-    tool: "Nano Banana Pro", 
-    category: "Art",
-    price: 0,
-    prompt: `СТРОГО СОХРАНИ ВНЕШНОСТЬ девушки с прикреплённого фото, 1:1 её настоящее лицо, глаза, нос, кожа с порами - всё 100% без изменений. Используй отправленное фото как эталон. Ультрареалистичный beauty-portrait крупным планом (голова+плечи, крупный кадр), студийная съёмка на тёмно серым фоне. Поза: 3/4 поворот головы, взгляд прямо в камеру, подбородок слегка приподнят. Причёска - высокий гладкий хвост, идеально зачесанный лаком. Макияж глянцевый, стеклянный тон, тёплый контуринг, идеальные брови, суперчёткие длинные стрелки (cat-eye), длинные объёмные ресницы, нюдово-карамельные глянцевые губы с чётким контуром. Украшения: сверкающие серьги в форме цветка из камней. На пальцах крупные бриллиантовые кольца (одно с большим камнем). Свет мягкий beauty light, акцент на текстуре кожи и блеске украшений. Тени добавляют объём. Атмосфера - редакционная съёмка`,
-    image: { src: `${STORAGE_URL}photo1.webp`, width: 1024, height: 1024, aspect: "1:1" },
-    description: "Ультрареалистичный бьюти -портрет с акцентом на кожу.",
-    bestFor: "Art / Creative Posters"
-  },
-  {
-    id: 3,
-    title: "Промпт «Шампанское»",
-    tool: "Nano Banana Pro",
-    category: "Fashion",
-    price: 3,
-    prompt: `ВАЖНО: Используй загруженное селфи как точную визуальную основу. Лицо должно быть узнаваемым на 100%, без изменения анатомии, мимики, кожи, глаз, губ и волос. Ультрареалистичный новогодний fashion-портрет в студии. Девушка по пояс/до середины бёдер. Её выразительное лицо с мягким макияжем делает образ особенно притягательным и камерным. На девушке круглые большие золотые серьги. Волосы уложены в небрежный высокий пучок. На ней праздничное черное облегающее боди с высоким воротом, красный бархатный элемент и черные капроновые колготки. В руках она держит бутылку и бокал шампанского. Кадр в мягком студийном освещении, подчеркивающем текстуру ткани и детали. Общее настроение — гламурное и провокационное, в стиле модной журнальной статьи. Высокая детализация, 8k, кинематографичный свет.`,
-    image: { src: `${STORAGE_URL}photo3.webp`, width: 1024, height: 1024, aspect: "1:1" },
-    description: "Праздничный гламурный образ с шампанским.",
-    bestFor: "Interior Design / Web"
-  },
-  {
-    id: 4,
-    title: "Промпт «Машина»",
-    tool: "Nano Banana Pro",
-    category: "Fashion",
-    price: 12,
-    prompt: `Используя представленное фото как эталон, СТРОГО СОХРАНИ черты лица, мимику и взгляд женщины без изменений. Создай потрясающий портрет высокой чёткости в формате 9:16. Женщина с объёмными волнистыми волосами, пара прядей небрежно падает на лицо. Она одета в стильную серую двубортную дубленку с отделкой из белой овчины и большим английским воротником, тёмно-серое обтягивающее плотное трико и светлые дутые сапоги в тон меху. Макияж: легкий, чёткие чёрные стрелки, пышные ресницы, губы с коричневым матовым оттенком. Ногти покрашены в белый цвет. Она сидит в открытом багажнике большого белого внедорожника в горах зимой, одна нога игриво согнута. Поза в стиле профессиональной фэшн-съёмки (гламур и дерзость). Кадр по пояс. Освещение природное, мягкое, в спокойных серо-бирюзовых тонах зимнего солнечного дня. Фон горного пейзажа не размыт, видна текстура снега. Фото имеет легкую эстетичную зернистость пленки. Композиция подчеркивает элегантность наряда и красоту модели.`,
-    image: { src: `${STORAGE_URL}photo4.webp`, width: 1080, height: 1920, aspect: "9:16" },
-    description: "Зимняя fashion-съемка в горах.",
-    bestFor: "Instagram / Lookbook"
-  }
-];
-
-/**
- * 3. ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ
- */
-function SkeletonCard() {
-  return (
-    <div className="rounded-[1.5rem] bg-white/[0.02] border border-white/[0.03] overflow-hidden flex flex-col h-full animate-pulse">
-      <div className="aspect-[4/5] bg-white/5" />
-      <div className="p-2 space-y-2">
-        <div className="h-2 w-1/2 bg-white/5 rounded-full" />
-        <div className="h-3 w-full bg-white/5 rounded-full" />
-        <div className="h-8 w-full bg-white/5 rounded-xl mt-2" />
-      </div>
-    </div>
-  );
-}
-
-function NavItem({ icon, label, active = false, onClick }: { icon: React.ReactNode, label: string, active?: boolean, onClick: () => void }) {
-  return (
-    <button 
-      onClick={onClick}
-      className="flex flex-col items-center gap-1 text-[9px] font-medium transition-all duration-500 ease-out active:scale-95 select-none"
-    >
-      <div className={active ? 'text-white' : 'text-white/20'}>
-        {icon}
-      </div>
-      <span className={`tracking-tight ${active ? 'text-white font-semibold' : 'text-white/20'}`}>
-        {label}
-      </span>
-    </button>
-  );
-}
+import { GenerateModal } from './components/GenerateModal';
+// Импортируем компоненты из UIElements.tsx
+import { SkeletonCard, NavItem } from './components/UIElements';
+import { STORAGE_URL, CATEGORIES, PROMPTS, MODELS } from './constants/appConstants';
 
 // Тип для генераций
 interface Generation {
@@ -135,37 +53,6 @@ interface Generation {
   is_favorite: boolean;
 }
 
-// ОБНОВЛЕННЫЙ массив моделей
-const MODELS = [
-  { 
-    id: "imagen-4.0-ultra-generate-001", 
-    name: "Imagen 4 Ultra", 
-    badge: "PREMIUM", 
-    color: "from-amber-400 to-orange-600",
-    desc: "Максимальное качество и фотореализм",
-    price: 10
-  },
-  { 
-    id: "nano-banana-pro-preview", 
-    name: "Nano Banana Pro", 
-    badge: "SMART", 
-    color: "from-yellow-300 to-yellow-500",
-    desc: "Творчество и понимание сложных промптов",
-    price: 5
-  },
-  { 
-    id: "imagen-4.0-fast-generate-001", 
-    name: "Imagen 4 Fast", 
-    badge: "FAST", 
-    color: "from-blue-400 to-cyan-500",
-    desc: "Генерация за 1-2 секунды",
-    price: 2
-  }
-];
-
-/**
- * 4. ОСНОВНОЙ КОМПОНЕНТ ПРИЛОЖЕНИЯ
- */
 export default function App() {
   const [activeCategory, setActiveCategory] = useState("Все");
   const [searchQuery, setSearchQuery] = useState("");
@@ -267,16 +154,23 @@ export default function App() {
   // ИСПРАВЛЕННЫЙ useEffect для блокировки скролла
   useEffect(() => {
     if (selectedPrompt) {
+      const scrollBarWidth =
+          window.innerWidth - document.documentElement.clientWidth;
+
       document.body.style.overflow = "hidden";
       document.body.style.touchAction = "none";
+      document.body.style.paddingRight =
+          scrollBarWidth > 0 ? `${scrollBarWidth}px` : "";
     } else {
       document.body.style.overflow = "";
       document.body.style.touchAction = "";
+      document.body.style.paddingRight = "";
     }
 
     return () => {
       document.body.style.overflow = "";
       document.body.style.touchAction = "";
+      document.body.style.paddingRight = "";
     };
   }, [selectedPrompt]);
 
@@ -881,7 +775,7 @@ export default function App() {
               className="relative bg-[#111] w-full max-w-3xl rounded-[2.5rem] overflow-hidden z-10 shadow-2xl"
             >
               <button onClick={() => setSelectedPrompt(null)} className="absolute top-6 right-6 p-2 rounded-full bg-black/40 text-white/50 z-20"><X size={20} /></button>
-              <div className="flex flex-col md:flex-row max-h-[85vh] overflow-y-auto no-scrollbar min-w-0">
+              <div className="flex flex-col md:flex-row max-h-[85vh] overflow-y-scroll overflow-x-hidden [scrollbar-gutter:stable] no-scrollbar min-w-0">
                 <div className="relative w-full h-[70vh] flex items-start justify-center">
                   {/* ИЗМЕНЕНИЕ №2: Убираем scale-110 */}
                   <img
@@ -1012,220 +906,22 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* ПОЛНОЭКРАННЫЙ РЕДАКТОР ГЕНЕРАЦИИ */}
-      <AnimatePresence>
-        {isGenerateOpen && (
-          <div className="fixed inset-0 z-[300] bg-black flex flex-col">
-            
-            <div className="flex items-center justify-between px-4 py-4 border-b border-white/5 bg-[#111]">
-              <button 
-                onClick={() => setIsGenerateOpen(false)}
-                className="flex items-center gap-1 text-white/60 hover:text-white transition-colors"
-              >
-                <ChevronLeft size={20} />
-                <span className="text-[15px] font-medium">Назад</span>
-              </button>
-
-              <div className="flex items-center gap-2 cursor-pointer">
-                <span className="text-[15px] font-semibold">Картинка</span>
-                <ChevronDown size={14} className="text-white/60" />
-              </div>
-
-              <button 
-                onClick={() => setIsGenerateOpen(false)}
-                className="p-2 bg-white/5 rounded-full text-white/60 hover:text-white transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-5 space-y-6">
-              
-              <div className="space-y-2 relative z-50">
-                <label className="text-[13px] font-medium text-white/60 ml-1">Модель</label>
-                
-                <div className="relative">
-                  <button 
-                    onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                    className="w-full bg-[#1c1c1e] border border-white/10 rounded-xl p-3 flex items-center justify-between cursor-pointer active:border-white/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${currentModel.color} flex items-center justify-center text-[10px] font-bold shadow-lg`}>
-                        {currentModel.badge}
-                      </div>
-                      <div className="flex flex-col items-start">
-                        <span className="text-[15px] font-medium text-white">
-                          {currentModel.name}
-                        </span>
-                        <span className="text-[11px] text-white/40 text-left">
-                          {currentModel.desc}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className={`transition-transform duration-300 ${isModelMenuOpen ? 'rotate-180' : ''}`}>
-                      <ChevronDown size={16} className="text-white/40" />
-                    </div>
-                  </button>
-
-                  <AnimatePresence>
-                    {isModelMenuOpen && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                        className="absolute top-full mt-2 left-0 right-0 bg-[#1c1c1e] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-[60]"
-                      >
-                        {MODELS.map((m) => (
-                          <button
-                            key={m.id}
-                            onClick={() => { setModelId(m.id); setIsModelMenuOpen(false); }}
-                            className="w-full text-left px-3 py-3 hover:bg-white/5 flex items-center justify-between border-b border-white/5 last:border-0 transition-colors"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 rounded-full bg-gradient-to-tr ${m.color} flex items-center justify-center text-[10px] font-bold shadow-inner`}>
-                                {m.badge}
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-[14px] font-medium text-white">{m.name}</span>
-                                <span className="text-[10px] text-white/40">{m.desc}</span>
-                                <span className="text-[11px] text-amber-400 font-medium mt-1">
-                                  {m.price} монет
-                                </span>
-                              </div>
-                            </div>
-                            
-                            {modelId === m.id && <Check size={16} className="text-yellow-500" />}
-                          </button>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[13px] font-medium text-white/60 ml-1">Изображения</label>
-                <div className="grid grid-cols-4 gap-2">
-                  <label className="aspect-square bg-[#1c1c1e] border border-white/10 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 transition-colors overflow-hidden relative">
-                    <input 
-                      type="file" 
-                      className="hidden" 
-                      accept="image/*" 
-                      onChange={handleFileChange} 
-                    />
-                    {referenceImage ? (
-                      <div className="relative w-full h-full">
-                        <img src={referenceImage} className="w-full h-full object-cover" alt="Preview" />
-                        <button 
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRemoveImage(); }}
-                          className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white/70 hover:bg-black/90"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                          <ImageIcon size={16} className="text-white/60" />
-                        </div>
-                        <span className="text-[9px] text-center text-white/40 px-1 leading-tight">Загрузить фото</span>
-                      </>
-                    )}
-                  </label>
-                  
-                  <div className="col-span-3 bg-[#1c1c1e] border border-white/10 rounded-xl p-4 flex items-center justify-center text-center">
-                    <p className="text-[11px] text-white/30 leading-snug">
-                      Загрузите одно или несколько изображений для редактирования.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[13px] font-medium text-white/60 ml-1">
-                  Запрос <span className="text-yellow-500">*</span>
-                </label>
-                <textarea
-                  value={generatePrompt}
-                  onChange={(e) => setGeneratePrompt(e.target.value)}
-                  placeholder="Опишите, что должно быть на изображении..."
-                  className="w-full h-32 bg-[#1c1c1e] border border-white/10 rounded-xl p-4 text-[15px] text-white placeholder:text-white/20 outline-none focus:border-white/30 resize-none transition-colors"
-                />
-              </div>
-
-              <div className="space-y-2 pb-24 relative">
-                <label className="text-[13px] font-medium text-white/60 ml-1">Соотношение сторон</label>
-                
-                <div className="relative">
-                  <button 
-                    onClick={() => setIsRatioMenuOpen(!isRatioMenuOpen)}
-                    className="w-full bg-[#1c1c1e] border border-white/10 rounded-xl p-3 flex items-center justify-between active:border-white/30 transition-colors"
-                  >
-                     <span className="text-[15px] font-medium text-white">
-                       {aspectRatio === "auto" ? "Автоматически" : aspectRatio}
-                     </span>
-                     <div className={`transition-transform duration-300 ${isRatioMenuOpen ? 'rotate-180' : ''}`}>
-                        <ChevronDown size={16} className="text-white/40" />
-                     </div>
-                  </button>
-
-                  <AnimatePresence>
-                    {isRatioMenuOpen && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        className="absolute bottom-full mb-2 left-0 right-0 bg-[#1c1c1e] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 max-h-60 overflow-y-auto"
-                      >
-                        <button
-                            onClick={() => { setAspectRatio("auto"); setIsRatioMenuOpen(false); }}
-                            className="w-full text-left px-4 py-3 text-[14px] text-white hover:bg-white/5 flex items-center justify-between border-b border-white/5"
-                          >
-                            <span>Автоматически</span>
-                            {aspectRatio === "auto" && <Check size={14} className="text-yellow-500" />}
-                        </button>
-
-                        {["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"].map((ratio) => (
-                          <button
-                            key={ratio}
-                            onClick={() => { setAspectRatio(ratio); setIsRatioMenuOpen(false); }}
-                            className="w-full text-left px-4 py-3 text-[14px] text-white hover:bg-white/5 flex items-center justify-between border-b border-white/5 last:border-0"
-                          >
-                            <span>{ratio}</span>
-                            {aspectRatio === ratio && <Check size={14} className="text-yellow-500" />}
-                          </button>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-            </div>
-
-            <div className="fixed bottom-0 left-0 right-0 p-4 bg-[#111] border-t border-white/5 pb-safe">
-              <button
-                onClick={handleGenerate}
-                disabled={isGenerating || !generatePrompt.trim()}
-                className="w-full py-4 rounded-xl bg-gradient-to-r from-[#FFD700] to-[#FFC000] text-black font-bold text-[16px] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,215,0,0.2)]"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 size={20} className="animate-spin" />
-                    <span>Генерация...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={18} fill="black" />
-                    <span>Сгенерировать – {currentModel.price} монет</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-          </div>
-        )}
-      </AnimatePresence>
+      {/* GENERATE MODAL COMPONENT */}
+      <GenerateModal
+        isOpen={isGenerateOpen}
+        onClose={() => setIsGenerateOpen(false)}
+        generatePrompt={generatePrompt}
+        setGeneratePrompt={setGeneratePrompt}
+        isGenerating={isGenerating}
+        handleGenerate={handleGenerate}
+        modelId={modelId}
+        setModelId={setModelId}
+        aspectRatio={aspectRatio}
+        setAspectRatio={setAspectRatio}
+        referenceImage={referenceImage}
+        handleFileChange={handleFileChange}
+        handleRemoveImage={handleRemoveImage}
+      />
     </div>
   );
 }
