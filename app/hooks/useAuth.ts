@@ -36,11 +36,19 @@ export function useAuth() {
     if (!error && data) setGenerations(data);
   };
 
-  const loadAllUserData = (userId: string) => {
-    fetchProfile(userId);
-    fetchFavorites(userId);
-    fetchPurchases(userId);
-    fetchGenerations(userId);
+  // Параллельная загрузка всех данных пользователя
+  const loadAllUserData = async (userId: string) => {
+    // Promise.all запускает все функции одновременно
+    try {
+      await Promise.all([
+        fetchProfile(userId),
+        fetchFavorites(userId),
+        fetchPurchases(userId),
+        fetchGenerations(userId)
+      ]);
+    } catch (error) {
+      console.error("Ошибка при параллельной загрузке данных:", error);
+    }
   };
 
   useEffect(() => {
