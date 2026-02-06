@@ -9,7 +9,6 @@ export interface Model {
   price: number;
 }
 
-// Перенеси сюда интерфейс Generation из page.tsx [cite: 68]
 export interface Generation {
   id: string;
   user_id: string;

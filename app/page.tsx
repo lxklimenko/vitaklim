@@ -39,21 +39,31 @@ import { Toaster, toast } from 'sonner';
 import { PromptCard } from './components/PromptCard';
 import { ProfileModal } from './components/ProfileModal';
 import { GenerateModal } from './components/GenerateModal';
+import { PromptDetailModal } from './components/PromptDetailModal'; // Импортируем новый компонент
 // Импортируем компоненты из UIElements.tsx
 import { SkeletonCard, NavItem } from './components/UIElements';
 import { STORAGE_URL, CATEGORIES, PROMPTS, MODELS } from './constants/appConstants';
-
-// Тип для генераций
-interface Generation {
-  id: string;
-  user_id: string;
-  prompt: string;
-  image_url: string;
-  created_at: string;
-  is_favorite: boolean;
-}
+// Импортируем хук useAuth
+import { useAuth } from './hooks/useAuth';
+// Импортируем типы
+import { Generation } from './types';
 
 export default function App() {
+  // Используем хук useAuth для получения данных пользователя
+  const { 
+    user, 
+    balance, 
+    favorites, 
+    purchases, 
+    generations, 
+    setFavorites, 
+    setGenerations,
+    setPurchases,
+    fetchProfile,
+    fetchGenerations,
+    isLoading: isAuthLoading 
+  } = useAuth();
+
   const [activeCategory, setActiveCategory] = useState("Все");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -65,7 +75,6 @@ export default function App() {
    
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<any | null>(null);
-  const [favorites, setFavorites] = useState<number[]>([]);
   const [isFavoritesView, setIsFavoritesView] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSearchActive, setIsSearchActive] = useState(false);
@@ -89,14 +98,9 @@ export default function App() {
   // Состояние для открытия/закрытия меню моделей
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
 
-  const [user, setUser] = useState<User | null>(null);
-  const [balance, setBalance] = useState<number>(0);
-  const [purchases, setPurchases] = useState<any[]>([]);
-  const [generations, setGenerations] = useState<Generation[]>([]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [isLibLoading, setIsLibLoading] = useState(true);
 
   // Новое состояние для референсного изображения
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
@@ -174,36 +178,6 @@ export default function App() {
     };
   }, [selectedPrompt]);
 
-  const fetchFavorites = async (userId: string) => {
-    const { data, error } = await supabase.from('favorites').select('prompt_id').eq('user_id', userId);
-    if (!error && data) setFavorites(data.map((f: any) => f.prompt_id));
-  };
-
-  const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase.from('profiles').select('balance').eq('id', userId).single();
-    if (!error && data) setBalance(data.balance);
-  };
-
-  const fetchPurchases = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('purchases')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-
-    if (!error && data) setPurchases(data)
-  };
-
-  const fetchGenerations = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('generations')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-
-    if (!error && data) setGenerations(data)
-  };
-
   // Функция для переключения избранного
   const toggleGenerationFavorite = async (generation: Generation) => {
     if (!user) return;
@@ -265,36 +239,6 @@ export default function App() {
       }
     }
   };
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-        fetchFavorites(session.user.id);
-        fetchProfile(session.user.id);
-        fetchPurchases(session.user.id);
-        fetchGenerations(session.user.id);
-      }
-      setIsLibLoading(false);
-    });
-
-    const { data: authData } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchFavorites(session.user.id);
-        fetchProfile(session.user.id);
-        fetchPurchases(session.user.id);
-        fetchGenerations(session.user.id);
-      } else {
-        setFavorites([]);
-        setBalance(0);
-        setPurchases([]);
-        setGenerations([]);
-      }
-    });
-
-    return () => authData.subscription.unsubscribe();
-  }, []);
 
   const handleAuth = async () => {
     if (!email.includes('@')) return toast.error("Введите корректный email");
@@ -394,8 +338,7 @@ export default function App() {
         })
       }
 
-      if (user) await fetchPurchases(user.id);
-      if (user) fetchProfile(user.id);
+      if (user) await fetchProfile(user.id);
 
       setCopiedId(id);
       toast.success(`Скопировано!`);
@@ -654,7 +597,7 @@ export default function App() {
           ) : (
             /* ИЗМЕНЕНИЕ №1: Убираем motion.div и AnimatePresence */
             <div className="grid grid-cols-2 gap-4 px-4">
-              {isLibLoading ? (
+              {isAuthLoading ? (
                 Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
               ) : (isFavoritesView && filteredPrompts.length === 0) ? (
                 <div 
@@ -756,155 +699,20 @@ export default function App() {
         handleAuth={handleAuth}
       />
 
-      {/* DETAIL MODAL */}
-      <AnimatePresence>
-        {selectedPrompt && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 overflow-x-hidden overscroll-none">
-            <motion.div 
-              className="absolute inset-0 bg-black/90 backdrop-blur-md touch-none"
-              onClick={() => setSelectedPrompt(null)} 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }} 
-            />
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }} 
-              transition={{ duration: 0.25 }} 
-              className="relative bg-[#111] w-full max-w-3xl rounded-[2.5rem] overflow-hidden z-10 shadow-2xl"
-            >
-              <button onClick={() => setSelectedPrompt(null)} className="absolute top-6 right-6 p-2 rounded-full bg-black/40 text-white/50 z-20"><X size={20} /></button>
-              <div className="flex flex-col md:flex-row max-h-[85vh] overflow-y-scroll overflow-x-hidden [scrollbar-gutter:stable] no-scrollbar min-w-0">
-                <div className="relative w-full h-[70vh] flex items-start justify-center">
-                  {/* ИЗМЕНЕНИЕ №2: Убираем scale-110 */}
-                  <img
-                    src={selectedPrompt.image?.src}
-                    className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-40"
-                  />
-                  <img
-                    src={selectedPrompt.image?.src}
-                    className="relative z-10 max-h-full w-auto object-contain"
-                  />
-                  <div
-                    className="
-                      absolute inset-x-0 bottom-0 h-28
-                      bg-gradient-to-t from-black/60 to-transparent
-                      pointer-events-none
-                    "
-                  />
-                </div>
-                
-                <div className="md:w-1/2 relative flex flex-col justify-end">
-                  <div className="absolute -inset-x-6 -bottom-6 h-[50vh] bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none z-0" />
-
-                  <div className="relative z-10 p-5 md:p-10 space-y-3">
-                    <div className="flex gap-3 h-32">
-                      <div className="flex-1 bg-white/4 border border-white/8 rounded-xl px-4 py-3 overflow-y-auto">
-                        <p className="text-[13px] leading-relaxed text-white/80 whitespace-pre-wrap select-all min-w-0 break-words">
-                          {selectedPrompt.prompt}
-                        </p>
-                      </div>
-
-                      <div
-                        className="
-                          flex flex-col gap-2
-                          bg-white/4 border border-white/8
-                          rounded-xl p-2 w-14 items-center
-                        "
-                      >
-                        <button
-                          onClick={(e) => {
-                            if (selectedPrompt?.isHistory) {
-                              const gen = generations.find((g: any) => g.id === selectedPrompt.id);
-                              if (gen) toggleGenerationFavorite(gen);
-                            } else {
-                              toggleFavorite(e, selectedPrompt.id as number);
-                            }
-                          }}
-                          className="
-                            w-11 h-11
-                            rounded-lg
-                            flex items-center justify-center
-                            text-white/70
-                            hover:text-white
-                            hover:bg-white/10
-                            active:scale-95
-                            transition
-                          "
-                          title="Добавить в избранное"
-                        >
-                          <Heart 
-                            size={18} 
-                            strokeWidth={1.5}
-                            className={`transition-colors duration-300 ${
-                              selectedPrompt.isHistory
-                                ? (generations.find((g: any) => g.id === selectedPrompt.id)?.is_favorite ? "text-red-500 fill-red-500" : "text-white/70")
-                                : (favorites.includes(selectedPrompt.id as number) ? "text-red-500 fill-red-500" : "text-white/70")
-                            }`} 
-                          />
-                        </button>
-
-                        <button
-                          onClick={() => handleCopy(selectedPrompt.id as number, selectedPrompt.prompt, selectedPrompt.price)}
-                          className="
-                            w-11 h-11
-                            rounded-lg
-                            flex items-center justify-center
-                            text-white/70
-                            hover:text-white
-                            hover:bg-white/10
-                            active:scale-95
-                            transition
-                          "
-                          title="Копировать промпт"
-                        >
-                          {copiedId === selectedPrompt.id ? <Check size={18} strokeWidth={1.5} /> : <Copy size={18} strokeWidth={1.5} />}
-                        </button>
-
-                        <button
-                          onClick={() => handleDownload(selectedPrompt.image?.src || "", 'vision-prompt.jpg')}
-                          className="
-                            w-11 h-11
-                            rounded-lg
-                            flex items-center justify-center
-                            text-white/70
-                            hover:text-white
-                            hover:bg-white/10
-                            active:scale-95
-                            transition
-                          "
-                          title="Скачать изображение"
-                        >
-                          <Upload size={18} strokeWidth={1.5} />
-                        </button>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setIsGenerateOpen(true);
-                        setGeneratePrompt(selectedPrompt.prompt);
-                      }}
-                      className="
-                        w-full py-4
-                        rounded-2xl
-                        text-[15px] font-semibold
-                        bg-white text-black
-                        shadow-[0_-12px_40px_rgba(0,0,0,0.55)]
-                        active:scale-[0.98]
-                        transition
-                      "
-                    >
-                      Сгенерировать
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* DETAIL MODAL COMPONENT */}
+      <PromptDetailModal
+        selectedPrompt={selectedPrompt}
+        onClose={() => setSelectedPrompt(null)}
+        favorites={favorites}
+        toggleFavorite={toggleFavorite}
+        toggleGenerationFavorite={toggleGenerationFavorite}
+        generations={generations}
+        handleCopy={handleCopy}
+        handleDownload={handleDownload}
+        copiedId={copiedId}
+        setIsGenerateOpen={setIsGenerateOpen}
+        setGeneratePrompt={setGeneratePrompt}
+      />
 
       {/* GENERATE MODAL COMPONENT */}
       <GenerateModal
