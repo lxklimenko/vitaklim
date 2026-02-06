@@ -5,7 +5,7 @@
 console.log("PAGE VERSION ALEX 999 - FULL STACK READY");
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase'; 
 import type { User } from '@supabase/supabase-js';
 import { 
@@ -39,12 +39,13 @@ import { Toaster, toast } from 'sonner';
 import { PromptCard } from './components/PromptCard';
 import { ProfileModal } from './components/ProfileModal';
 import { GenerateModal } from './components/GenerateModal';
-import { PromptDetailModal } from './components/PromptDetailModal'; // Импортируем новый компонент
+import { PromptDetailModal } from './components/PromptDetailModal';
 // Импортируем компоненты из UIElements.tsx
 import { SkeletonCard, NavItem } from './components/UIElements';
 import { STORAGE_URL, CATEGORIES, PROMPTS, MODELS } from './constants/appConstants';
-// Импортируем хук useAuth
+// Импортируем хуки
 import { useAuth } from './hooks/useAuth';
+import { useImageGeneration } from './hooks/useImageGeneration';
 // Импортируем типы
 import { Generation } from './types';
 
@@ -64,6 +65,19 @@ export default function App() {
     isLoading: isAuthLoading 
   } = useAuth();
 
+  // Подключаем логику генерации через хук
+  const {
+    generatePrompt, setGeneratePrompt,
+    isGenerating,
+    modelId, setModelId,
+    aspectRatio, setAspectRatio,
+    referenceImage,
+    handleFileChange, handleRemoveImage, handleGenerate
+  } = useImageGeneration(user, () => {
+    if (user) fetchGenerations(user.id); // Обновляем историю при успешной генерации
+  });
+
+  // Оставляем только UI-стейты (модалки, поиск, категории)
   const [activeCategory, setActiveCategory] = useState("Все");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -82,50 +96,14 @@ export default function App() {
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
-  // Состояния для генерации изображений
-  const [generatePrompt, setGeneratePrompt] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  
-  // Обновленные состояния для модели
-  const [modelId, setModelId] = useState(MODELS[0].id);
-  const currentModel = MODELS.find(m => m.id === modelId) || MODELS[0];
-  
-  // Состояние для соотношения сторон
-  const [aspectRatio, setAspectRatio] = useState("auto");
-  const [isRatioMenuOpen, setIsRatioMenuOpen] = useState(false);
-
-  // Состояние для открытия/закрытия меню моделей
-  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
-  // Новое состояние для референсного изображения
-  const [referenceImage, setReferenceImage] = useState<string | null>(null);
-
-  // Функция для обработки выбора файла
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setReferenceImage(reader.result as string); // Сохраняем как Base64
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Функция для удаления загруженного изображения
-  const handleRemoveImage = () => {
-    setReferenceImage(null);
-  };
-
   // Функция для скачивания изображения
   const handleDownload = (url: string, filename: string = 'vision-image.jpg') => {
     const link = document.createElement('a');
-    link.href = url; // Используем base64 URL изображения 
+    link.href = url;
     link.download = filename;
     document.body.appendChild(link);
     link.click();
@@ -348,54 +326,6 @@ export default function App() {
     }
   };
 
-  // Функция генерации изображения
-  const handleGenerate = async () => {
-    if (!generatePrompt.trim()) return;
-
-    setIsGenerating(true);
-    setImageUrl(null);
-
-    try {
-      const res = await fetch("/api/generate-google/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          prompt: generatePrompt,
-          modelId: modelId,
-          aspectRatio: aspectRatio === "auto" ? "1:1" : aspectRatio,
-          image: referenceImage // Отправляем строку Base64 (включая заголовок data:image/...)
-        }),
-      });
-
-      const data = await res.json();
-      
-      if (res.ok) {
-        setImageUrl(data.imageUrl);
-        toast.success("Изображение сгенерировано!");
-        
-        if (user) {
-          await supabase.from('generations').insert({
-            user_id: user.id,
-            prompt: generatePrompt,
-            image_url: data.imageUrl,
-            is_favorite: false
-          });
-          
-          await fetchGenerations(user.id);
-        }
-      } else {
-        toast.error(data.error || "Ошибка генерации");
-      }
-    } catch (error) {
-      console.error("Ошибка при генерации:", error);
-      toast.error("Ошибка соединения с сервером");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-black text-white selection:bg-white/20 antialiased overflow-x-hidden">
       <style>{`
@@ -595,7 +525,6 @@ export default function App() {
               )}
             </div>
           ) : (
-            /* ИЗМЕНЕНИЕ №1: Убираем motion.div и AnimatePresence */
             <div className="grid grid-cols-2 gap-4 px-4">
               {isAuthLoading ? (
                 Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
