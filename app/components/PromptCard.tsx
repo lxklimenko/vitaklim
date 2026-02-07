@@ -28,7 +28,20 @@ export const PromptCard = React.memo(({
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
   const [isInView, setIsInView] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const isFavorite = favorites.includes(prompt.id)
+
+  // Определяем мобильное устройство
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   // Создаем Intersection Observer для отслеживания видимости
   useEffect(() => {
@@ -69,11 +82,16 @@ export const PromptCard = React.memo(({
 
   return (
     <motion.div 
-      layout
+      // На мобильных устройствах убираем layout анимацию для производительности
+      layout={!isMobile}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
+      // Уменьшаем продолжительность анимации
+      transition={{ 
+        duration: 0.15,
+        layout: { duration: 0.1 }
+      }}
       className="flex flex-col group cursor-pointer"
       onClick={() => setSelectedPrompt(prompt)}
       data-prompt-id={prompt.id}
@@ -127,6 +145,7 @@ export const PromptCard = React.memo(({
         <button 
           onClick={(e) => { e.stopPropagation(); toggleFavorite(e, prompt.id); }}
           className="absolute top-3 right-3 p-1.5 rounded-full bg-black/30 backdrop-blur-sm text-white/50 hover:text-white transition-colors z-10"
+          aria-label={isFavorite ? "Удалить из избранного" : "Добавить в избранное"}
         >
           <Heart size={14} fill={isFavorite ? "white" : "none"} className={isFavorite ? "text-white" : ""} />
         </button>
@@ -151,6 +170,7 @@ export const PromptCard = React.memo(({
               ? 'bg-white border-white text-black hover:bg-white/90' 
               : 'bg-white/[0.08] border-white/5 text-white/90 hover:bg-white/[0.12]'
           }`}
+          aria-label={copiedId === prompt.id ? "Текст скопирован" : `Скопировать промпт за ${prompt.price} ₽`}
         >
           {copiedId === prompt.id ? <Check size={12} /> : <Copy size={12} />}
           <span className="text-[12px] font-medium">
