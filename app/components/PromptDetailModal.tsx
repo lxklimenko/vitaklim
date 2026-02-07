@@ -14,7 +14,7 @@ interface PromptDetailModalProps {
   generations: any[];
   handleCopy: (id: number, text: string, price: number) => void;
   handleDownload: (url: string, filename?: string) => void;
-  handleDownloadOriginal?: (url: string, filename: string) => Promise<void>; // ДОБАВЛЕНА ЭТА СТРОКА
+  handleDownloadOriginal?: (url: string, filename: string) => Promise<void>; // ДОБАВЬ ЭТО
   copiedId: number | null;
   setIsGenerateOpen: (open: boolean) => void;
   setGeneratePrompt: (prompt: string) => void;
@@ -29,7 +29,7 @@ export function PromptDetailModal({
   generations,
   handleCopy,
   handleDownload,
-  handleDownloadOriginal, // ДОБАВЛЕНА ДЕСТРУКТУРИЗАЦИЯ
+  handleDownloadOriginal,
   copiedId,
   setIsGenerateOpen,
   setGeneratePrompt
