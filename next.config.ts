@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
   /* 2. Настройки изображений */
   images: {
     unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'gmngqxwkgnuqtkwndjwx.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
   },
 
   /* 3. Добавляем слеш в конце URL (помогает с роутингом на Beget) */

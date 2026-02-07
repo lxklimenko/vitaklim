@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Heart, Check, Copy, ImageOff } from 'lucide-react'
 import { Prompt } from '../types/prompt'
+import Image from 'next/image'
 
 interface PromptCardProps {
   prompt: Prompt
@@ -94,22 +95,19 @@ export const PromptCard = React.memo(({
 
         {/* Основное изображение */}
         {(isInView && !hasError) && (
-          <img 
-            src={prompt.image?.src} 
+          <Image 
+            src={prompt.image?.src || "/placeholder.jpg"} 
             alt={prompt.title}
-            loading="lazy"
-            decoding="async"
+            fill
+            sizes="(max-width: 768px) 50vw, 33vw"
             className={`
-              w-full h-full object-cover
+              object-cover
               transition-all duration-300 ease-out
-              group-hover:brightness-110
-              group-hover:contrast-105
-              active:brightness-95
+              group-hover:scale-105
               ${isLoading ? 'opacity-0' : 'opacity-100'}
             `}
-            onLoad={handleImageLoad}
+            onLoadingComplete={handleImageLoad}
             onError={handleImageError}
-            sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
           />
         )}
         
