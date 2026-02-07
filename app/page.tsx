@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Inter } from 'next/font/google';
 import { motion } from 'framer-motion';
@@ -22,9 +23,6 @@ import {
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { PromptCard } from './components/PromptCard';
-import { ProfileModal } from './components/ProfileModal';
-import { GenerateModal } from './components/GenerateModal';
-import { PromptDetailModal } from './components/PromptDetailModal';
 import { SkeletonCard, NavItem } from './components/UIElements';
 import { CATEGORIES, PROMPTS } from './constants/appConstants';
 import { useAuth } from './hooks/useAuth';
@@ -34,6 +32,19 @@ import type { Generation } from './types';
 const inter = Inter({ 
   subsets: ['latin', 'cyrillic'],
   display: 'swap',
+});
+
+// Загружаем модалки только когда они нужны (Lazy Loading)
+const ProfileModal = dynamic(() => import('./components/ProfileModal').then(mod => mod.ProfileModal), {
+  ssr: false,
+});
+
+const GenerateModal = dynamic(() => import('./components/GenerateModal').then(mod => mod.GenerateModal), {
+  ssr: false,
+});
+
+const PromptDetailModal = dynamic(() => import('./components/PromptDetailModal').then(mod => mod.PromptDetailModal), {
+  ssr: false,
 });
 
 export default function App() {
@@ -547,10 +558,11 @@ export default function App() {
                 {isAuthLoading && filteredPrompts.length === 0 ? (
                   Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
                 ) : (
-                  filteredPrompts.slice(0, visibleCount).map((p) => (
+                  filteredPrompts.slice(0, visibleCount).map((p, index) => (
                     <PromptCard 
                       key={p.id}
                       prompt={p}
+                      priority={index === 0} // ПЕРВАЯ КАРТИНКА ГРУЗИТСЯ ПРИОРИТЕТНО
                       favorites={favorites}
                       toggleFavorite={toggleFavorite}
                       handleCopy={handleCopy}
@@ -635,52 +647,58 @@ export default function App() {
       </nav>
 
       {/* МОДАЛКИ */}
-      <ProfileModal
-        user={user}
-        balance={balance}
-        purchases={purchases}
-        isProfileOpen={isProfileOpen}
-        setIsProfileOpen={setIsProfileOpen}
-        handleTopUp={handleTopUp}
-        isTopUpLoading={isTopUpLoading}
-        email={email}
-        password={password}
-        setEmail={setEmail}
-        setPassword={setPassword}
-        authMode={authMode}
-        setAuthMode={setAuthMode}
-        handleAuth={handleAuth}
-      />
+      {isProfileOpen && (
+        <ProfileModal
+          user={user}
+          balance={balance}
+          purchases={purchases}
+          isProfileOpen={isProfileOpen}
+          setIsProfileOpen={setIsProfileOpen}
+          handleTopUp={handleTopUp}
+          isTopUpLoading={isTopUpLoading}
+          email={email}
+          password={password}
+          setEmail={setEmail}
+          setPassword={setPassword}
+          authMode={authMode}
+          setAuthMode={setAuthMode}
+          handleAuth={handleAuth}
+        />
+      )}
 
-      <PromptDetailModal
-        selectedPrompt={selectedPrompt}
-        onClose={() => setSelectedPrompt(null)}
-        favorites={favorites}
-        toggleFavorite={toggleFavorite}
-        toggleGenerationFavorite={toggleGenerationFavorite}
-        generations={generations}
-        handleCopy={handleCopy}
-        handleDownload={handleDownload}
-        copiedId={copiedId}
-        setIsGenerateOpen={setIsGenerateOpen}
-        setGeneratePrompt={setGeneratePrompt}
-      />
+      {selectedPrompt && (
+        <PromptDetailModal
+          selectedPrompt={selectedPrompt}
+          onClose={() => setSelectedPrompt(null)}
+          favorites={favorites}
+          toggleFavorite={toggleFavorite}
+          toggleGenerationFavorite={toggleGenerationFavorite}
+          generations={generations}
+          handleCopy={handleCopy}
+          handleDownload={handleDownload}
+          copiedId={copiedId}
+          setIsGenerateOpen={setIsGenerateOpen}
+          setGeneratePrompt={setGeneratePrompt}
+        />
+      )}
 
-      <GenerateModal
-        isOpen={isGenerateOpen}
-        onClose={() => setIsGenerateOpen(false)}
-        generatePrompt={generatePrompt}
-        setGeneratePrompt={setGeneratePrompt}
-        isGenerating={isGenerating}
-        handleGenerate={handleGenerate}
-        modelId={modelId}
-        setModelId={setModelId}
-        aspectRatio={aspectRatio}
-        setAspectRatio={setAspectRatio}
-        referenceImage={referenceImage}
-        handleFileChange={handleFileChange}
-        handleRemoveImage={handleRemoveImage}
-      />
+      {isGenerateOpen && (
+        <GenerateModal
+          isOpen={isGenerateOpen}
+          onClose={() => setIsGenerateOpen(false)}
+          generatePrompt={generatePrompt}
+          setGeneratePrompt={setGeneratePrompt}
+          isGenerating={isGenerating}
+          handleGenerate={handleGenerate}
+          modelId={modelId}
+          setModelId={setModelId}
+          aspectRatio={aspectRatio}
+          setAspectRatio={setAspectRatio}
+          referenceImage={referenceImage}
+          handleFileChange={handleFileChange}
+          handleRemoveImage={handleRemoveImage}
+        />
+      )}
     </div>
   );
 }

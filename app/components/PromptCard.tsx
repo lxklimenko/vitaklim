@@ -13,6 +13,7 @@ interface PromptCardProps {
   handleCopy: (id: number, text: string, price: number) => void
   setSelectedPrompt: (p: Prompt) => void
   copiedId: number | null
+  priority?: boolean
 }
 
 export const PromptCard = React.memo(({
@@ -21,7 +22,8 @@ export const PromptCard = React.memo(({
   toggleFavorite,
   handleCopy,
   setSelectedPrompt,
-  copiedId
+  copiedId,
+  priority = false
 }: PromptCardProps) => {
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
@@ -99,6 +101,7 @@ export const PromptCard = React.memo(({
             src={prompt.image?.src || "/placeholder.jpg"} 
             alt={prompt.title}
             fill
+            priority={priority}
             sizes="(max-width: 768px) 50vw, 33vw"
             className={`
               object-cover
