@@ -555,9 +555,10 @@ export default function App() {
             </div>
           ) : (
             <>
-              {/* Сетка промптов */}
+              {/* Сетка промптов - ИСПРАВЛЕННОЕ УСЛОВИЕ */}
               <div className="grid grid-cols-2 gap-4 px-4">
-                {isAuthLoading ? (
+                {isAuthLoading && filteredPrompts.length === 0 ? (
+                  // Показываем скелетоны только если реально идет загрузка И данных еще нет
                   Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
                 ) : (
                   <>
