@@ -66,50 +66,43 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
-    // Асинхронная функция инициализации сессии
     const initSession = async () => {
       setIsLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        setUser(session.user);
-        // Загружаем только основные данные пользователя
-        await loadAllUserData(session.user.id);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(session.user);
+          await loadAllUserData(session.user.id);
+        }
+      } finally {
+        // Гарантируем, что загрузка выключится в любом случае
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     initSession();
 
-    // Подписка на изменения состояния аутентификации
     const { data: authData } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       
       if (currentUser) {
-        // Включаем лоадер при смене пользователя
         setIsLoading(true);
         await loadAllUserData(currentUser.id);
         setIsLoading(false);
       } else {
-        // Сбрасываем данные при выходе
         setBalance(0);
         setFavorites([]);
         setPurchases([]);
         setGenerations([]);
-        generationsLoaded.current = false; // Сбрасываем флаг загрузки истории
+        generationsLoaded.current = false;
+        // ВАЖНО: останавливаем загрузку для анонимных пользователей
+        setIsLoading(false); 
       }
     });
 
     return () => authData.subscription.unsubscribe();
   }, [loadAllUserData]);
-
-  // Сбрасываем флаг при выходе пользователя
-  useEffect(() => {
-    if (!user) {
-      generationsLoaded.current = false;
-    }
-  }, [user]);
 
   return { 
     user, 
