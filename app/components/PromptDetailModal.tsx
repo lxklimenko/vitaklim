@@ -115,6 +115,21 @@ export function PromptDetailModal({
                       {copiedId === selectedPrompt.id ? <Check size={18} strokeWidth={1.5} /> : <Copy size={18} strokeWidth={1.5} />}
                     </button>
 
+                    {/* Кнопка скачивания ОРИГИНАЛА (HQ) */}
+                    {handleDownloadOriginal && (
+                      <button
+                        onClick={() => handleDownloadOriginal(selectedPrompt.image?.src || "", `vision-${selectedPrompt.id}-hq.png`)}
+                        className="w-11 h-11 rounded-lg flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition"
+                        title="Скачать оригинал (HQ)"
+                      >
+                        <div className="relative">
+                          <Upload size={18} strokeWidth={1.5} className="rotate-180" />
+                          <span className="absolute -top-1 -right-2 text-[7px] font-bold bg-amber-500 text-black px-1 rounded-sm">HQ</span>
+                        </div>
+                      </button>
+                    )}
+
+                    {/* Кнопка скачивания ПРЕВЬЮ (существующая) */}
                     <button
                       onClick={() => handleDownload(selectedPrompt.image?.src || "", 'vision-prompt.jpg')}
                       className="w-11 h-11 rounded-lg flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition"
