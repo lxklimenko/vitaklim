@@ -165,6 +165,7 @@ export function GenerateModal({
                       <img src={referenceImage} className="w-full h-full object-cover" alt="Preview" />
                       <button 
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRemoveImage(); }}
+                        aria-label="Удалить изображение"
                         className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white/70 hover:bg-black/90"
                       >
                         <X size={14} />
