@@ -3,22 +3,17 @@
 import dynamic from 'next/dynamic';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Inter } from 'next/font/google';
-import { motion } from 'framer-motion';
-import Image from 'next/image';
 import { supabase } from '@/lib/supabase'; 
 import { Toaster, toast } from 'sonner';
-import { PromptCard } from './components/PromptCard';
-import { SkeletonCard, NavItem } from './components/UIElements';
+import { Header } from './components/Header';
+import { Navigation } from './components/Navigation';
+import { HistorySection } from './components/HistorySection';
+import { MainFeed } from './components/MainFeed';
 import { CATEGORIES, PROMPTS } from './constants/appConstants';
 import { useAuth } from './hooks/useAuth';
 import { useImageGeneration } from './hooks/useImageGeneration';
+import { useAppActions } from './hooks/useAppActions';
 import type { Generation } from './types';
-import { 
-  Search, Copy, Sparkles, Home as HomeIcon, Star, Plus, 
-  Clock, User as UserIcon, Image as ImageIcon, Calendar, 
-  Share2, Upload, Trash2, Zap, Send, Loader2, UserPlus, 
-  ExternalLink, ChevronLeft, ChevronDown, HelpCircle, Download 
-} from 'lucide-react';
 
 const inter = Inter({ 
   subsets: ['latin', 'cyrillic'],
@@ -39,6 +34,7 @@ const PromptDetailModal = dynamic(() => import('./components/PromptDetailModal')
 });
 
 export default function App() {
+  // --- 1. DATA & AUTH ---
   const { 
     user, 
     balance, 
@@ -55,6 +51,7 @@ export default function App() {
 
   const hasLoadedGenerationsRef = useRef(false);
 
+  // --- 2. GENERATION LOGIC ---
   const {
     generatePrompt, setGeneratePrompt,
     isGenerating,
@@ -68,21 +65,39 @@ export default function App() {
     }
   });
 
+  // --- 3. UI STATE ---
   const [activeCategory, setActiveCategory] = useState("Все");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(6);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<any | null>(null);
+  
+  // Navigation State
   const [isFavoritesView, setIsFavoritesView] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  
+  // Modals State
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  
+  // Auth Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+
+  // --- 4. ACTIONS HOOK ---
+  const {
+    handleDownload,
+    handleDownloadOriginal,
+    handleDeleteGeneration,
+    handleShare,
+    toggleGenerationFavorite,
+    toggleFavorite,
+    handleCopy
+  } = useAppActions(user, setGenerations, setFavorites, fetchProfile, setIsProfileOpen);
 
   // Дебаунс поиска
   useEffect(() => {
@@ -129,117 +144,7 @@ export default function App() {
     };
   }, [selectedPrompt]);
 
-  // Обработчики
-  const handleDownload = (url: string, filename: string = 'vision-image.jpg') => {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Изображение сохранено!");
-  };
-
-  const handleDownloadOriginal = async (url: string, filename: string) => {
-    try {
-      toast.loading("Подготовка файла...");
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename || `vision-${Date.now()}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-      
-      toast.dismiss();
-      toast.success("Оригинал сохранен!");
-    } catch (error) {
-      toast.error("Ошибка при скачивании");
-    }
-  };
-
-  const handleDeleteGeneration = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from('generations')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      setGenerations(prev => prev.filter(gen => gen.id !== id));
-      toast.success("Генерация удалена");
-    } catch (error: any) {
-      console.error('Error deleting generation:', error);
-      toast.error("Ошибка при удалении");
-    }
-  };
-
-  const toggleGenerationFavorite = async (generation: Generation) => {
-    if (!user) return;
-    
-    try {
-      const newFavoriteStatus = !generation.is_favorite;
-      
-      setGenerations(prev => 
-        prev.map(gen => 
-          gen.id === generation.id 
-            ? { ...gen, is_favorite: newFavoriteStatus } 
-            : gen
-        )
-      );
-
-      const { error } = await supabase
-        .from('generations')
-        .update({ is_favorite: newFavoriteStatus })
-        .eq('id', generation.id);
-
-      if (error) {
-        setGenerations(prev => 
-          prev.map(gen => 
-            gen.id === generation.id 
-              ? { ...gen, is_favorite: generation.is_favorite } 
-              : gen
-          )
-        );
-        toast.error('Ошибка при обновлении избранного');
-      } else {
-        toast.success(newFavoriteStatus ? 'Добавлено в избранное' : 'Удалено из избранного');
-      }
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-      toast.error('Ошибка при обновлении избранного');
-    }
-  };
-
-  const handleShare = async (imageUrl: string) => {
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: "AI image",
-          text: "Сгенерировал с помощью Vision",
-          url: imageUrl
-        });
-        toast.success("Поделились!");
-      } else {
-        await navigator.clipboard.writeText(imageUrl);
-        toast.success("Ссылка скопирована в буфер обмена!");
-      }
-    } catch (error) {
-      if (error instanceof Error && error.name !== 'AbortError') {
-        console.error('Error sharing:', error);
-        toast.error("Не удалось поделиться");
-      }
-    }
-  };
-
+  // Авторизация
   const handleAuth = async () => {
     if (!email.includes('@')) return toast.error("Введите корректный email");
     if (password.length < 6) return toast.error("Пароль должен быть не менее 6 символов");
@@ -261,6 +166,7 @@ export default function App() {
     }
   };
 
+  // Пополнение баланса
   const handleTopUp = async (amount: number) => {
     if (!user) return setIsProfileOpen(true);
     setIsTopUpLoading(true);
@@ -282,53 +188,27 @@ export default function App() {
     }
   };
 
-  const toggleFavorite = async (e: React.MouseEvent, promptId: number) => {
-    e.stopPropagation();
-    if (!user) return setIsProfileOpen(true);
-    const isFav = favorites.includes(promptId);
-    try {
-      if (isFav) {
-        const { error } = await supabase.from('favorites').delete().eq('user_id', user.id).eq('prompt_id', promptId);
-        if (!error) setFavorites(prev => prev.filter(id => id !== promptId));
-      } else {
-        const { error } = await supabase.from('favorites').insert({ user_id: user.id, prompt_id: promptId });
-        if (!error) setFavorites(prev => [...prev, promptId]);
-      }
-    } catch (err) { toast.error("Ошибка синхронизации"); }
-  };
-
-  const handleCopy = async (id: number, text: string, price: number) => {
-    if (!user && price > 0) {
-      return setIsProfileOpen(true);
-    }
-
-    if (price > 0) {
-      const { data: canBuy } = await supabase.rpc('can_make_purchase')
-      if (!canBuy) return toast.error("Слишком много операций, подожди минуту")
-
-      const { error: spendError } = await supabase.rpc('spend_balance', { amount_to_spend: price });
-      if (spendError) return toast.error("Недостаточно средств");
-    }
-
+  // Копирование промпта
+  const handleCopyPrompt = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-
-      if (price > 0 && user) {
-        await supabase.from('purchases').insert({
-          user_id: user.id,
-          prompt_id: id,
-          amount: price
-        });
-      }
-
-      if (user) await fetchProfile(user.id);
-
-      setCopiedId(id);
-      toast.success("Скопировано!");
-      setTimeout(() => setCopiedId(null), 2000);
+      toast.success("Промпт скопирован!");
     } catch {
-      toast.error("Ошибка");
+      toast.error("Ошибка при копировании");
     }
+  };
+
+  // Повтор генерации
+  const handleRepeatGeneration = (prompt: string) => {
+    setGeneratePrompt(prompt);
+    setIsGenerateOpen(true);
+  };
+
+  // Смена категории
+  const handleCategoryChange = (cat: string) => {
+    setActiveCategory(cat);
+    setIsFavoritesView(false);
+    setIsHistoryOpen(false);
   };
 
   // Фильтрация промптов
@@ -341,6 +221,16 @@ export default function App() {
       return matchesCategory && matchesFavorites && matchesSearch;
     });
   }, [activeCategory, isFavoritesView, favorites, debouncedSearch]);
+
+  // Обертка для toggleFavorite с передачей favorites
+  const toggleFavoriteWrapper = async (e: React.MouseEvent, promptId: number) => {
+    return toggleFavorite(e, promptId, favorites);
+  };
+
+  // Обертка для handleCopy с передачей setCopiedId
+  const handleCopyWrapper = async (id: number, text: string, price: number) => {
+    return handleCopy(id, text, price, setCopiedId);
+  };
 
   return (
     <div className={`${inter.className} min-h-screen bg-black text-white selection:bg-white/20 antialiased overflow-x-hidden`}>
@@ -355,316 +245,63 @@ export default function App() {
 
       <Toaster position="bottom-center" theme="dark" />
 
-      {/* NAVBAR */}
-      <header className="sticky top-0 z-[100] glass border-b border-white/[0.05] pt-safe">
-        <div className="max-w-7xl mx-auto px-6 h-[64px] flex items-center justify-between gap-4">
-          <div 
-            className={`flex items-center gap-2 cursor-pointer transition-all duration-500 active:scale-95 ${isSearchActive ? 'opacity-0 w-0 md:opacity-100 md:w-auto overflow-hidden' : 'opacity-100'}`} 
-            onClick={() => { 
-              setIsFavoritesView(false); 
-              setIsProfileOpen(false); 
-              setIsHistoryOpen(false); 
-              window.scrollTo({ top: 0, behavior: 'smooth' }); 
-            }}
-          >
-            <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center">
-              <Sparkles size={16} className="text-black" />
-            </div>
-            <span className="text-base font-semibold tracking-tight hidden sm:inline">Vision</span>
-          </div>
-
-          <div className={`flex-grow flex items-center gap-2 bg-[#1c1c1e] rounded-full px-4 py-2.5 transition-all duration-500 border ${isSearchActive ? 'border-white/10 ring-4 ring-white/5' : 'border-transparent'}`}>
-            <button aria-label="Поиск" className="p-1">
-              <Search size={16} className="text-white/30" />
-            </button>
-            <input 
-              type="text" 
-              placeholder="Поиск..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setIsSearchActive(true)}
-              onBlur={() => !searchQuery && setIsSearchActive(false)}
-              className="bg-transparent border-none outline-none text-[14px] w-full text-white placeholder:text-white/30 font-medium"
-            />
-          </div>
-
-          <button 
-            onClick={() => setIsProfileOpen(true)} 
-            className="text-[12px] font-semibold text-white/70 hover:text-white transition-colors duration-500 select-none flex-shrink-0 px-2 tracking-tight"
-          >
-            {user ? user.email?.split('@')[0] : "Войти"}
-          </button>
-        </div>
-      </header>
+      {/* Header компонент */}
+      <Header
+        user={user}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        isSearchActive={isSearchActive}
+        setIsSearchActive={setIsSearchActive}
+        onOpenProfile={() => setIsProfileOpen(true)}
+        onResetView={() => {
+          setIsFavoritesView(false);
+          setIsProfileOpen(false);
+          setIsHistoryOpen(false);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
 
       <main className="pb-28 pt-8">
-        {!isFavoritesView && !searchQuery && !isHistoryOpen && (
-          <div className="mb-6 px-4 text-center">
-            <h1 className="text-[32px] md:text-5xl font-bold tracking-tighter mb-1 text-white">
-              Создавай шедевры
-            </h1>
-            <p className="text-[13px] md:text-base text-white/40 max-w-xl mx-auto leading-relaxed">
-              Маркетплейс премиальных промптов.
-            </p>
-          </div>
+        {isHistoryOpen ? (
+          <HistorySection
+            user={user}
+            generations={generations}
+            onOpenProfile={() => setIsProfileOpen(true)}
+            onSelectPrompt={setSelectedPrompt}
+            onDeleteGeneration={handleDeleteGeneration}
+            onRepeatGeneration={handleRepeatGeneration}
+            onShare={handleShare}
+            onDownloadOriginal={handleDownloadOriginal}
+          />
+        ) : (
+          <MainFeed
+            isLoading={isAuthLoading && filteredPrompts.length === 0}
+            activeCategory={activeCategory}
+            setActiveCategory={handleCategoryChange}
+            filteredPrompts={filteredPrompts}
+            visibleCount={visibleCount}
+            setVisibleCount={setVisibleCount}
+            favorites={favorites}
+            toggleFavorite={toggleFavoriteWrapper}
+            handleCopy={handleCopyWrapper}
+            setSelectedPrompt={setSelectedPrompt}
+            copiedId={copiedId}
+            searchQuery={searchQuery}
+            isSearchActive={isSearchActive}
+          />
         )}
-
-        {!isHistoryOpen && (
-          <section className="max-w-7xl mx-auto mb-6 flex justify-start md:justify-center gap-1.5 overflow-x-auto no-scrollbar px-6">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => { 
-                  setActiveCategory(cat); 
-                  setIsFavoritesView(false); 
-                  setIsHistoryOpen(false); 
-                }}
-                className={`px-5 py-2 rounded-full text-[13px] font-semibold tracking-tight border transition-all duration-500 ease-out flex-shrink-0 ${
-                  activeCategory === cat && !isFavoritesView && !isHistoryOpen
-                    ? 'bg-white text-black border-white shadow-md shadow-black/20' 
-                    : 'bg-transparent text-white/40 border-transparent hover:text-white/60'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </section>
-        )}
-
-        <section className="max-w-7xl mx-auto pb-20">
-          {isHistoryOpen ? (
-            <div className="px-4">
-              <div className="mb-6 text-center">
-                <h2 className="text-2xl font-bold tracking-tight mb-2 text-white">История генераций</h2>
-                <p className="text-sm text-white/40">Ваши созданные изображения</p>
-              </div>
-              
-              {!user ? (
-                <div className="text-center py-16">
-                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/5">
-                    <Clock size={24} className="text-white/20" />
-                  </div>
-                  <h3 className="text-sm font-semibold tracking-tight text-white/40 mb-2">Войдите в аккаунт</h3>
-                  <p className="text-xs text-white/20 mb-6">История генераций доступна только авторизованным пользователям</p>
-                  <button 
-                    onClick={() => setIsProfileOpen(true)}
-                    className="px-6 py-3 rounded-xl bg-white text-black font-semibold text-sm active:scale-95 transition"
-                  >
-                    Войти
-                  </button>
-                </div>
-              ) : generations.length === 0 ? (
-                <div className="text-center py-16">
-                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/5">
-                    <ImageIcon size={24} className="text-white/20" />
-                  </div>
-                  <h3 className="text-sm font-semibold tracking-tight text-white/40 mb-2">Пока пусто</h3>
-                  <p className="text-xs text-white/20">Создайте первое изображение в генераторе</p>
-                </div>
-              ) : (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="grid grid-cols-2 gap-4"
-                >
-                  {generations.map((generation) => (
-                    <div 
-                      key={generation.id} 
-                      className="rounded-[1.5rem] bg-white/[0.02] border border-white/[0.03] overflow-hidden relative group cursor-pointer"
-                      onClick={() => setSelectedPrompt({
-                        id: generation.id as any,
-                        title: "Моя генерация",
-                        tool: "Vision AI",
-                        category: "История",
-                        price: 0,
-                        prompt: generation.prompt,
-                        image: { src: generation.image_url, width: 1024, height: 1024, aspect: "1:1" },
-                        description: "Сгенерированное изображение",
-                        bestFor: "Личное использование",
-                        isHistory: true
-                      })}
-                    >
-                      <button
-                        onClick={(e) => handleDeleteGeneration(e, generation.id)}
-                        aria-label="Удалить генерацию"
-                        className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/60 backdrop-blur-sm hover:bg-red-500/80 text-white/60 hover:text-white transition-all"
-                        title="Удалить из истории"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                      
-                      <div className="aspect-square bg-black/40 relative overflow-hidden">
-                        <Image 
-                          src={generation.image_url} 
-                          alt="Generated thumbnail"
-                          fill
-                          sizes="(max-width: 768px) 50vw, 300px"
-                          quality={50}
-                          className="object-cover transition-opacity duration-300"
-                        />
-                      </div>
-                      
-                      <div className="p-4 space-y-3">
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-3 h-24 overflow-y-auto">
-                          <p className="text-xs leading-relaxed text-white/90 whitespace-pre-wrap select-all font-medium">
-                            {generation.prompt}
-                          </p>
-                        </div>
-                        
-                        <div className="flex items-center justify-between text-xs text-white/30">
-                          <div className="flex items-center gap-1">
-                            <Calendar size={12} />
-                            <span>{new Date(generation.created_at).toLocaleDateString('ru-RU')}</span>
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            <button 
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                navigator.clipboard.writeText(generation.prompt); 
-                                toast.success("Промпт скопирован!"); 
-                              }}
-                              className="hover:text-white/60 transition-colors"
-                              title="Копировать промпт"
-                            >
-                              <Copy size={14} />
-                            </button>
-                            
-                            <button 
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                setGeneratePrompt(generation.prompt); 
-                                setIsGenerateOpen(true); 
-                              }}
-                              className="hover:text-white/60 transition-colors"
-                              title="Сгенерировать снова"
-                            >
-                              <Zap size={14} />
-                            </button>
-                            
-                            <button 
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                handleShare(generation.image_url); 
-                              }}
-                              className="hover:text-white/60 transition-colors"
-                              title="Поделиться"
-                            >
-                              <Share2 size={14} />
-                            </button>
-                            
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownloadOriginal(generation.image_url, `vision-${generation.id}.png`);
-                              }}
-                              className="hover:text-white/60 transition-colors"
-                              title="Скачать оригинал"
-                            >
-                              <Upload size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </motion.div>
-              )}
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-4 px-4">
-                {isAuthLoading && filteredPrompts.length === 0 ? (
-                  Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
-                ) : (
-                  filteredPrompts.slice(0, visibleCount).map((p, index) => (
-                    <PromptCard 
-                      key={p.id}
-                      prompt={p}
-                      priority={index === 0}
-                      favorites={favorites}
-                      toggleFavorite={toggleFavorite}
-                      handleCopy={handleCopy}
-                      setSelectedPrompt={setSelectedPrompt as any}
-                      copiedId={copiedId}
-                    />
-                  ))
-                )}
-              </div>
-              
-              {filteredPrompts.length > visibleCount && !isAuthLoading && (
-                <div className="mt-8 flex justify-center px-4">
-                  <button
-                    onClick={() => setVisibleCount(prev => prev + 6)}
-                    className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white/60 font-medium active:scale-[0.98] transition-all hover:text-white/80"
-                  >
-                    Показать больше
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </section>
       </main>
 
-      {/* НИЖНИЙ БАР */}
-      <nav className="fixed bottom-0 left-0 right-0 z-[110] md:hidden pb-safe glass border-t border-white/[0.03]">
-        <div className="relative h-14 px-6 flex items-center justify-between">
-          <NavItem 
-            icon={<HomeIcon size={18} />} 
-            label="Дом" 
-            active={!isFavoritesView && !isProfileOpen && !isHistoryOpen} 
-            onClick={() => { 
-              setIsFavoritesView(false); 
-              setIsProfileOpen(false); 
-              setIsHistoryOpen(false); 
-            }} 
-          />
-          
-          <NavItem 
-            icon={<Star size={18} />} 
-            label="Избранное" 
-            active={isFavoritesView} 
-            onClick={() => { 
-              setIsFavoritesView(true); 
-              setIsProfileOpen(false); 
-              setIsHistoryOpen(false); 
-            }} 
-          />
-          
-          <div className="relative -mt-8 flex justify-center">
-            <button 
-              onClick={() => setIsGenerateOpen(true)}
-              aria-label="Открыть окно генерации"
-              className="w-14 h-14 rounded-2xl bg-white text-black flex items-center justify-center shadow-[0_8px_30px_rgb(255,255,255,0.2)] active:scale-90 transition-all border-[6px] border-black"
-            >
-              <Plus size={28} strokeWidth={3} />
-            </button>
-          </div>
-          
-          <NavItem 
-            icon={<Clock size={18} />} 
-            label="История" 
-            active={isHistoryOpen} 
-            onClick={() => { 
-              setIsHistoryOpen(true); 
-              setIsFavoritesView(false); 
-              setIsProfileOpen(false); 
-            }} 
-          />
-          
-          <NavItem 
-            icon={<UserIcon size={18} />} 
-            label="Профиль" 
-            active={isProfileOpen} 
-            onClick={() => { 
-              setIsProfileOpen(true); 
-              setIsFavoritesView(false); 
-              setIsHistoryOpen(false); 
-            }} 
-          />
-        </div>
-      </nav>
+      {/* Navigation компонент */}
+      <Navigation
+        isFavoritesView={isFavoritesView}
+        setIsFavoritesView={setIsFavoritesView}
+        isProfileOpen={isProfileOpen}
+        setIsProfileOpen={setIsProfileOpen}
+        isHistoryOpen={isHistoryOpen}
+        setIsHistoryOpen={setIsHistoryOpen}
+        onOpenGenerator={() => setIsGenerateOpen(true)}
+      />
 
       {/* МОДАЛКИ */}
       {isProfileOpen && (
@@ -691,10 +328,10 @@ export default function App() {
           selectedPrompt={selectedPrompt}
           onClose={() => setSelectedPrompt(null)}
           favorites={favorites}
-          toggleFavorite={toggleFavorite}
+          toggleFavorite={toggleFavoriteWrapper}
           toggleGenerationFavorite={toggleGenerationFavorite}
           generations={generations}
-          handleCopy={handleCopy}
+          handleCopy={handleCopyWrapper}
           handleDownload={handleDownload}
           handleDownloadOriginal={handleDownloadOriginal}
           copiedId={copiedId}
