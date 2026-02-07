@@ -62,6 +62,7 @@ export function GenerateModal({
           <div className="flex items-center justify-between px-4 py-4 border-b border-white/5 bg-[#111]">
             <button 
               onClick={onClose}
+              aria-label="Закрыть окно"
               className="flex items-center gap-1 text-white/60 hover:text-white transition-colors"
             >
               <ChevronLeft size={20} />
@@ -75,6 +76,7 @@ export function GenerateModal({
 
             <button 
               onClick={onClose}
+              aria-label="Закрыть"
               className="p-2 bg-white/5 rounded-full text-white/60 hover:text-white transition-colors"
             >
               <X size={18} />
@@ -89,6 +91,7 @@ export function GenerateModal({
               <div className="relative">
                 <button 
                   onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
+                  aria-label="Выбрать модель"
                   className="w-full bg-[#1c1c1e] border border-white/10 rounded-xl p-3 flex items-center justify-between cursor-pointer active:border-white/30 transition-colors"
                 >
                   <div className="flex items-center gap-3">
@@ -205,6 +208,7 @@ export function GenerateModal({
               <div className="relative">
                 <button 
                   onClick={() => setIsRatioMenuOpen(!isRatioMenuOpen)}
+                  aria-label="Выбрать соотношение сторон"
                   className="w-full bg-[#1c1c1e] border border-white/10 rounded-xl p-3 flex items-center justify-between active:border-white/30 transition-colors"
                 >
                    <span className="text-[15px] font-medium text-white">
