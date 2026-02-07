@@ -9,14 +9,15 @@ interface PromptDetailModalProps {
   selectedPrompt: any;
   onClose: () => void;
   favorites: number[];
-  toggleFavorite: (e: React.MouseEvent, id: number) => void;
-  toggleGenerationFavorite: (generation: Generation) => void;
-  generations: Generation[];
+  toggleFavorite: (e: React.MouseEvent, promptId: number) => void;
+  toggleGenerationFavorite: (generation: any) => void;
+  generations: any[];
   handleCopy: (id: number, text: string, price: number) => void;
   handleDownload: (url: string, filename?: string) => void;
+  handleDownloadOriginal?: (url: string, filename: string) => Promise<void>; // ДОБАВЛЕНА ЭТА СТРОКА
   copiedId: number | null;
-  setIsGenerateOpen: (v: boolean) => void;
-  setGeneratePrompt: (v: string) => void;
+  setIsGenerateOpen: (open: boolean) => void;
+  setGeneratePrompt: (prompt: string) => void;
 }
 
 export function PromptDetailModal({
@@ -28,6 +29,7 @@ export function PromptDetailModal({
   generations,
   handleCopy,
   handleDownload,
+  handleDownloadOriginal, // ДОБАВЛЕНА ДЕСТРУКТУРИЗАЦИЯ
   copiedId,
   setIsGenerateOpen,
   setGeneratePrompt

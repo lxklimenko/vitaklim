@@ -4,23 +4,8 @@ import dynamic from 'next/dynamic';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Inter } from 'next/font/google';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabase'; 
-import { 
-  Search, 
-  Copy, 
-  Sparkles, 
-  Home as HomeIcon,
-  Star, 
-  Plus, 
-  Clock, 
-  User as UserIcon,
-  Image as ImageIcon,
-  Calendar,
-  Share2,
-  Upload,
-  Trash2,
-  Zap
-} from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { PromptCard } from './components/PromptCard';
 import { SkeletonCard, NavItem } from './components/UIElements';
@@ -28,6 +13,12 @@ import { CATEGORIES, PROMPTS } from './constants/appConstants';
 import { useAuth } from './hooks/useAuth';
 import { useImageGeneration } from './hooks/useImageGeneration';
 import type { Generation } from './types';
+import { 
+  Search, Copy, Sparkles, Home as HomeIcon, Star, Plus, 
+  Clock, User as UserIcon, Image as ImageIcon, Calendar, 
+  Share2, Upload, Trash2, Zap, Send, Loader2, UserPlus, 
+  ExternalLink, ChevronLeft, ChevronDown, HelpCircle, Download 
+} from 'lucide-react';
 
 const inter = Inter({ 
   subsets: ['latin', 'cyrillic'],
@@ -147,6 +138,28 @@ export default function App() {
     link.click();
     document.body.removeChild(link);
     toast.success("Изображение сохранено!");
+  };
+
+  const handleDownloadOriginal = async (url: string, filename: string) => {
+    try {
+      toast.loading("Подготовка файла...");
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || `vision-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      
+      toast.dismiss();
+      toast.success("Оригинал сохранен!");
+    } catch (error) {
+      toast.error("Ошибка при скачивании");
+    }
   };
 
   const handleDeleteGeneration = async (e: React.MouseEvent, id: string) => {
@@ -361,7 +374,9 @@ export default function App() {
           </div>
 
           <div className={`flex-grow flex items-center gap-2 bg-[#1c1c1e] rounded-full px-4 py-2.5 transition-all duration-500 border ${isSearchActive ? 'border-white/10 ring-4 ring-white/5' : 'border-transparent'}`}>
-            <Search size={16} className="text-white/30" />
+            <button aria-label="Поиск" className="p-1">
+              <Search size={16} className="text-white/30" />
+            </button>
             <input 
               type="text" 
               placeholder="Поиск..."
@@ -471,6 +486,7 @@ export default function App() {
                     >
                       <button
                         onClick={(e) => handleDeleteGeneration(e, generation.id)}
+                        aria-label="Удалить генерацию"
                         className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/60 backdrop-blur-sm hover:bg-red-500/80 text-white/60 hover:text-white transition-all"
                         title="Удалить из истории"
                       >
@@ -478,10 +494,13 @@ export default function App() {
                       </button>
                       
                       <div className="aspect-square bg-black/40 relative overflow-hidden">
-                        <img 
+                        <Image 
                           src={generation.image_url} 
-                          alt="Generated" 
-                          className="w-full h-full object-cover"
+                          alt="Generated thumbnail"
+                          fill
+                          sizes="(max-width: 768px) 50vw, 300px"
+                          quality={50}
+                          className="object-cover transition-opacity duration-300"
                         />
                       </div>
                       
@@ -537,10 +556,10 @@ export default function App() {
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDownload(generation.image_url, `generation-${generation.id}.jpg`);
+                                handleDownloadOriginal(generation.image_url, `vision-${generation.id}.png`);
                               }}
                               className="hover:text-white/60 transition-colors"
-                              title="Скачать"
+                              title="Скачать оригинал"
                             >
                               <Upload size={14} />
                             </button>
@@ -562,7 +581,7 @@ export default function App() {
                     <PromptCard 
                       key={p.id}
                       prompt={p}
-                      priority={index === 0} // ПЕРВАЯ КАРТИНКА ГРУЗИТСЯ ПРИОРИТЕТНО
+                      priority={index === 0}
                       favorites={favorites}
                       toggleFavorite={toggleFavorite}
                       handleCopy={handleCopy}
@@ -616,6 +635,7 @@ export default function App() {
           <div className="relative -mt-8 flex justify-center">
             <button 
               onClick={() => setIsGenerateOpen(true)}
+              aria-label="Открыть окно генерации"
               className="w-14 h-14 rounded-2xl bg-white text-black flex items-center justify-center shadow-[0_8px_30px_rgb(255,255,255,0.2)] active:scale-90 transition-all border-[6px] border-black"
             >
               <Plus size={28} strokeWidth={3} />
@@ -676,6 +696,7 @@ export default function App() {
           generations={generations}
           handleCopy={handleCopy}
           handleDownload={handleDownload}
+          handleDownloadOriginal={handleDownloadOriginal}
           copiedId={copiedId}
           setIsGenerateOpen={setIsGenerateOpen}
           setGeneratePrompt={setGeneratePrompt}

@@ -118,9 +118,10 @@ export const PromptCard = React.memo(({
           <Image 
             src={prompt.image?.src || "/placeholder.jpg"} 
             alt={prompt.title}
-            fill
+            quality={75} // Устанавливаем баланс между качеством и весом
             priority={priority}
-            sizes="(max-width: 768px) 50vw, 33vw"
+            fill
+            sizes="(max-width: 768px) 100vw, 33vw" // Уточняем размер для мобилок
             className={`
               object-cover
               transition-all duration-300 ease-out
