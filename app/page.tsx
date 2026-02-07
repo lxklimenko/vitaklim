@@ -1,56 +1,42 @@
 'use client';
 
-// app/page.tsx
-
-console.log("PAGE VERSION ALEX 999 - FULL STACK READY");
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Inter } from 'next/font/google';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase'; 
-import type { User } from '@supabase/supabase-js';
 import { 
   Search, 
   Copy, 
   Sparkles, 
-  Check, 
-  X, 
   Home as HomeIcon,
   Star, 
   Plus, 
   Clock, 
   User as UserIcon,
-  Heart,
-  Send,
-  Zap,
-  Loader2,
-  UserPlus,
   Image as ImageIcon,
   Calendar,
-  ExternalLink,
   Share2,
-  ChevronLeft, 
-  ChevronDown, 
-  HelpCircle,
   Upload,
-  Download,
-  Trash2
+  Trash2,
+  Zap
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { PromptCard } from './components/PromptCard';
 import { ProfileModal } from './components/ProfileModal';
 import { GenerateModal } from './components/GenerateModal';
 import { PromptDetailModal } from './components/PromptDetailModal';
-// Импортируем компоненты из UIElements.tsx
 import { SkeletonCard, NavItem } from './components/UIElements';
-import { STORAGE_URL, CATEGORIES, PROMPTS, MODELS } from './constants/appConstants';
-// Импортируем хуки
+import { CATEGORIES, PROMPTS } from './constants/appConstants';
 import { useAuth } from './hooks/useAuth';
 import { useImageGeneration } from './hooks/useImageGeneration';
-// Импортируем типы
-import { Generation } from './types';
+import type { Generation } from './types';
+
+const inter = Inter({ 
+  subsets: ['latin', 'cyrillic'],
+  display: 'swap',
+});
 
 export default function App() {
-  // Используем хук useAuth для получения данных пользователя
   const { 
     user, 
     balance, 
@@ -65,10 +51,8 @@ export default function App() {
     isLoading: isAuthLoading 
   } = useAuth();
 
-  // Используем ref для отслеживания, был ли уже загружен список генераций
   const hasLoadedGenerationsRef = useRef(false);
 
-  // Подключаем логику генерации через хук
   const {
     generatePrompt, setGeneratePrompt,
     isGenerating,
@@ -77,23 +61,15 @@ export default function App() {
     referenceImage,
     handleFileChange, handleRemoveImage, handleGenerate
   } = useImageGeneration(user, () => {
-    // После успешной генерации сбрасываем флаг, чтобы история обновилась при следующем открытии
     if (user) {
       hasLoadedGenerationsRef.current = false;
     }
   });
 
-  // Оставляем только UI-стейты (модалки, поиск, категории)
   const [activeCategory, setActiveCategory] = useState("Все");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(6);
-
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedSearch(searchQuery), 300);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
-   
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<any | null>(null);
   const [isFavoritesView, setIsFavoritesView] = useState(false);
@@ -102,76 +78,42 @@ export default function App() {
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
-  // Оптимизированный useEffect для загрузки истории генераций
+  // Дебаунс поиска
   useEffect(() => {
-    // Если пользователь залогинен и открыл вкладку истории
+    const handler = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // Загрузка истории генераций
+  useEffect(() => {
     if (user && isHistoryOpen) {
-      // Загружаем историю только если она еще не была загружена или пользователь сменился
       if (!hasLoadedGenerationsRef.current) {
         fetchGenerations(user.id);
         hasLoadedGenerationsRef.current = true;
       }
     }
     
-    // Сбрасываем флаг при разлогине или закрытии вкладки истории
     if (!user || !isHistoryOpen) {
       hasLoadedGenerationsRef.current = false;
     }
   }, [user, isHistoryOpen, fetchGenerations]);
 
-  // Сбрасываем видимый счетчик при изменении фильтров
+  // Сброс счетчика при изменении фильтров
   useEffect(() => {
     setVisibleCount(6);
   }, [activeCategory, isFavoritesView, debouncedSearch]);
 
-  // Функция для скачивания изображения
-  const handleDownload = (url: string, filename: string = 'vision-image.jpg') => {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Изображение сохранено!");
-  };
-
-  // Функция для удаления генерации
-  const handleDeleteGeneration = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation(); // Чтобы не открывалась модалка при клике на кнопку
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from('generations')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      // Обновляем локальный стейт, чтобы карточка исчезла сразу
-      setGenerations(prev => prev.filter(gen => gen.id !== id));
-      toast.success("Генерация удалена");
-    } catch (error: any) {
-      console.error('Error deleting generation:', error);
-      toast.error("Ошибка при удалении");
-    }
-  };
-
-  // ИСПРАВЛЕННЫЙ useEffect для блокировки скролла
+  // Блокировка скролла при открытой модалке
   useEffect(() => {
     if (selectedPrompt) {
-      const scrollBarWidth =
-          window.innerWidth - document.documentElement.clientWidth;
-
+      const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
       document.body.style.overflow = "hidden";
       document.body.style.touchAction = "none";
-      document.body.style.paddingRight =
-          scrollBarWidth > 0 ? `${scrollBarWidth}px` : "";
+      document.body.style.paddingRight = scrollBarWidth > 0 ? `${scrollBarWidth}px` : "";
     } else {
       document.body.style.overflow = "";
       document.body.style.touchAction = "";
@@ -185,14 +127,43 @@ export default function App() {
     };
   }, [selectedPrompt]);
 
-  // Функция для переключения избранного
+  // Обработчики
+  const handleDownload = (url: string, filename: string = 'vision-image.jpg') => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Изображение сохранено!");
+  };
+
+  const handleDeleteGeneration = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('generations')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setGenerations(prev => prev.filter(gen => gen.id !== id));
+      toast.success("Генерация удалена");
+    } catch (error: any) {
+      console.error('Error deleting generation:', error);
+      toast.error("Ошибка при удалении");
+    }
+  };
+
   const toggleGenerationFavorite = async (generation: Generation) => {
     if (!user) return;
     
     try {
       const newFavoriteStatus = !generation.is_favorite;
       
-      // Оптимистичное обновление
       setGenerations(prev => 
         prev.map(gen => 
           gen.id === generation.id 
@@ -201,7 +172,6 @@ export default function App() {
         )
       );
 
-      // Обновление в базе данных
       const { error } = await supabase
         .from('generations')
         .update({ is_favorite: newFavoriteStatus })
@@ -225,7 +195,6 @@ export default function App() {
     }
   };
 
-  // Функция для шаринга изображения
   const handleShare = async (imageUrl: string) => {
     try {
       if (navigator.share) {
@@ -304,21 +273,6 @@ export default function App() {
     } catch (err) { toast.error("Ошибка синхронизации"); }
   };
 
-  const filteredPrompts = useMemo(() => {
-    return PROMPTS.filter((p) => {
-      const matchesCategory = activeCategory === "Все" || p.category === activeCategory;
-      const matchesFavorites = !isFavoritesView || favorites.includes(p.id);
-      const matchesSearch = p.title.toLowerCase().includes(debouncedSearch.toLowerCase()) || 
-                            p.tool.toLowerCase().includes(debouncedSearch.toLowerCase());
-      return matchesCategory && matchesFavorites && matchesSearch;
-    });
-  }, [activeCategory, isFavoritesView, favorites, debouncedSearch]);
-
-  // Фильтрация генераций
-  const filteredGenerations = useMemo(() => {
-    return generations;
-  }, [generations]);
-
   const handleCopy = async (id: number, text: string, price: number) => {
     if (!user && price > 0) {
       return setIsProfileOpen(true);
@@ -335,38 +289,44 @@ export default function App() {
     try {
       await navigator.clipboard.writeText(text);
 
-      if (price > 0) {
-        if (!user) return;
-
+      if (price > 0 && user) {
         await supabase.from('purchases').insert({
           user_id: user.id,
           prompt_id: id,
           amount: price
-        })
+        });
       }
 
       if (user) await fetchProfile(user.id);
 
       setCopiedId(id);
-      toast.success(`Скопировано!`);
+      toast.success("Скопировано!");
       setTimeout(() => setCopiedId(null), 2000);
     } catch {
       toast.error("Ошибка");
     }
   };
 
+  // Фильтрация промптов
+  const filteredPrompts = useMemo(() => {
+    return PROMPTS.filter((p) => {
+      const matchesCategory = activeCategory === "Все" || p.category === activeCategory;
+      const matchesFavorites = !isFavoritesView || favorites.includes(p.id);
+      const matchesSearch = p.title.toLowerCase().includes(debouncedSearch.toLowerCase()) || 
+                            p.tool.toLowerCase().includes(debouncedSearch.toLowerCase());
+      return matchesCategory && matchesFavorites && matchesSearch;
+    });
+  }, [activeCategory, isFavoritesView, favorites, debouncedSearch]);
+
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-white/20 antialiased overflow-x-hidden">
+    <div className={`${inter.className} min-h-screen bg-black text-white selection:bg-white/20 antialiased overflow-x-hidden`}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .glass { 
           background: rgba(255, 255, 255, 0.03); 
           backdrop-filter: blur(20px) saturate(180%); 
           -webkit-backdrop-filter: blur(20px) saturate(180%); 
         }
-        .hidden { display: none !important; }
       `}</style>
 
       <Toaster position="bottom-center" theme="dark" />
@@ -376,10 +336,15 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-6 h-[64px] flex items-center justify-between gap-4">
           <div 
             className={`flex items-center gap-2 cursor-pointer transition-all duration-500 active:scale-95 ${isSearchActive ? 'opacity-0 w-0 md:opacity-100 md:w-auto overflow-hidden' : 'opacity-100'}`} 
-            onClick={() => { setIsFavoritesView(false); setIsProfileOpen(false); setIsHistoryOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            onClick={() => { 
+              setIsFavoritesView(false); 
+              setIsProfileOpen(false); 
+              setIsHistoryOpen(false); 
+              window.scrollTo({ top: 0, behavior: 'smooth' }); 
+            }}
           >
             <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center">
-              <span className="text-black"><Sparkles size={16} /></span>
+              <Sparkles size={16} className="text-black" />
             </div>
             <span className="text-base font-semibold tracking-tight hidden sm:inline">Vision</span>
           </div>
@@ -397,7 +362,10 @@ export default function App() {
             />
           </div>
 
-          <button onClick={() => setIsProfileOpen(true)} className="text-[12px] font-semibold text-white/70 hover:text-white transition-colors duration-500 select-none flex-shrink-0 px-2 tracking-tight">
+          <button 
+            onClick={() => setIsProfileOpen(true)} 
+            className="text-[12px] font-semibold text-white/70 hover:text-white transition-colors duration-500 select-none flex-shrink-0 px-2 tracking-tight"
+          >
             {user ? user.email?.split('@')[0] : "Войти"}
           </button>
         </div>
@@ -420,7 +388,11 @@ export default function App() {
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
-                onClick={() => { setActiveCategory(cat); setIsFavoritesView(false); setIsHistoryOpen(false); }}
+                onClick={() => { 
+                  setActiveCategory(cat); 
+                  setIsFavoritesView(false); 
+                  setIsHistoryOpen(false); 
+                }}
                 className={`px-5 py-2 rounded-full text-[13px] font-semibold tracking-tight border transition-all duration-500 ease-out flex-shrink-0 ${
                   activeCategory === cat && !isFavoritesView && !isHistoryOpen
                     ? 'bg-white text-black border-white shadow-md shadow-black/20' 
@@ -455,7 +427,7 @@ export default function App() {
                     Войти
                   </button>
                 </div>
-              ) : filteredGenerations.length === 0 ? (
+              ) : generations.length === 0 ? (
                 <div className="text-center py-16">
                   <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/5">
                     <ImageIcon size={24} className="text-white/20" />
@@ -469,7 +441,7 @@ export default function App() {
                   animate={{ opacity: 1 }}
                   className="grid grid-cols-2 gap-4"
                 >
-                  {filteredGenerations.map((generation) => (
+                  {generations.map((generation) => (
                     <div 
                       key={generation.id} 
                       className="rounded-[1.5rem] bg-white/[0.02] border border-white/[0.03] overflow-hidden relative group cursor-pointer"
@@ -486,10 +458,9 @@ export default function App() {
                         isHistory: true
                       })}
                     >
-                      {/* Кнопка удаления вместо избранного */}
                       <button
                         onClick={(e) => handleDeleteGeneration(e, generation.id)}
-                        className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/60 backdrop-blur-sm hover:bg-red-500/80 text-white/60 hover:text-white transition-all group/del"
+                        className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/60 backdrop-blur-sm hover:bg-red-500/80 text-white/60 hover:text-white transition-all"
                         title="Удалить из истории"
                       >
                         <Trash2 size={18} />
@@ -502,39 +473,56 @@ export default function App() {
                           className="w-full h-full object-cover"
                         />
                       </div>
+                      
                       <div className="p-4 space-y-3">
                         <div className="bg-white/5 border border-white/10 rounded-xl p-3 h-24 overflow-y-auto">
                           <p className="text-xs leading-relaxed text-white/90 whitespace-pre-wrap select-all font-medium">
                             {generation.prompt}
                           </p>
                         </div>
+                        
                         <div className="flex items-center justify-between text-xs text-white/30">
                           <div className="flex items-center gap-1">
                             <Calendar size={12} />
                             <span>{new Date(generation.created_at).toLocaleDateString('ru-RU')}</span>
                           </div>
+                          
                           <div className="flex items-center gap-2">
                             <button 
-                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(generation.prompt); toast.success("Промпт скопирован!"); }}
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                navigator.clipboard.writeText(generation.prompt); 
+                                toast.success("Промпт скопирован!"); 
+                              }}
                               className="hover:text-white/60 transition-colors"
                               title="Копировать промпт"
                             >
                               <Copy size={14} />
                             </button>
+                            
                             <button 
-                              onClick={(e) => { e.stopPropagation(); setGeneratePrompt(generation.prompt); setIsGenerateOpen(true); }}
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setGeneratePrompt(generation.prompt); 
+                                setIsGenerateOpen(true); 
+                              }}
                               className="hover:text-white/60 transition-colors"
                               title="Сгенерировать снова"
                             >
                               <Zap size={14} />
                             </button>
+                            
                             <button 
-                              onClick={(e) => { e.stopPropagation(); handleShare(generation.image_url); }}
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                handleShare(generation.image_url); 
+                              }}
                               className="hover:text-white/60 transition-colors"
                               title="Поделиться"
                             >
                               <Share2 size={14} />
                             </button>
+                            
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -555,35 +543,29 @@ export default function App() {
             </div>
           ) : (
             <>
-              {/* Сетка промптов - ИСПРАВЛЕННОЕ УСЛОВИЕ */}
               <div className="grid grid-cols-2 gap-4 px-4">
                 {isAuthLoading && filteredPrompts.length === 0 ? (
-                  // Показываем скелетоны только если реально идет загрузка И данных еще нет
                   Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
                 ) : (
-                  <>
-                    {/* Показываем только ограниченное количество */}
-                    {filteredPrompts.slice(0, visibleCount).map((p) => (
-                      <PromptCard 
-                        key={p.id}
-                        prompt={p}
-                        favorites={favorites}
-                        toggleFavorite={toggleFavorite}
-                        handleCopy={handleCopy}
-                        setSelectedPrompt={setSelectedPrompt as any}
-                        copiedId={copiedId}
-                      />
-                    ))}
-                  </>
+                  filteredPrompts.slice(0, visibleCount).map((p) => (
+                    <PromptCard 
+                      key={p.id}
+                      prompt={p}
+                      favorites={favorites}
+                      toggleFavorite={toggleFavorite}
+                      handleCopy={handleCopy}
+                      setSelectedPrompt={setSelectedPrompt as any}
+                      copiedId={copiedId}
+                    />
+                  ))
                 )}
               </div>
-
-              {/* Кнопка "Показать еще" */}
+              
               {filteredPrompts.length > visibleCount && !isAuthLoading && (
                 <div className="mt-8 flex justify-center px-4">
                   <button
                     onClick={() => setVisibleCount(prev => prev + 6)}
-                    className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white/60 font-medium active:scale-[0.98] transition-all"
+                    className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white/60 font-medium active:scale-[0.98] transition-all hover:text-white/80"
                   >
                     Показать больше
                   </button>
@@ -607,6 +589,7 @@ export default function App() {
               setIsHistoryOpen(false); 
             }} 
           />
+          
           <NavItem 
             icon={<Star size={18} />} 
             label="Избранное" 
@@ -617,6 +600,7 @@ export default function App() {
               setIsHistoryOpen(false); 
             }} 
           />
+          
           <div className="relative -mt-8 flex justify-center">
             <button 
               onClick={() => setIsGenerateOpen(true)}
@@ -625,6 +609,7 @@ export default function App() {
               <Plus size={28} strokeWidth={3} />
             </button>
           </div>
+          
           <NavItem 
             icon={<Clock size={18} />} 
             label="История" 
@@ -635,6 +620,7 @@ export default function App() {
               setIsProfileOpen(false); 
             }} 
           />
+          
           <NavItem 
             icon={<UserIcon size={18} />} 
             label="Профиль" 
@@ -648,7 +634,7 @@ export default function App() {
         </div>
       </nav>
 
-      {/* PROFILE MODAL */}
+      {/* МОДАЛКИ */}
       <ProfileModal
         user={user}
         balance={balance}
@@ -666,7 +652,6 @@ export default function App() {
         handleAuth={handleAuth}
       />
 
-      {/* DETAIL MODAL COMPONENT */}
       <PromptDetailModal
         selectedPrompt={selectedPrompt}
         onClose={() => setSelectedPrompt(null)}
@@ -681,7 +666,6 @@ export default function App() {
         setGeneratePrompt={setGeneratePrompt}
       />
 
-      {/* GENERATE MODAL COMPONENT */}
       <GenerateModal
         isOpen={isGenerateOpen}
         onClose={() => setIsGenerateOpen(false)}
