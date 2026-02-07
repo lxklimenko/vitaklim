@@ -23,11 +23,15 @@ export function useImageGeneration(user: any, onGenerationComplete: () => void) 
   const handleRemoveImage = () => setReferenceImage(null);
 
   const handleGenerate = async () => {
+    if (!user) {
+      toast.error("Войдите в аккаунт для генерации");
+      return;
+    }
     if (!generatePrompt.trim()) return;
-    setIsGenerating(true);
-    setImageUrl(null);
 
+    setIsGenerating(true);
     try {
+      // 1. Получаем временную ссылку от ИИ
       const res = await fetch("/api/generate-google/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -40,25 +44,47 @@ export function useImageGeneration(user: any, onGenerationComplete: () => void) 
       });
 
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ошибка API");
+
+      const temporaryUrl = data.imageUrl;
+
+      // 2. СКАЧИВАЕМ КАРТИНКУ (превращаем ссылку в файл)
+      const imageRes = await fetch(temporaryUrl);
+      const blob = await imageRes.blob();
       
-      if (res.ok) {
-        setImageUrl(data.imageUrl);
-        toast.success("Изображение сгенерировано!");
-        if (user) {
-          const { error } = await supabase.from('generations').insert({
-            user_id: user.id,
-            prompt: generatePrompt,
-            image_url: data.imageUrl,
-            is_favorite: false
-          });
-          if (!error) onGenerationComplete(); // Обновляем историю в useAuth
-        }
-      } else {
-        toast.error(data.error || "Ошибка генерации");
-      }
-    } catch (error) {
-      console.error("Ошибка при генерации:", error);
-      toast.error("Ошибка соединения с сервером");
+      // Создаем уникальное имя файла
+      const fileName = `${user.id}/${Date.now()}.png`;
+
+      // 3. ЗАГРУЖАЕМ В СВОЙ STORAGE (бакет 'generations')
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('generations')
+        .upload(fileName, blob, { contentType: 'image/png' });
+
+      if (uploadError) throw uploadError;
+
+      // Получаем постоянную публичную ссылку
+      const { data: { publicUrl } } = supabase.storage
+        .from('generations')
+        .getPublicUrl(fileName);
+
+      // 4. СОХРАНЯЕМ В ТАБЛИЦУ ГЕНЕРАЦИЙ
+      const { error: dbError } = await supabase.from('generations').insert({
+        user_id: user.id,
+        prompt: generatePrompt,
+        image_url: publicUrl, // Теперь тут ссылка на ТВОЙ Supabase
+        is_favorite: false
+      });
+
+      if (dbError) throw dbError;
+
+      // Устанавливаем URL для отображения
+      setImageUrl(publicUrl);
+      toast.success("Изображение сохранено навсегда!");
+      onGenerationComplete(); // Обновляем список в истории
+
+    } catch (error: any) {
+      console.error("Критическая ошибка:", error);
+      toast.error(error.message || "Ошибка соединения");
     } finally {
       setIsGenerating(false);
     }
