@@ -1,5 +1,5 @@
 // app/hooks/useAuth.ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { Generation } from '../types';
@@ -12,34 +12,34 @@ export function useAuth() {
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Загрузка баланса [cite: 100-101]
+  // Загрузка баланса
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase.from('profiles').select('balance').eq('id', userId).single();
     if (!error && data) setBalance(data.balance);
   };
 
-  // Загрузка избранного [cite: 99-100]
+  // Загрузка избранного
   const fetchFavorites = async (userId: string) => {
     const { data, error } = await supabase.from('favorites').select('prompt_id').eq('user_id', userId);
     if (!error && data) setFavorites(data.map((f: any) => f.prompt_id));
   };
 
-  // Загрузка покупок [cite: 101]
+  // Загрузка покупок
   const fetchPurchases = async (userId: string) => {
     const { data, error } = await supabase.from('purchases').select('*').eq('user_id', userId).order('created_at', { ascending: false });
     if (!error && data) setPurchases(data);
   };
 
-  // Загрузка истории генераций [cite: 102]
+  // Загрузка истории генераций
   const fetchGenerations = async (userId: string) => {
     const { data, error } = await supabase.from('generations').select('*').eq('user_id', userId).order('created_at', { ascending: false });
     if (!error && data) setGenerations(data);
   };
 
   // Параллельная загрузка всех данных пользователя
-  const loadAllUserData = async (userId: string) => {
-    // Promise.all запускает все функции одновременно
+  const loadAllUserData = useCallback(async (userId: string) => {
     try {
+      // Запускаем все запросы одновременно
       await Promise.all([
         fetchProfile(userId),
         fetchFavorites(userId),
@@ -47,26 +47,38 @@ export function useAuth() {
         fetchGenerations(userId)
       ]);
     } catch (error) {
-      console.error("Ошибка при параллельной загрузке данных:", error);
+      console.error("Ошибка при параллельной загрузке данных пользователя:", error);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    // Проверка сессии при загрузке [cite: 114]
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Асинхронная функция инициализации сессии
+    const initSession = async () => {
+      setIsLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
       if (session?.user) {
         setUser(session.user);
-        loadAllUserData(session.user.id);
+        // Ждем завершения всех запросов перед тем, как выключить лоадер
+        await loadAllUserData(session.user.id);
       }
       setIsLoading(false);
-    });
+    };
 
-    // Подписка на изменения состояния 
-    const { data: authData } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadAllUserData(session.user.id);
+    initSession();
+
+    // Подписка на изменения состояния аутентификации
+    const { data: authData } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      if (currentUser) {
+        // Включаем лоадер при смене пользователя
+        setIsLoading(true);
+        await loadAllUserData(currentUser.id);
+        setIsLoading(false);
       } else {
+        // Сбрасываем данные при выходе
         setBalance(0);
         setFavorites([]);
         setPurchases([]);
@@ -75,7 +87,7 @@ export function useAuth() {
     });
 
     return () => authData.subscription.unsubscribe();
-  }, []);
+  }, [loadAllUserData]);
 
   return { 
     user, 
