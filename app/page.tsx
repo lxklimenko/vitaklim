@@ -4,7 +4,7 @@
 
 console.log("PAGE VERSION ALEX 999 - FULL STACK READY");
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase'; 
 import type { User } from '@supabase/supabase-js';
@@ -65,6 +65,9 @@ export default function App() {
     isLoading: isAuthLoading 
   } = useAuth();
 
+  // Используем ref для отслеживания, был ли уже загружен список генераций
+  const hasLoadedGenerationsRef = useRef(false);
+
   // Подключаем логику генерации через хук
   const {
     generatePrompt, setGeneratePrompt,
@@ -74,13 +77,17 @@ export default function App() {
     referenceImage,
     handleFileChange, handleRemoveImage, handleGenerate
   } = useImageGeneration(user, () => {
-    if (user) fetchGenerations(user.id); // Обновляем историю при успешной генерации
+    // После успешной генерации сбрасываем флаг, чтобы история обновилась при следующем открытии
+    if (user) {
+      hasLoadedGenerationsRef.current = false;
+    }
   });
 
   // Оставляем только UI-стейты (модалки, поиск, категории)
   const [activeCategory, setActiveCategory] = useState("Все");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [visibleCount, setVisibleCount] = useState(6);
 
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(searchQuery), 300);
@@ -99,6 +106,28 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+
+  // Оптимизированный useEffect для загрузки истории генераций
+  useEffect(() => {
+    // Если пользователь залогинен и открыл вкладку истории
+    if (user && isHistoryOpen) {
+      // Загружаем историю только если она еще не была загружена или пользователь сменился
+      if (!hasLoadedGenerationsRef.current) {
+        fetchGenerations(user.id);
+        hasLoadedGenerationsRef.current = true;
+      }
+    }
+    
+    // Сбрасываем флаг при разлогине или закрытии вкладки истории
+    if (!user || !isHistoryOpen) {
+      hasLoadedGenerationsRef.current = false;
+    }
+  }, [user, isHistoryOpen, fetchGenerations]);
+
+  // Сбрасываем видимый счетчик при изменении фильтров
+  useEffect(() => {
+    setVisibleCount(6);
+  }, [activeCategory, isFavoritesView, debouncedSearch]);
 
   // Функция для скачивания изображения
   const handleDownload = (url: string, filename: string = 'vision-image.jpg') => {
@@ -525,33 +554,41 @@ export default function App() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4 px-4">
-              {isAuthLoading ? (
-                Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
-              ) : (isFavoritesView && filteredPrompts.length === 0) ? (
-                <div 
-                  key="empty-state"
-                  className="col-span-2 py-24 text-center flex flex-col items-center gap-4"
-                >
-                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5">
-                    <Heart size={24} className="text-white/10" />
-                  </div>
-                  <h3 className="text-sm font-semibold tracking-tight text-white/40">Пусто</h3>
+            <>
+              {/* Сетка промптов */}
+              <div className="grid grid-cols-2 gap-4 px-4">
+                {isAuthLoading ? (
+                  Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
+                ) : (
+                  <>
+                    {/* Показываем только ограниченное количество */}
+                    {filteredPrompts.slice(0, visibleCount).map((p) => (
+                      <PromptCard 
+                        key={p.id}
+                        prompt={p}
+                        favorites={favorites}
+                        toggleFavorite={toggleFavorite}
+                        handleCopy={handleCopy}
+                        setSelectedPrompt={setSelectedPrompt as any}
+                        copiedId={copiedId}
+                      />
+                    ))}
+                  </>
+                )}
+              </div>
+
+              {/* Кнопка "Показать еще" */}
+              {filteredPrompts.length > visibleCount && !isAuthLoading && (
+                <div className="mt-8 flex justify-center px-4">
+                  <button
+                    onClick={() => setVisibleCount(prev => prev + 6)}
+                    className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white/60 font-medium active:scale-[0.98] transition-all"
+                  >
+                    Показать больше
+                  </button>
                 </div>
-              ) : (
-                filteredPrompts.map((p) => (
-                  <PromptCard 
-                    key={p.id}
-                    prompt={p}
-                    favorites={favorites}
-                    toggleFavorite={toggleFavorite}
-                    handleCopy={handleCopy}
-                    setSelectedPrompt={setSelectedPrompt as any}
-                    copiedId={copiedId}
-                  />
-                ))
               )}
-            </div>
+            </>
           )}
         </section>
       </main>

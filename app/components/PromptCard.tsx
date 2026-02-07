@@ -1,8 +1,8 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Heart, Check, Copy } from 'lucide-react'
+import { Heart, Check, Copy, ImageOff } from 'lucide-react'
 import { Prompt } from '../types/prompt'
 
 interface PromptCardProps {
@@ -22,7 +22,47 @@ export const PromptCard = React.memo(({
   setSelectedPrompt,
   copiedId
 }: PromptCardProps) => {
+  const [isLoading, setIsLoading] = useState(true)
+  const [hasError, setHasError] = useState(false)
+  const [isInView, setIsInView] = useState(false)
   const isFavorite = favorites.includes(prompt.id)
+
+  // Создаем Intersection Observer для отслеживания видимости
+  useEffect(() => {
+    const card = document.querySelector(`[data-prompt-id="${prompt.id}"]`)
+    if (!card) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsInView(true)
+            observer.disconnect() // Отключаем после первого срабатывания
+          }
+        })
+      },
+      {
+        rootMargin: '200px', // Начинаем загрузку заранее
+        threshold: 0.1
+      }
+    )
+
+    observer.observe(card)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [prompt.id])
+
+  const handleImageLoad = () => {
+    setIsLoading(false)
+    setHasError(false)
+  }
+
+  const handleImageError = () => {
+    setIsLoading(false)
+    setHasError(true)
+  }
 
   return (
     <motion.div 
@@ -33,30 +73,53 @@ export const PromptCard = React.memo(({
       transition={{ duration: 0.2 }}
       className="flex flex-col group cursor-pointer"
       onClick={() => setSelectedPrompt(prompt)}
+      data-prompt-id={prompt.id}
     >
       {/* Контейнер изображения */}
-      <div className="relative aspect-[3/4] rounded-[1.25rem] overflow-hidden bg-[#111] mb-2 group">
-        <img 
-          src={prompt.image?.src} 
-          alt={prompt.title}
-          loading="lazy" 
-          className="
-            w-full h-full object-cover
-            transition-all duration-300 ease-out
-            group-hover:brightness-110
-            group-hover:contrast-105
-            active:brightness-95
-          "
-        />
+      <div className="relative aspect-[3/4] rounded-[1.25rem] overflow-hidden bg-gradient-to-br from-[#111] to-[#222] mb-2 group">
+        {/* Лоадер/плейсхолдер */}
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#111] to-[#222] animate-pulse">
+            <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+          </div>
+        )}
+
+        {/* Состояние ошибки */}
+        {hasError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-[#111] to-[#222] text-white/40 p-4">
+            <ImageOff size={48} className="mb-2" />
+            <p className="text-xs text-center">Не удалось загрузить изображение</p>
+          </div>
+        )}
+
+        {/* Основное изображение */}
+        {(isInView && !hasError) && (
+          <img 
+            src={prompt.image?.src} 
+            alt={prompt.title}
+            loading="lazy"
+            decoding="async"
+            className={`
+              w-full h-full object-cover
+              transition-all duration-300 ease-out
+              group-hover:brightness-110
+              group-hover:contrast-105
+              active:brightness-95
+              ${isLoading ? 'opacity-0' : 'opacity-100'}
+            `}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+            sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
+          />
+        )}
         
         {/* Overlay для затемнения при наведении */}
         <div
-          className="
+          className={`
             absolute inset-0
-            bg-black/0
             transition-colors duration-300
-            group-hover:bg-black/10
-          "
+            ${isLoading || hasError ? 'bg-black/40' : 'bg-black/0 group-hover:bg-black/10'}
+          `}
         />
         
         {/* Избранное справа сверху */}

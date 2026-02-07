@@ -1,5 +1,5 @@
 // app/hooks/useAuth.ts
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { Generation } from '../types';
@@ -11,6 +11,9 @@ export function useAuth() {
   const [purchases, setPurchases] = useState<any[]>([]);
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Флаг для отслеживания загрузки истории генераций
+  const generationsLoaded = useRef(false);
 
   // Загрузка баланса
   const fetchProfile = async (userId: string) => {
@@ -30,21 +33,32 @@ export function useAuth() {
     if (!error && data) setPurchases(data);
   };
 
-  // Загрузка истории генераций
-  const fetchGenerations = async (userId: string) => {
-    const { data, error } = await supabase.from('generations').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-    if (!error && data) setGenerations(data);
+  // Загрузка истории генераций (с флагом принудительной загрузки)
+  const fetchGenerations = async (userId: string, force = false) => {
+    // Если уже загружено и это не принудительное обновление — выходим
+    if (generationsLoaded.current && !force) return;
+    
+    const { data, error } = await supabase
+      .from('generations')
+      .select('id, user_id, prompt, image_url, created_at, is_favorite') // Добавили user_id
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (!error && data) {
+      setGenerations(data as Generation[]);
+      generationsLoaded.current = true; // Помечаем как загруженное
+    }
   };
 
-  // Параллельная загрузка всех данных пользователя
+  // Параллельная загрузка данных пользователя (без загрузки истории)
   const loadAllUserData = useCallback(async (userId: string) => {
     try {
-      // Запускаем все запросы одновременно
+      // Запускаем запросы для профиля, избранного и покупок
       await Promise.all([
         fetchProfile(userId),
         fetchFavorites(userId),
-        fetchPurchases(userId),
-        fetchGenerations(userId)
+        fetchPurchases(userId)
       ]);
     } catch (error) {
       console.error("Ошибка при параллельной загрузке данных пользователя:", error);
@@ -59,7 +73,7 @@ export function useAuth() {
       
       if (session?.user) {
         setUser(session.user);
-        // Ждем завершения всех запросов перед тем, как выключить лоадер
+        // Загружаем только основные данные пользователя
         await loadAllUserData(session.user.id);
       }
       setIsLoading(false);
@@ -83,11 +97,19 @@ export function useAuth() {
         setFavorites([]);
         setPurchases([]);
         setGenerations([]);
+        generationsLoaded.current = false; // Сбрасываем флаг загрузки истории
       }
     });
 
     return () => authData.subscription.unsubscribe();
   }, [loadAllUserData]);
+
+  // Сбрасываем флаг при выходе пользователя
+  useEffect(() => {
+    if (!user) {
+      generationsLoaded.current = false;
+    }
+  }, [user]);
 
   return { 
     user, 
