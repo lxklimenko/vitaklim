@@ -7,7 +7,6 @@ import { supabase } from '@/lib/supabase';
 import { Toaster, toast } from 'sonner';
 import { Header } from './components/Header';
 import { Navigation } from './components/Navigation';
-import { HistorySection } from './components/HistorySection';
 import { MainFeed } from './components/MainFeed';
 import { CATEGORIES, PROMPTS } from './constants/appConstants';
 import { useAuth } from './hooks/useAuth';
@@ -45,8 +44,6 @@ export default function App() {
     isLoading: isAuthLoading 
   } = useAuth();
 
-  const hasLoadedGenerationsRef = useRef(false);
-
   // --- 2. GENERATION LOGIC ---
   const {
     generatePrompt, setGeneratePrompt,
@@ -57,7 +54,7 @@ export default function App() {
     handleFileChange, handleRemoveImage, handleGenerate
   } = useImageGeneration(user, () => {
     if (user) {
-      hasLoadedGenerationsRef.current = false;
+      // Callback for when generation is complete
     }
   });
 
@@ -71,7 +68,6 @@ export default function App() {
   // Navigation State
   const [isFavoritesView, setIsFavoritesView] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   
   // Modals State
   const [isSearchActive, setIsSearchActive] = useState(false);
@@ -99,20 +95,6 @@ export default function App() {
     const handler = setTimeout(() => setDebouncedSearch(searchQuery), 300);
     return () => clearTimeout(handler);
   }, [searchQuery]);
-
-  // Загрузка истории генераций
-  useEffect(() => {
-    if (user && isHistoryOpen) {
-      if (!hasLoadedGenerationsRef.current) {
-        fetchGenerations(user.id);
-        hasLoadedGenerationsRef.current = true;
-      }
-    }
-    
-    if (!user || !isHistoryOpen) {
-      hasLoadedGenerationsRef.current = false;
-    }
-  }, [user, isHistoryOpen, fetchGenerations]);
 
   // Сброс счетчика при изменении фильтров
   useEffect(() => {
@@ -183,7 +165,6 @@ export default function App() {
   const handleCategoryChange = (cat: string) => {
     setActiveCategory(cat);
     setIsFavoritesView(false);
-    setIsHistoryOpen(false);
   };
 
   // Фильтрация промптов
@@ -231,48 +212,31 @@ export default function App() {
         onResetView={() => {
           setIsFavoritesView(false);
           setIsProfileOpen(false);
-          setIsHistoryOpen(false);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
 
       <main className="pb-28 pt-8">
-        {isHistoryOpen ? (
-          <HistorySection
-            user={user}
-            generations={generations}
-            onOpenProfile={() => setIsProfileOpen(true)}
-            onDeleteGeneration={handleDeleteGeneration}
-            onRepeatGeneration={handleRepeatGeneration}
-            onShare={handleShare}
-            onDownloadOriginal={handleDownloadOriginal}
-          />
-        ) : (
-          <MainFeed
-            isLoading={isAuthLoading && filteredPrompts.length === 0}
-            activeCategory={activeCategory}
-            setActiveCategory={handleCategoryChange}
-            filteredPrompts={filteredPrompts}
-            visibleCount={visibleCount}
-            setVisibleCount={setVisibleCount}
-            favorites={favorites}
-            toggleFavorite={toggleFavoriteWrapper}
-            handleCopy={handleCopyWrapper}
-            copiedId={copiedId}
-            searchQuery={searchQuery}
-            isSearchActive={isSearchActive}
-          />
-        )}
+        <MainFeed
+          isLoading={isAuthLoading && filteredPrompts.length === 0}
+          activeCategory={activeCategory}
+          setActiveCategory={handleCategoryChange}
+          filteredPrompts={filteredPrompts}
+          visibleCount={visibleCount}
+          setVisibleCount={setVisibleCount}
+          favorites={favorites}
+          toggleFavorite={toggleFavoriteWrapper}
+          handleCopy={handleCopyWrapper}
+          copiedId={copiedId}
+          searchQuery={searchQuery}
+          isSearchActive={isSearchActive}
+        />
       </main>
 
       {/* Navigation компонент (BottomNav) */}
       <Navigation
         isFavoritesView={isFavoritesView}
         setIsFavoritesView={setIsFavoritesView}
-        isProfileOpen={isProfileOpen}
-        setIsProfileOpen={setIsProfileOpen}
-        isHistoryOpen={isHistoryOpen}
-        setIsHistoryOpen={setIsHistoryOpen}
         onOpenGenerator={() => setIsGenerateOpen(true)}
         onOpenProfile={() => setIsProfileOpen(true)}
       />
