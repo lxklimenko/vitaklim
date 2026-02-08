@@ -87,6 +87,24 @@ export const PROMPTS: Prompt[] = [
     },
     description: 'Романтический портрет в зимнем городе',
     bestFor: 'Valentine\'s Day Campaigns / Social Media'
+  },
+  {
+    id: 6,
+    title: 'Промпт «Алая нежность»',
+    tool: 'Nano Banana Pro',
+    category: 'Fashion',
+    price: 0,
+    prompt: `Фотореалистичная fashion‑съёмка в яркой белой студии (high‑key): элегантная женщина сидит на бортике белой винтажной ванны на декоративных серебристых ножках, ноги скрещены, уверенный прямой взгляд в камеру. На ней красное вечернее платье халтер (высокая горловина, открытые плечи) и туфли на каблуке с красным акцентом. Ванна наполнена множеством красных подушек в форме сердца, такие же сердечки разбросаны по полу; рядом металлическая стойка/ведро с сердечными подушками и поднос с сердечками, слева маленький столик с вазой красных цветов и аксессуарами. Над сценой висит хрустальная люстра. Чистые белые стены с молдингами, минимализм, контраст красного и белого, глянцевый журнал, мягкие аккуратные тени, высокая детализация, 50mm, f/4, ultra realistic, 4k, вертикальный кадр 3:4, без текста и без водяных знаков.
+
+Negative prompt: lowres, blur, watermark, text, logo, clutter, bad anatomy, extra limbs, deformed hands, overexposed face, noisy image.`,
+    image: {
+      src: `https://gmngqxwkgnuqtkwndjwx.supabase.co/storage/v1/object/public/prompts-images/6photo.webp`,
+      width: 900,
+      height: 1200,
+      aspect: '3:4'
+    },
+    description: 'Яркая fashion-съемка в студии с контрастом красного и белого',
+    bestFor: 'Fashion Brands / Advertising'
   }
 ];
 
