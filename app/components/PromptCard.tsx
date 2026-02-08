@@ -92,10 +92,9 @@ export const PromptCard = React.memo(({
       className="flex flex-col group cursor-pointer"
       data-prompt-id={prompt.id}
     >
-      {/* Обернули контейнер изображения в Link */}
       <Link 
         href={`/prompt/${prompt.id}`}
-        className="relative aspect-[3/4] rounded-[1.25rem] overflow-hidden bg-gradient-to-br from-[#111] to-[#222] mb-2 group block"
+        className="relative aspect-[3/4] rounded-[1.25rem] overflow-hidden bg-gradient-to-br from-[#111] to-[#222] group block"
         onClick={(e) => {
           // Если клик произошел по кнопке лайка, предотвращаем переход
           if ((e.target as HTMLElement).closest('button')) {
@@ -160,28 +159,6 @@ export const PromptCard = React.memo(({
           <Heart size={14} fill={isFavorite ? "white" : "none"} className={isFavorite ? "text-white" : ""} />
         </button>
       </Link>
-
-      {/* Текстовый блок ПОД фото */}
-      <div className="px-1 space-y-1">
-        <button 
-          onClick={(e) => { 
-            e.preventDefault()
-            e.stopPropagation()
-            handleCopy(prompt.id, prompt.prompt || "", prompt.price)
-          }}
-          className={`w-full py-2 backdrop-blur-lg border rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 ${
-            copiedId === prompt.id 
-              ? 'bg-white border-white text-black hover:bg-white/90' 
-              : 'bg-white/[0.08] border-white/5 text-white/90 hover:bg-white/[0.12]'
-          }`}
-          aria-label={copiedId === prompt.id ? "Текст скопирован" : `Скопировать промпт за ${prompt.price} ₽`}
-        >
-          {copiedId === prompt.id ? <Check size={12} /> : <Copy size={12} />}
-          <span className="text-[12px] font-medium">
-            {copiedId === prompt.id ? "Скопировано" : prompt.price > 0 ? `Копия за ${prompt.price} ₽` : "Скопировать бесплатно"}
-          </span>
-        </button>
-      </div>
     </motion.div>
   )
 })
