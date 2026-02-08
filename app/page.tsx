@@ -66,7 +66,6 @@ export default function App() {
   const [copiedId, setCopiedId] = useState<number | null>(null);
   
   // Navigation State
-  const [isFavoritesView, setIsFavoritesView] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
   // Modals State
@@ -99,7 +98,7 @@ export default function App() {
   // Сброс счетчика при изменении фильтров
   useEffect(() => {
     setVisibleCount(6);
-  }, [activeCategory, isFavoritesView, debouncedSearch]);
+  }, [activeCategory, debouncedSearch]);
 
   // Авторизация
   const handleAuth = async () => {
@@ -164,19 +163,17 @@ export default function App() {
   // Смена категории
   const handleCategoryChange = (cat: string) => {
     setActiveCategory(cat);
-    setIsFavoritesView(false);
   };
 
   // Фильтрация промптов
   const filteredPrompts = useMemo(() => {
     return PROMPTS.filter((p) => {
       const matchesCategory = activeCategory === "Все" || p.category === activeCategory;
-      const matchesFavorites = !isFavoritesView || favorites.includes(p.id);
       const matchesSearch = p.title.toLowerCase().includes(debouncedSearch.toLowerCase()) || 
-                            p.tool.toLowerCase().includes(debouncedSearch.toLowerCase());
-      return matchesCategory && matchesFavorites && matchesSearch;
+                          p.tool.toLowerCase().includes(debouncedSearch.toLowerCase());
+      return matchesCategory && matchesSearch;
     });
-  }, [activeCategory, isFavoritesView, favorites, debouncedSearch]);
+  }, [activeCategory, favorites, debouncedSearch]);
 
   // Обертка для toggleFavorite с передачей favorites
   const toggleFavoriteWrapper = async (e: React.MouseEvent, promptId: number) => {
@@ -210,7 +207,6 @@ export default function App() {
         setIsSearchActive={setIsSearchActive}
         onOpenProfile={() => setIsProfileOpen(true)}
         onResetView={() => {
-          setIsFavoritesView(false);
           setIsProfileOpen(false);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
@@ -235,8 +231,6 @@ export default function App() {
 
       {/* Navigation компонент (BottomNav) */}
       <Navigation
-        isFavoritesView={isFavoritesView}
-        setIsFavoritesView={setIsFavoritesView}
         onOpenGenerator={() => setIsGenerateOpen(true)}
         onOpenProfile={() => setIsProfileOpen(true)}
       />

@@ -6,57 +6,38 @@ import { usePathname } from 'next/navigation';
 import { Home, Star, Plus, Clock, User } from 'lucide-react';
 
 interface NavigationProps {
-  isFavoritesView?: boolean;
-  setIsFavoritesView?: (value: boolean) => void;
-  // Убираем isHistoryOpen и setIsHistoryOpen - они больше не нужны тут
+  // Убираем старые пропсы для переключения видов
   onOpenGenerator: () => void;
   onOpenProfile: () => void;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
-  isFavoritesView,
-  setIsFavoritesView,
   onOpenGenerator,
   onOpenProfile,
 }) => {
   const pathname = usePathname();
   
-  // Определяем активную страницу по URL
   const isHomePage = pathname === '/';
+  const isFavoritesPage = pathname === '/favorites'; // Новая проверка
   const isHistoryPage = pathname === '/history';
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden pb-safe">
-      {/* Фон меню */}
       <div className="absolute inset-0 bg-black/80 backdrop-blur-xl border-t border-white/10"></div>
 
       <div className="relative h-20 px-6 flex items-center justify-between">
         
-        {/* 1. ГЛАВНАЯ (Всегда ведет на /) */}
+        {/* 1. ГЛАВНАЯ */}
         <Link href="/" className="min-w-[50px] flex justify-center">
-          <NavItem 
-            icon={<Home size={22} />} 
-            label="Главная" 
-            active={isHomePage && !isFavoritesView} 
-            onClick={() => setIsFavoritesView && setIsFavoritesView(false)}
-          />
+          <NavItem icon={<Home size={22} />} label="Главная" active={isHomePage} />
         </Link>
 
-        {/* 2. ИЗБРАННОЕ (Работает только на главной) */}
-        {isHomePage ? (
-          <button 
-            onClick={() => setIsFavoritesView && setIsFavoritesView(!isFavoritesView)}
-            className="min-w-[50px] flex justify-center"
-          >
-            <NavItem icon={<Star size={22} />} label="Избранное" active={isFavoritesView} />
-          </button>
-        ) : (
-          <Link href="/?view=favorites" className="min-w-[50px] flex justify-center opacity-50">
-             <NavItem icon={<Star size={22} />} label="Избранное" active={false} />
-          </Link>
-        )}
+        {/* 2. ИЗБРАННОЕ (Теперь это Link!) */}
+        <Link href="/favorites" className="min-w-[50px] flex justify-center">
+           <NavItem icon={<Star size={22} />} label="Избранное" active={isFavoritesPage} />
+        </Link>
 
-        {/* 3. КНОПКА ПЛЮС */}
+        {/* 3. ГЕНЕРАТОР */}
         <div className="relative -mt-8">
           <button 
             onClick={onOpenGenerator}
@@ -66,7 +47,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           </button>
         </div>
 
-        {/* 4. ИСТОРИЯ (ЭТО ВАЖНО: Теперь это Link на /history) */}
+        {/* 4. ИСТОРИЯ */}
         <Link href="/history" className="min-w-[50px] flex justify-center">
            <NavItem icon={<Clock size={22} />} label="История" active={isHistoryPage} />
         </Link>
@@ -81,10 +62,9 @@ export const Navigation: React.FC<NavigationProps> = ({
   );
 };
 
-// Вспомогательный компонент
-function NavItem({ icon, label, active = false, onClick }: any) {
+function NavItem({ icon, label, active = false }: any) {
   return (
-    <div onClick={onClick} className="flex flex-col items-center gap-1 text-xs cursor-pointer group">
+    <div className="flex flex-col items-center gap-1 text-xs cursor-pointer group">
       <div className={`transition-colors ${active ? 'text-white' : 'text-white/40 group-hover:text-white/70'}`}>
         {icon}
       </div>
