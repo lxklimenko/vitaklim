@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Clock, ImageIcon, Trash2, Calendar, Copy, Zap, Share2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
@@ -10,7 +11,6 @@ interface HistorySectionProps {
   user: any;
   generations: any[];
   onOpenProfile: () => void;
-  onSelectPrompt: (prompt: any) => void;
   onDeleteGeneration: (e: React.MouseEvent, id: string) => void;
   onRepeatGeneration: (prompt: string) => void;
   onShare: (url: string) => void;
@@ -21,7 +21,6 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
   user,
   generations,
   onOpenProfile,
-  onSelectPrompt,
   onDeleteGeneration,
   onRepeatGeneration,
   onShare,
@@ -63,24 +62,17 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
           className="grid grid-cols-2 gap-4"
         >
           {generations.map((generation) => (
-            <div 
+            <Link 
               key={generation.id} 
-              className="rounded-[1.5rem] bg-white/[0.02] border border-white/[0.03] overflow-hidden relative group cursor-pointer"
-              onClick={() => onSelectPrompt({
-                id: generation.id,
-                title: "Моя генерация",
-                tool: "Vision AI",
-                category: "История",
-                price: 0,
-                prompt: generation.prompt,
-                image: { src: generation.image_url, width: 1024, height: 1024, aspect: "1:1" },
-                description: "Сгенерированное изображение",
-                bestFor: "Личное использование",
-                isHistory: true
-              })}
+              href={`/prompt/${generation.id}`}
+              className="rounded-[1.5rem] bg-white/[0.02] border border-white/[0.03] overflow-hidden relative group cursor-pointer block"
             >
               <button
-                onClick={(e) => onDeleteGeneration(e, generation.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onDeleteGeneration(e, generation.id);
+                }}
                 className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/60 backdrop-blur-sm hover:bg-red-500/80 text-white/60 hover:text-white transition-all"
               >
                 <Trash2 size={18} />
@@ -108,52 +100,53 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
                     <Calendar size={12} />
                     <span>{new Date(generation.created_at).toLocaleDateString('ru-RU')}</span>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        navigator.clipboard.writeText(generation.prompt); 
-                        toast.success("Промпт скопирован!"); 
-                      }}
-                      className="hover:text-white/60 transition-colors"
-                    >
-                      <Copy size={14} />
-                    </button>
-                    
-                    <button 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        onRepeatGeneration(generation.prompt); 
-                      }}
-                      className="hover:text-white/60 transition-colors"
-                    >
-                      <Zap size={14} />
-                    </button>
-                    
-                    <button 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        onShare(generation.image_url); 
-                      }}
-                      className="hover:text-white/60 transition-colors"
-                    >
-                      <Share2 size={14} />
-                    </button>
-                    
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDownloadOriginal(generation.image_url, `vision-${generation.id}.png`);
-                      }}
-                      className="hover:text-white/60 transition-colors"
-                    >
-                      <Upload size={14} />
-                    </button>
-                  </div>
                 </div>
               </div>
-            </div>
+              
+              <div className="absolute bottom-4 right-4 flex items-center gap-2">
+                <button 
+                  onClick={(e) => { 
+                    e.stopPropagation();
+                    e.preventDefault();
+                    navigator.clipboard.writeText(generation.prompt); 
+                    toast.success("Промпт скопирован!"); 
+                  }}
+                  className="p-2 rounded-full bg-black/60 backdrop-blur-sm text-white/60 hover:text-white transition-colors"
+                >
+                  <Copy size={14} />
+                </button>
+                
+                <Link
+                  href={`/generator?prompt=${encodeURIComponent(generation.prompt)}`}
+                  className="p-2 rounded-full bg-black/60 backdrop-blur-sm text-white/60 hover:text-white transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Zap size={14} />
+                </Link>
+                
+                <button 
+                  onClick={(e) => { 
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onShare(generation.image_url); 
+                  }}
+                  className="p-2 rounded-full bg-black/60 backdrop-blur-sm text-white/60 hover:text-white transition-colors"
+                >
+                  <Share2 size={14} />
+                </button>
+                
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onDownloadOriginal(generation.image_url, `vision-${generation.id}.png`);
+                  }}
+                  className="p-2 rounded-full bg-black/60 backdrop-blur-sm text-white/60 hover:text-white transition-colors"
+                >
+                  <Upload size={14} />
+                </button>
+              </div>
+            </Link>
           ))}
         </motion.div>
       )}

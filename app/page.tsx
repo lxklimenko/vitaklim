@@ -29,10 +29,6 @@ const GenerateModal = dynamic(() => import('./components/GenerateModal').then(mo
   ssr: false,
 });
 
-const PromptDetailModal = dynamic(() => import('./components/PromptDetailModal').then(mod => mod.PromptDetailModal), {
-  ssr: false,
-});
-
 export default function App() {
   // --- 1. DATA & AUTH ---
   const { 
@@ -71,7 +67,6 @@ export default function App() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(6);
   const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [selectedPrompt, setSelectedPrompt] = useState<any | null>(null);
   
   // Navigation State
   const [isFavoritesView, setIsFavoritesView] = useState(false);
@@ -123,26 +118,6 @@ export default function App() {
   useEffect(() => {
     setVisibleCount(6);
   }, [activeCategory, isFavoritesView, debouncedSearch]);
-
-  // Блокировка скролла при открытой модалке
-  useEffect(() => {
-    if (selectedPrompt) {
-      const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
-      document.body.style.overflow = "hidden";
-      document.body.style.touchAction = "none";
-      document.body.style.paddingRight = scrollBarWidth > 0 ? `${scrollBarWidth}px` : "";
-    } else {
-      document.body.style.overflow = "";
-      document.body.style.touchAction = "";
-      document.body.style.paddingRight = "";
-    }
-
-    return () => {
-      document.body.style.overflow = "";
-      document.body.style.touchAction = "";
-      document.body.style.paddingRight = "";
-    };
-  }, [selectedPrompt]);
 
   // Авторизация
   const handleAuth = async () => {
@@ -267,7 +242,6 @@ export default function App() {
             user={user}
             generations={generations}
             onOpenProfile={() => setIsProfileOpen(true)}
-            onSelectPrompt={setSelectedPrompt}
             onDeleteGeneration={handleDeleteGeneration}
             onRepeatGeneration={handleRepeatGeneration}
             onShare={handleShare}
@@ -284,7 +258,6 @@ export default function App() {
             favorites={favorites}
             toggleFavorite={toggleFavoriteWrapper}
             handleCopy={handleCopyWrapper}
-            setSelectedPrompt={setSelectedPrompt}
             copiedId={copiedId}
             searchQuery={searchQuery}
             isSearchActive={isSearchActive}
@@ -320,23 +293,6 @@ export default function App() {
           authMode={authMode}
           setAuthMode={setAuthMode}
           handleAuth={handleAuth}
-        />
-      )}
-
-      {selectedPrompt && (
-        <PromptDetailModal
-          selectedPrompt={selectedPrompt}
-          onClose={() => setSelectedPrompt(null)}
-          favorites={favorites}
-          toggleFavorite={toggleFavoriteWrapper}
-          toggleGenerationFavorite={toggleGenerationFavorite}
-          generations={generations}
-          handleCopy={handleCopyWrapper}
-          handleDownload={handleDownload}
-          handleDownloadOriginal={handleDownloadOriginal}
-          copiedId={copiedId}
-          setIsGenerateOpen={setIsGenerateOpen}
-          setGeneratePrompt={setGeneratePrompt}
         />
       )}
 

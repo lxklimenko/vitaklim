@@ -5,13 +5,13 @@ import { motion } from 'framer-motion'
 import { Heart, Check, Copy, ImageOff } from 'lucide-react'
 import { Prompt } from '../types/prompt'
 import Image from 'next/image'
+import Link from 'next/link'
 
 interface PromptCardProps {
   prompt: Prompt
   favorites: number[]
   toggleFavorite: (e: React.MouseEvent, id: number) => void
   handleCopy: (id: number, text: string, price: number) => void
-  setSelectedPrompt: (p: Prompt) => void
   copiedId: number | null
   priority?: boolean
 }
@@ -21,7 +21,6 @@ export const PromptCard = React.memo(({
   favorites,
   toggleFavorite,
   handleCopy,
-  setSelectedPrompt,
   copiedId,
   priority = false
 }: PromptCardProps) => {
@@ -82,22 +81,28 @@ export const PromptCard = React.memo(({
 
   return (
     <motion.div 
-      // На мобильных устройствах убираем layout анимацию для производительности
       layout={!isMobile}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      // Уменьшаем продолжительность анимации
       transition={{ 
         duration: 0.15,
         layout: { duration: 0.1 }
       }}
       className="flex flex-col group cursor-pointer"
-      onClick={() => setSelectedPrompt(prompt)}
       data-prompt-id={prompt.id}
     >
-      {/* Контейнер изображения */}
-      <div className="relative aspect-[3/4] rounded-[1.25rem] overflow-hidden bg-gradient-to-br from-[#111] to-[#222] mb-2 group">
+      {/* Обернули контейнер изображения в Link */}
+      <Link 
+        href={`/prompt/${prompt.id}`}
+        className="relative aspect-[3/4] rounded-[1.25rem] overflow-hidden bg-gradient-to-br from-[#111] to-[#222] mb-2 group block"
+        onClick={(e) => {
+          // Если клик произошел по кнопке лайка, предотвращаем переход
+          if ((e.target as HTMLElement).closest('button')) {
+            e.preventDefault()
+          }
+        }}
+      >
         {/* Лоадер/плейсхолдер */}
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#111] to-[#222] animate-pulse">
@@ -118,10 +123,10 @@ export const PromptCard = React.memo(({
           <Image 
             src={prompt.image?.src || "/placeholder.jpg"} 
             alt={prompt.title}
-            quality={75} // Устанавливаем баланс между качеством и весом
+            quality={75}
             priority={priority}
             fill
-            sizes="(max-width: 768px) 100vw, 33vw" // Уточняем размер для мобилок
+            sizes="(max-width: 768px) 100vw, 33vw"
             className={`
               object-cover
               transition-all duration-300 ease-out
@@ -144,27 +149,37 @@ export const PromptCard = React.memo(({
         
         {/* Избранное справа сверху */}
         <button 
-          onClick={(e) => { e.stopPropagation(); toggleFavorite(e, prompt.id); }}
+          onClick={(e) => { 
+            e.preventDefault()
+            e.stopPropagation()
+            toggleFavorite(e, prompt.id)
+          }}
           className="absolute top-3 right-3 p-1.5 rounded-full bg-black/30 backdrop-blur-sm text-white/50 hover:text-white transition-colors z-10"
           aria-label={isFavorite ? "Удалить из избранного" : "Добавить в избранное"}
         >
           <Heart size={14} fill={isFavorite ? "white" : "none"} className={isFavorite ? "text-white" : ""} />
         </button>
-      </div>
+      </Link>
 
       {/* Текстовый блок ПОД фото */}
       <div className="px-1 space-y-1">
         <p className="text-[10px] font-medium text-white/40 uppercase tracking-widest">
           {prompt.tool}
         </p>
-        <h3 className="text-[14px] font-medium text-white leading-snug mb-3">
-          {prompt.title}
-        </h3>
+        <Link 
+          href={`/prompt/${prompt.id}`}
+          className="block"
+        >
+          <h3 className="text-[14px] font-medium text-white leading-snug mb-3 hover:text-white/80 transition-colors">
+            {prompt.title}
+          </h3>
+        </Link>
         
         <button 
           onClick={(e) => { 
-            e.stopPropagation(); 
-            handleCopy(prompt.id, prompt.prompt || "", prompt.price); 
+            e.preventDefault()
+            e.stopPropagation()
+            handleCopy(prompt.id, prompt.prompt || "", prompt.price)
           }}
           className={`w-full py-2 backdrop-blur-lg border rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 ${
             copiedId === prompt.id 

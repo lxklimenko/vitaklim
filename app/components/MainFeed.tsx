@@ -16,7 +16,6 @@ interface MainFeedProps {
   favorites: number[];
   toggleFavorite: (e: React.MouseEvent, id: number) => void;
   handleCopy: (id: number, text: string, price: number) => void;
-  setSelectedPrompt: (prompt: any) => void;
   copiedId: number | null;
   isSearchActive: boolean; // Чтобы скрывать заголовок при поиске
   searchQuery: string;
@@ -32,7 +31,6 @@ export const MainFeed: React.FC<MainFeedProps> = ({
   favorites,
   toggleFavorite,
   handleCopy,
-  setSelectedPrompt,
   copiedId,
   isSearchActive,
   searchQuery
@@ -83,7 +81,6 @@ export const MainFeed: React.FC<MainFeedProps> = ({
                 favorites={favorites}
                 toggleFavorite={toggleFavorite}
                 handleCopy={handleCopy}
-                setSelectedPrompt={setSelectedPrompt}
                 copiedId={copiedId}
               />
             ))
