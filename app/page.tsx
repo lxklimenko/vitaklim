@@ -265,7 +265,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Navigation компонент */}
+      {/* Navigation компонент (BottomNav) */}
       <Navigation
         isFavoritesView={isFavoritesView}
         setIsFavoritesView={setIsFavoritesView}
@@ -274,6 +274,7 @@ export default function App() {
         isHistoryOpen={isHistoryOpen}
         setIsHistoryOpen={setIsHistoryOpen}
         onOpenGenerator={() => setIsGenerateOpen(true)}
+        onOpenProfile={() => setIsProfileOpen(true)}
       />
 
       {/* МОДАЛКИ */}

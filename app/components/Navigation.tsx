@@ -12,6 +12,7 @@ interface NavigationProps {
   isHistoryOpen: boolean;
   setIsHistoryOpen: (value: boolean) => void;
   onOpenGenerator: () => void;
+  onOpenProfile: () => void; // <--- ДОБАВЛЕНО
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
@@ -22,6 +23,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   isHistoryOpen,
   setIsHistoryOpen,
   onOpenGenerator,
+  onOpenProfile, // <--- ДОБАВЛЕНО
 }) => {
   const resetOtherViews = () => {
     setIsFavoritesView(false);
@@ -78,9 +80,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           label="Профиль" 
           active={isProfileOpen} 
           onClick={() => {
-            setIsProfileOpen(true);
-            setIsFavoritesView(false);
-            setIsHistoryOpen(false);
+            onOpenProfile(); // <--- ИЗМЕНЕНО
           }} 
         />
       </div>

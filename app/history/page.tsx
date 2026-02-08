@@ -1,0 +1,140 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { Trash2, ChevronLeft } from 'lucide-react';
+import { Toaster } from 'sonner';
+
+// Проверьте, что пути правильные (одна точка или две)
+import BottomNav from '../components/BottomNav'; 
+import { useAuth } from '../hooks/useAuth';
+import { useAppActions } from '../hooks/useAppActions';
+import { useImageGeneration } from '../hooks/useImageGeneration'; // Импортируем хук генерации
+
+import dynamic from 'next/dynamic';
+const GenerateModal = dynamic(() => import('../components/GenerateModal').then(m => m.GenerateModal), { ssr: false });
+const ProfileModal = dynamic(() => import('../components/ProfileModal').then(m => m.ProfileModal), { ssr: false });
+
+export default function HistoryPage() {
+  const { user, generations, setGenerations, fetchGenerations, fetchProfile, balance, purchases } = useAuth();
+  
+  // Состояния для открытия модалок
+  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  
+  // Подключаем действия
+  const actions = useAppActions(user, setGenerations, () => {}, fetchProfile, setIsProfileOpen);
+
+  // ПОДКЛЮЧАЕМ ХУК ГЕНЕРАЦИИ (чтобы модалка работала)
+  const {
+    generatePrompt,
+    setGeneratePrompt,
+    isGenerating,
+    modelId,
+    setModelId,
+    aspectRatio,
+    setAspectRatio,
+    referenceImage,
+    handleFileChange,
+    handleRemoveImage,
+    handleGenerate
+  } = useImageGeneration(user, () => setIsGenerateOpen(false)); // Закрыть модалку после успеха
+
+  useEffect(() => {
+    if (user) {
+      fetchGenerations(user.id);
+    }
+  }, [user]);
+
+  return (
+    <div className="min-h-screen bg-black text-white pb-32">
+      <Toaster theme="dark" position="top-center" />
+
+      <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/10 px-4 py-4 flex items-center gap-4">
+        <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-white/10 transition">
+          <ChevronLeft size={24} />
+        </Link>
+        <h1 className="text-xl font-bold">История генераций</h1>
+      </header>
+
+      <div className="px-4 py-6">
+        {!user ? (
+          <div className="text-center py-20 text-white/50">Войдите, чтобы видеть историю</div>
+        ) : generations.length === 0 ? (
+          <div className="text-center py-20 text-white/50">Вы пока ничего не сгенерировали</div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {generations.map((gen) => (
+              <Link 
+                key={gen.id}
+                href={`/prompt/${gen.id}`}
+                className="relative aspect-square rounded-2xl overflow-hidden bg-white/5 border border-white/10 group"
+              >
+                <Image 
+                  src={gen.image_url} 
+                  alt={gen.prompt} 
+                  fill 
+                  className="object-cover transition-transform group-hover:scale-105"
+                  sizes="(max-width: 768px) 50vw, 33vw"
+                />
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    actions.handleDeleteGeneration(e, gen.id);
+                  }}
+                  className="absolute top-2 right-2 p-2 rounded-full bg-black/50 backdrop-blur text-white/70 hover:bg-red-500 hover:text-white transition-colors"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <BottomNav 
+        onOpenGenerate={() => setIsGenerateOpen(true)}
+        onOpenProfile={() => setIsProfileOpen(true)}
+      />
+
+      {/* Теперь передаем реальные значения из хука useImageGeneration */}
+      {isGenerateOpen && (
+        <GenerateModal 
+          isOpen={isGenerateOpen} 
+          onClose={() => setIsGenerateOpen(false)} 
+          
+          generatePrompt={generatePrompt}     // СТРОКА (string)
+          setGeneratePrompt={setGeneratePrompt} // ФУНКЦИЯ
+          
+          isGenerating={isGenerating} 
+          handleGenerate={handleGenerate} 
+          modelId={modelId} 
+          setModelId={setModelId} 
+          aspectRatio={aspectRatio} 
+          setAspectRatio={setAspectRatio} 
+          referenceImage={referenceImage} 
+          handleFileChange={handleFileChange} 
+          handleRemoveImage={handleRemoveImage} 
+        />
+      )}
+      
+      {isProfileOpen && (
+        <ProfileModal 
+          user={user} 
+          isProfileOpen={isProfileOpen} 
+          setIsProfileOpen={setIsProfileOpen} 
+          balance={balance} 
+          purchases={purchases} 
+          // Заглушки для Auth, если не нужны на этой странице
+          email="" setEmail={()=>{}} 
+          password="" setPassword={()=>{}} 
+          authMode="login" setAuthMode={()=>{}} 
+          handleAuth={()=>{}} 
+          handleTopUp={()=>{}} 
+          isTopUpLoading={false} 
+        />
+      )}
+    </div>
+  );
+}
