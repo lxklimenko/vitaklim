@@ -163,9 +163,6 @@ export const PromptCard = React.memo(({
 
       {/* Текстовый блок ПОД фото */}
       <div className="px-1 space-y-1">
-        <p className="text-[10px] font-medium text-white/40 uppercase tracking-widest">
-          {prompt.tool}
-        </p>
         <Link 
           href={`/prompt/${prompt.id}`}
           className="block"
