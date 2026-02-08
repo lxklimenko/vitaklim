@@ -163,15 +163,6 @@ export const PromptCard = React.memo(({
 
       {/* Текстовый блок ПОД фото */}
       <div className="px-1 space-y-1">
-        <Link 
-          href={`/prompt/${prompt.id}`}
-          className="block"
-        >
-          <h3 className="text-[14px] font-medium text-white leading-snug mb-3 hover:text-white/80 transition-colors">
-            {prompt.title}
-          </h3>
-        </Link>
-        
         <button 
           onClick={(e) => { 
             e.preventDefault()
