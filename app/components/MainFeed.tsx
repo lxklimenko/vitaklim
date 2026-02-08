@@ -69,7 +69,7 @@ export const MainFeed: React.FC<MainFeedProps> = ({
 
       {/* Сетка промптов */}
       <section className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-2 gap-4 px-4">
+        <div className="grid grid-cols-3 gap-2 px-2 md:grid-cols-4 md:gap-4 md:px-6">
           {isLoading && filteredPrompts.length === 0 ? (
             Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
           ) : (

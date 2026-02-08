@@ -126,7 +126,7 @@ export const PromptCard = React.memo(({
             quality={75}
             priority={priority}
             fill
-            sizes="(max-width: 768px) 100vw, 33vw"
+            sizes="(max-width: 768px) 33vw, (max-width: 1200px) 25vw, 20vw"
             className={`
               object-cover
               transition-all duration-300 ease-out
