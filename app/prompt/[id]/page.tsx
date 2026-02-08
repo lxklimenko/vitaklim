@@ -1,42 +1,81 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound, useParams } from 'next/navigation';
-import { ChevronLeft, Share2, Copy, Check, Download, Heart } from 'lucide-react';
-import { PROMPTS } from '../../constants/appConstants'; // Убедитесь, что путь правильный
+import { ChevronLeft, Share2, Copy, Check, Download, Heart, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase'; // Импортируем supabase (путь может быть ../../lib/supabase)
+import { PROMPTS } from '../../constants/appConstants';
 import { useAuth } from '../../hooks/useAuth';
 import { useAppActions } from '../../hooks/useAppActions';
 
 export default function PromptPage() {
   const params = useParams();
-  const { id } = params;
+  const id = params.id as string;
 
-  // Ищем промпт в константах
-  const prompt = PROMPTS.find((p) => p.id.toString() === id);
+  // 1. Сначала ищем в статичных промптах
+  const staticPrompt = PROMPTS.find((p) => p.id.toString() === id);
 
-  const { user, favorites, setFavorites, setGenerations, fetchProfile } = useAuth();
-  
-  // Заглушка для модалки профиля, пока не вынесем ее глобально
-  const setIsProfileOpen = (val: boolean) => console.log("Нужен логин"); 
-
-  const actions = useAppActions(
-    user, 
-    setGenerations, 
-    setFavorites, 
-    fetchProfile, 
-    setIsProfileOpen
-  );
-
+  // 2. Стейт для данных из базы (если это история)
+  const [dbPrompt, setDbPrompt] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(!staticPrompt); // Если не нашли в статике, значит грузим
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
-  // Добавляем проверку !prompt.image
+  const { user, favorites, setFavorites, setGenerations, fetchProfile } = useAuth();
+  const setIsProfileOpen = (val: boolean) => console.log("Login required");
+
+  const actions = useAppActions(user, setGenerations, setFavorites, fetchProfile, setIsProfileOpen);
+
+  // 3. Эффект для загрузки из Supabase (только если не нашли в статике)
+  useEffect(() => {
+    if (staticPrompt) return; // Если есть в статике, не грузим
+
+    const fetchFromDb = async () => {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('generations')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (data) {
+        // Превращаем данные из БД в формат Промпта
+        setDbPrompt({
+          id: data.id,
+          title: "Моя генерация",
+          tool: "Vision AI",
+          category: "История",
+          price: 0,
+          prompt: data.prompt,
+          image: { src: data.image_url, width: 1024, height: 1024, aspect: "1:1" },
+          description: "Сгенерировано пользователем",
+        });
+      }
+      setIsLoading(false);
+    };
+
+    fetchFromDb();
+  }, [id, staticPrompt]);
+
+  // 4. Определяем, что показывать (статику или БД)
+  const prompt = staticPrompt || dbPrompt;
+
+  // Если загрузка идет - показываем лоадер
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center text-white">
+        <Loader2 className="animate-spin" size={32} />
+      </div>
+    );
+  }
+
+  // Если всё загрузилось, но промпта нет - 404
   if (!prompt || !prompt.image) {
     return notFound();
   }
 
-  const isFavorite = favorites.includes(prompt.id);
+  const isFavorite = favorites.includes(prompt.id) || (dbPrompt && dbPrompt.is_favorite);
 
   return (
     <div className="min-h-screen bg-black text-white pb-20">
@@ -49,14 +88,17 @@ export default function PromptPage() {
         </Link>
         
         <div className="pointer-events-auto flex gap-2">
-           <button
-             onClick={(e) => actions.toggleFavorite(e, prompt.id, favorites)}
-             className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md border border-white/10 transition-colors ${
-               isFavorite ? 'bg-red-500/20 text-red-500 border-red-500/50' : 'bg-black/40 text-white'
-             }`}
-           >
-             <Heart size={20} className={isFavorite ? "fill-current" : ""} />
-           </button>
+           {/* Кнопку лайка показываем только для магазинных промптов пока что, либо адаптируем под историю */}
+           {!dbPrompt && (
+             <button
+               onClick={(e) => actions.toggleFavorite(e, prompt.id, favorites)}
+               className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md border border-white/10 transition-colors ${
+                 isFavorite ? 'bg-red-500/20 text-red-500 border-red-500/50' : 'bg-black/40 text-white'
+               }`}
+             >
+               <Heart size={20} className={isFavorite ? "fill-current" : ""} />
+             </button>
+           )}
         </div>
       </div>
 
@@ -111,6 +153,7 @@ export default function PromptPage() {
                 </button>
                 
                 <button 
+                  // Безопасная проверка на наличие картинки
                   onClick={() => actions.handleDownload(prompt.image?.src || "")}
                   className="w-12 h-12 rounded-xl bg-[#1c1c1e] border border-white/10 flex items-center justify-center text-white active:scale-95 transition-transform"
                 >
@@ -118,7 +161,7 @@ export default function PromptPage() {
                 </button>
                 
                 <button 
-                   onClick={() => actions.handleShare(`${window.location.origin}/prompt/${prompt.id}`)}
+                   onClick={() => actions.handleShare(window.location.href)}
                    className="w-12 h-12 rounded-xl bg-[#1c1c1e] border border-white/10 flex items-center justify-center text-white active:scale-95 transition-transform"
                 >
                   <Share2 size={20} />
