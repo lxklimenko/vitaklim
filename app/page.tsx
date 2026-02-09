@@ -1,6 +1,7 @@
 import ClientApp from './ClientApp';
-import { PROMPTS } from './constants/appConstants';
+import { getPrompts } from './lib/getPrompts';
 
 export default function Page() {
-  return <ClientApp prompts={PROMPTS} />;
+  const prompts = getPrompts();
+  return <ClientApp prompts={prompts} />;
 }
