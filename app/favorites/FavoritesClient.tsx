@@ -21,7 +21,16 @@ interface FavoritesClientProps {
 }
 
 export default function FavoritesClient({ prompts }: FavoritesClientProps) {
-  const { user, favorites, setFavorites, setGenerations, fetchProfile, balance, purchases } = useAuth();
+  const { 
+    user, 
+    favorites, 
+    isLoading,
+    setFavorites, 
+    setGenerations, 
+    fetchProfile, 
+    balance, 
+    purchases 
+  } = useAuth();
 
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -57,7 +66,16 @@ export default function FavoritesClient({ prompts }: FavoritesClientProps) {
       </header>
 
       <div className="px-4 py-6">
-        {favoritePrompts.length === 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="aspect-[3/4] rounded-2xl bg-white/5 animate-pulse"
+              />
+            ))}
+          </div>
+        ) : favoritePrompts.length === 0 ? (
           <div className="text-center py-20">
             <Heart size={32} className="mx-auto mb-4 text-white/20" />
             <p className="text-white/50">В избранном пока пусто</p>
