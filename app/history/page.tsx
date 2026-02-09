@@ -6,27 +6,32 @@ import Image from 'next/image';
 import { Trash2, ChevronLeft } from 'lucide-react';
 import { Toaster } from 'sonner';
 
-// Проверьте, что пути правильные (одна точка или две)
 import BottomNav from '../components/BottomNav'; 
 import { useAuth } from '../hooks/useAuth';
 import { useAppActions } from '../hooks/useAppActions';
-import { useImageGeneration } from '../hooks/useImageGeneration'; // Импортируем хук генерации
+import { useImageGeneration } from '../hooks/useImageGeneration';
 
 import dynamic from 'next/dynamic';
 const GenerateModal = dynamic(() => import('../components/GenerateModal').then(m => m.GenerateModal), { ssr: false });
 const ProfileModal = dynamic(() => import('../components/ProfileModal').then(m => m.ProfileModal), { ssr: false });
 
 export default function HistoryPage() {
-  const { user, generations, setGenerations, fetchGenerations, fetchProfile, balance, purchases } = useAuth();
+  const { 
+    user, 
+    generations, 
+    isLoading,
+    setGenerations, 
+    fetchGenerations, 
+    fetchProfile, 
+    balance, 
+    purchases 
+  } = useAuth();
   
-  // Состояния для открытия модалок
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
-  // Подключаем действия
   const actions = useAppActions(user, setGenerations, () => {}, fetchProfile, setIsProfileOpen);
 
-  // ПОДКЛЮЧАЕМ ХУК ГЕНЕРАЦИИ (чтобы модалка работала)
   const {
     generatePrompt,
     setGeneratePrompt,
@@ -39,7 +44,7 @@ export default function HistoryPage() {
     handleFileChange,
     handleRemoveImage,
     handleGenerate
-  } = useImageGeneration(user, () => setIsGenerateOpen(false)); // Закрыть модалку после успеха
+  } = useImageGeneration(user, () => setIsGenerateOpen(false));
 
   useEffect(() => {
     if (user) {
@@ -59,10 +64,23 @@ export default function HistoryPage() {
       </header>
 
       <div className="px-4 py-6">
-        {!user ? (
-          <div className="text-center py-20 text-white/50">Войдите, чтобы видеть историю</div>
+        {isLoading ? (
+          <div className="grid grid-cols-2 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="aspect-square rounded-2xl bg-white/5 animate-pulse"
+              />
+            ))}
+          </div>
+        ) : !user ? (
+          <div className="text-center py-20 text-white/50">
+            Войдите, чтобы видеть историю
+          </div>
         ) : generations.length === 0 ? (
-          <div className="text-center py-20 text-white/50">Вы пока ничего не сгенерировали</div>
+          <div className="text-center py-20 text-white/50">
+            Вы пока ничего не сгенерировали
+          </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {generations.map((gen) => (
@@ -98,14 +116,13 @@ export default function HistoryPage() {
         onOpenProfile={() => setIsProfileOpen(true)}
       />
 
-      {/* Теперь передаем реальные значения из хука useImageGeneration */}
       {isGenerateOpen && (
         <GenerateModal 
           isOpen={isGenerateOpen} 
           onClose={() => setIsGenerateOpen(false)} 
           
-          generatePrompt={generatePrompt}     // СТРОКА (string)
-          setGeneratePrompt={setGeneratePrompt} // ФУНКЦИЯ
+          generatePrompt={generatePrompt}
+          setGeneratePrompt={setGeneratePrompt}
           
           isGenerating={isGenerating} 
           handleGenerate={handleGenerate} 
@@ -126,10 +143,12 @@ export default function HistoryPage() {
           setIsProfileOpen={setIsProfileOpen} 
           balance={balance} 
           purchases={purchases} 
-          // Заглушки для Auth, если не нужны на этой странице
-          email="" setEmail={()=>{}} 
-          password="" setPassword={()=>{}} 
-          authMode="login" setAuthMode={()=>{}} 
+          email="" 
+          setEmail={()=>{}} 
+          password="" 
+          setPassword={()=>{}} 
+          authMode="login" 
+          setAuthMode={()=>{}} 
           handleAuth={()=>{}} 
           handleTopUp={()=>{}} 
           isTopUpLoading={false} 
