@@ -95,9 +95,8 @@ export default function FavoritesPage() {
 
       {/* Навигация */}
       <Navigation
-        onOpenGenerator={() => setIsGenerateOpen(true)}
-        onOpenProfile={() => setIsProfileOpen(true)}
-      />
+  onOpenGenerator={() => setIsGenerateOpen(true)}
+/>
 
       {/* Модалки */}
       {isProfileOpen && (
