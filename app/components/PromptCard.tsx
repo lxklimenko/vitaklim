@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Heart, ImageOff } from 'lucide-react'
 import { Prompt } from '../types/prompt'
@@ -26,6 +26,26 @@ export const PromptCard = React.memo(({
   const [hasError, setHasError] = useState(false)
   const isFavorite = favorites.includes(prompt.id)
 
+  // Мемоизация обработчиков
+  const handleImageLoad = useCallback(() => setIsLoading(false), [])
+  const handleImageError = useCallback(() => {
+    setIsLoading(false)
+    setHasError(true)
+  }, [])
+
+  const handleLinkClick = useCallback((e: React.MouseEvent) => {
+    // Предотвращаем переход при клике на лайк
+    if ((e.target as HTMLElement).closest('button')) {
+      e.preventDefault()
+    }
+  }, [])
+
+  const handleFavoriteClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    toggleFavorite(e, prompt.id)
+  }, [prompt.id, toggleFavorite])
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
@@ -36,17 +56,12 @@ export const PromptCard = React.memo(({
       <Link 
         href={`/prompt/${prompt.id}`}
         className="relative aspect-[3/4] rounded-[1.25rem] overflow-hidden bg-[#111] group block"
-        onClick={(e) => {
-          // Предотвращаем переход при клике на лайк
-          if ((e.target as HTMLElement).closest('button')) {
-            e.preventDefault()
-          }
-        }}
+        onClick={handleLinkClick}
       >
         {/* Плейсхолдер во время загрузки */}
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/5 animate-pulse z-10">
-             <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center bg-white/5 z-10">
+            <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
           </div>
         )}
 
@@ -63,7 +78,7 @@ export const PromptCard = React.memo(({
             src={prompt.image?.src || "/placeholder.jpg"} 
             alt={prompt.title}
             quality={75}
-            priority={priority} // Важно для первых 2-4 карточек
+            priority={priority}
             fill
             sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
             className={`
@@ -71,11 +86,9 @@ export const PromptCard = React.memo(({
               group-hover:scale-110
               ${isLoading ? 'opacity-0' : 'opacity-100'}
             `}
-            onLoadingComplete={() => setIsLoading(false)}
-            onError={() => {
-              setIsLoading(false)
-              setHasError(true)
-            }}
+            onLoadingComplete={handleImageLoad}
+            onError={handleImageError}
+            loading={priority ? "eager" : "lazy"}
           />
         )}
         
@@ -84,12 +97,9 @@ export const PromptCard = React.memo(({
         
         {/* Кнопка Лайка */}
         <button 
-          onClick={(e) => { 
-            e.preventDefault()
-            e.stopPropagation()
-            toggleFavorite(e, prompt.id)
-          }}
+          onClick={handleFavoriteClick}
           className="absolute top-3 right-3 p-2 rounded-full bg-black/40 backdrop-blur-md text-white/50 hover:text-white transition-all active:scale-90 z-30"
+          aria-label={isFavorite ? "Удалить из избранного" : "Добавить в избранное"}
         >
           <Heart 
             size={16} 
