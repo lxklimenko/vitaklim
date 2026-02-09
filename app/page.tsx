@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Inter } from 'next/font/google';
 import { supabase } from '@/lib/supabase'; 
 import { Toaster, toast } from 'sonner';
@@ -13,6 +13,7 @@ import { useAuth } from './hooks/useAuth';
 import { useImageGeneration } from './hooks/useImageGeneration';
 import { useAppActions } from './hooks/useAppActions';
 import type { Generation } from './types';
+import { useRouter } from 'next/navigation';
 
 const inter = Inter({ 
   subsets: ['latin', 'cyrillic'],
@@ -20,15 +21,13 @@ const inter = Inter({
 });
 
 // Загружаем модалки только когда они нужны (Lazy Loading)
-const ProfileModal = dynamic(() => import('./components/ProfileModal').then(mod => mod.ProfileModal), {
-  ssr: false,
-});
-
 const GenerateModal = dynamic(() => import('./components/GenerateModal').then(mod => mod.GenerateModal), {
   ssr: false,
 });
 
 export default function App() {
+  const router = useRouter();
+  
   // --- 1. DATA & AUTH ---
   const { 
     user, 
@@ -66,17 +65,10 @@ export default function App() {
   const [copiedId, setCopiedId] = useState<number | null>(null);
   
   // Navigation State
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSearchActive, setIsSearchActive] = useState(false);
   
   // Modals State
-  const [isSearchActive, setIsSearchActive] = useState(false);
-  const [isTopUpLoading, setIsTopUpLoading] = useState(false);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
-  
-  // Auth Form State
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
   // --- 4. ACTIONS HOOK ---
   const {
@@ -87,7 +79,7 @@ export default function App() {
     toggleGenerationFavorite,
     toggleFavorite,
     handleCopy
-  } = useAppActions(user, setGenerations, setFavorites, fetchProfile, setIsProfileOpen);
+  } = useAppActions(user, setGenerations, setFavorites, fetchProfile, () => {}); // Добавлена заглушка
 
   // Дебаунс поиска
   useEffect(() => {
@@ -100,48 +92,9 @@ export default function App() {
     setVisibleCount(6);
   }, [activeCategory, debouncedSearch]);
 
-  // Авторизация
-  const handleAuth = async () => {
-    if (!email.includes('@')) return toast.error("Введите корректный email");
-    if (password.length < 6) return toast.error("Пароль должен быть не менее 6 символов");
-    
-    try {
-      if (authMode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        toast.success("С возвращением");
-        setIsProfileOpen(false);
-      } else {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        toast.success("Аккаунт создан! Проверьте почту для подтверждения.");
-        setAuthMode('login');
-      }
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
-
-  // Пополнение баланса
-  const handleTopUp = async (amount: number) => {
-    if (!user) return setIsProfileOpen(true);
-    setIsTopUpLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('create-payment', {
-        body: { amount }
-      });
-      if (error) throw error;
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        toast.error("Ссылка на оплату не получена");
-      }
-    } catch (err: any) {
-      console.error("Ошибка вызова функции:", err);
-      toast.error("Ошибка платежа: " + (err.message || "Неизвестная ошибка"));
-    } finally {
-      setIsTopUpLoading(false);
-    }
+  // Переход на страницу профиля
+  const handleOpenProfile = () => {
+    router.push('/profile');
   };
 
   // Копирование промпта
@@ -205,9 +158,8 @@ export default function App() {
         setSearchQuery={setSearchQuery}
         isSearchActive={isSearchActive}
         setIsSearchActive={setIsSearchActive}
-        onOpenProfile={() => setIsProfileOpen(true)}
+        onOpenProfile={handleOpenProfile}
         onResetView={() => {
-          setIsProfileOpen(false);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
@@ -231,30 +183,10 @@ export default function App() {
 
       {/* Navigation компонент (BottomNav) */}
       <Navigation
-        onOpenGenerator={() => setIsGenerateOpen(true)}
-        onOpenProfile={() => setIsProfileOpen(true)}
-      />
+  onOpenGenerator={() => setIsGenerateOpen(true)}
+/>
 
-      {/* МОДАЛКИ */}
-      {isProfileOpen && (
-        <ProfileModal
-          user={user}
-          balance={balance}
-          purchases={purchases}
-          isProfileOpen={isProfileOpen}
-          setIsProfileOpen={setIsProfileOpen}
-          handleTopUp={handleTopUp}
-          isTopUpLoading={isTopUpLoading}
-          email={email}
-          password={password}
-          setEmail={setEmail}
-          setPassword={setPassword}
-          authMode={authMode}
-          setAuthMode={setAuthMode}
-          handleAuth={handleAuth}
-        />
-      )}
-
+      {/* МОДАЛКА ГЕНЕРАЦИИ */}
       {isGenerateOpen && (
         <GenerateModal
           isOpen={isGenerateOpen}
