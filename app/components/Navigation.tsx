@@ -6,20 +6,18 @@ import { usePathname } from 'next/navigation';
 import { Home, Star, Plus, Clock, User } from 'lucide-react';
 
 interface NavigationProps {
-  // Убираем старые пропсы для переключения видов
   onOpenGenerator: () => void;
-  onOpenProfile: () => void;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
   onOpenGenerator,
-  onOpenProfile,
 }) => {
   const pathname = usePathname();
   
   const isHomePage = pathname === '/';
-  const isFavoritesPage = pathname === '/favorites'; // Новая проверка
+  const isFavoritesPage = pathname === '/favorites';
   const isHistoryPage = pathname === '/history';
+  const isProfilePage = pathname === '/profile';
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden pb-safe">
@@ -32,7 +30,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           <NavItem icon={<Home size={22} />} label="Главная" active={isHomePage} />
         </Link>
 
-        {/* 2. ИЗБРАННОЕ (Теперь это Link!) */}
+        {/* 2. ИЗБРАННОЕ */}
         <Link href="/favorites" className="min-w-[50px] flex justify-center">
            <NavItem icon={<Star size={22} />} label="Избранное" active={isFavoritesPage} />
         </Link>
@@ -53,9 +51,9 @@ export const Navigation: React.FC<NavigationProps> = ({
         </Link>
 
         {/* 5. ПРОФИЛЬ */}
-        <button onClick={onOpenProfile} className="min-w-[50px] flex justify-center">
-           <NavItem icon={<User size={22} />} label="Профиль" active={false} />
-        </button>
+        <Link href="/profile" className="min-w-[50px] flex justify-center">
+           <NavItem icon={<User size={22} />} label="Профиль" active={isProfilePage} />
+        </Link>
 
       </div>
     </nav>
