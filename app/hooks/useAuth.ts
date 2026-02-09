@@ -5,7 +5,7 @@ import { User } from '@supabase/supabase-js';
 import { Generation } from '../types';
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null | undefined>(undefined);
   const [balance, setBalance] = useState<number>(0);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
