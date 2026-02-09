@@ -10,7 +10,11 @@ export function useAuth() {
   const [favorites, setFavorites] = useState<number[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
   const [generations, setGenerations] = useState<Generation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Отдельные флаги загрузки вместо глобального isLoading
+  const [authLoading, setAuthLoading] = useState(true);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
+  const [generationsLoading, setGenerationsLoading] = useState(false);
   
   // Флаг для отслеживания загрузки истории генераций
   const generationsLoaded = useRef(false);
@@ -21,10 +25,19 @@ export function useAuth() {
     if (!error && data) setBalance(data.balance);
   };
 
-  // Загрузка избранного
+  // Загрузка избранного с флагом загрузки
   const fetchFavorites = async (userId: string) => {
-    const { data, error } = await supabase.from('favorites').select('prompt_id').eq('user_id', userId);
-    if (!error && data) setFavorites(data.map((f: any) => f.prompt_id));
+    setFavoritesLoading(true);
+    const { data } = await supabase
+      .from('favorites')
+      .select('prompt_id')
+      .eq('user_id', userId);
+
+    if (data) {
+      setFavorites(data.map((f: any) => f.prompt_id));
+    }
+
+    setFavoritesLoading(false);
   };
 
   // Загрузка покупок
@@ -38,17 +51,21 @@ export function useAuth() {
     // Если уже загружено и это не принудительное обновление — выходим
     if (generationsLoaded.current && !force) return;
     
-    const { data, error } = await supabase
+    setGenerationsLoading(true);
+
+    const { data } = await supabase
       .from('generations')
       .select('id, user_id, prompt, image_url, created_at, is_favorite') // Добавили user_id
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(20);
 
-    if (!error && data) {
+    if (data) {
       setGenerations(data as Generation[]);
       generationsLoaded.current = true; // Помечаем как загруженное
     }
+
+    setGenerationsLoading(false);
   };
 
   // Параллельная загрузка данных пользователя (без загрузки истории)
@@ -67,16 +84,15 @@ export function useAuth() {
 
   useEffect(() => {
     const initSession = async () => {
-      setIsLoading(true);
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
+
         if (session?.user) {
-          setUser(session.user);
-          await loadAllUserData(session.user.id);
+          loadAllUserData(session.user.id); // НЕ await
         }
       } finally {
-        // Гарантируем, что загрузка выключится в любом случае
-        setIsLoading(false);
+        setAuthLoading(false);
       }
     };
 
@@ -87,17 +103,13 @@ export function useAuth() {
       setUser(currentUser);
       
       if (currentUser) {
-        setIsLoading(true);
-        await loadAllUserData(currentUser.id);
-        setIsLoading(false);
+        loadAllUserData(currentUser.id); // НЕ await
       } else {
         setBalance(0);
         setFavorites([]);
         setPurchases([]);
         setGenerations([]);
         generationsLoaded.current = false;
-        // ВАЖНО: останавливаем загрузку для анонимных пользователей
-        setIsLoading(false); 
       }
     });
 
@@ -105,16 +117,21 @@ export function useAuth() {
   }, [loadAllUserData]);
 
   return { 
-    user, 
-    balance, 
-    favorites, 
-    purchases, 
-    generations, 
-    setFavorites, 
+    user,
+    authLoading,
+    favoritesLoading,
+    generationsLoading,
+
+    balance,
+    favorites,
+    purchases,
+    generations,
+
+    setFavorites,
     setGenerations,
     setPurchases,
-    fetchProfile, 
-    fetchGenerations,
-    isLoading 
+
+    fetchProfile,
+    fetchGenerations
   };
 }
