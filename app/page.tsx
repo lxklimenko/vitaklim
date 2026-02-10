@@ -1,5 +1,8 @@
 import ClientApp from './ClientApp';
-import { getPrompts } from './lib/getPrompts';
+import { getPrompts } from '@/app/lib/getPrompts';
+
+
+export const dynamic = 'force-static';
 
 export default function Page() {
   const prompts = getPrompts();

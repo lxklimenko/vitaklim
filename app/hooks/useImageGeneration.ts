@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/app/lib/supabase';
 import { MODELS } from '../constants/appConstants';
 
 export function useImageGeneration(user: any, onGenerationComplete: () => void) {

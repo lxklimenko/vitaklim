@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/app/lib/supabase';
 import { toast } from 'sonner';
 import { Generation } from '../types'; // Убедитесь, что типы существуют
 

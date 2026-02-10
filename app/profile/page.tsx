@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, LogOut, CreditCard, Mail, User as UserIcon, Loader2 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/app/lib/supabase';
 
 // Импорты
 import { useAuth } from '../hooks/useAuth';

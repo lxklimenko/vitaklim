@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Send, Copy, Zap, Loader2, UserPlus } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/app/lib/supabase'
 import { toast } from 'sonner'
 
 interface ProfileModalProps {

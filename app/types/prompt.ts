@@ -3,7 +3,7 @@ export interface Prompt {
   title: string
   tool: string
   category: string
-  price: number
+  price?: number
   prompt: string
   image?: {
     src: string

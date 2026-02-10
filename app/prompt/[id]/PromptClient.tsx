@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound, useParams } from 'next/navigation';
 import { ChevronLeft, Share2, Copy, Check, Download, Heart, Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/app/lib/supabase';
 
 import { Prompt } from '../../types/prompt';
 import { useAuth } from '../../hooks/useAuth';

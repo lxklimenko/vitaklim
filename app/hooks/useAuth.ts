@@ -1,6 +1,6 @@
 // app/hooks/useAuth.ts
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/app/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { Generation } from '../types';
 

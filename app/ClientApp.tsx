@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useDeferredValue } from 'react';
 import { Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { Header } from './components/Header';
@@ -66,7 +66,7 @@ export default function ClientApp({ prompts }: ClientAppProps) {
   // UI STATE
   const [activeCategory, setActiveCategory] = useState('Все');
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const deferredSearch = useDeferredValue(searchQuery);
   const [visibleCount, setVisibleCount] = useState(6);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
@@ -98,34 +98,21 @@ const onHandleCopy = useCallback(
   // ЛОКАЛЬНЫЙ INDIKATOR ЗАГРУЗКИ - вместо isAuthLoading
   const isLoading = favoritesLoading || generationsLoading;
 
-  // DEBOUNCE SEARCH
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
-    return () => clearTimeout(t);
-  }, [searchQuery]);
 
   // FILTER PROMPTS
   const filteredPrompts = useMemo(() => {
-    return prompts.filter(p => {
-      const byCategory = activeCategory === 'Все' || p.category === activeCategory;
-      const bySearch =
-        p.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        p.tool.toLowerCase().includes(debouncedSearch.toLowerCase());
-      return byCategory && bySearch;
-    });
-  }, [activeCategory, debouncedSearch, prompts]);
+  const q = deferredSearch.toLowerCase();
 
-  // Если аутентификация не готова, показываем минимальный скелетон или null
-  if (!authReady) {
-  return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center">
-      <div className="animate-pulse text-white/60 text-sm">
-        Загрузка…
-      </div>
-    </div>
-  );
-}
+  return prompts.filter(p => {
+    const byCategory = activeCategory === 'Все' || p.category === activeCategory;
+    const bySearch =
+      p.title.toLowerCase().includes(q) ||
+      p.tool.toLowerCase().includes(q);
+    return byCategory && bySearch;
+  });
+}, [activeCategory, deferredSearch, prompts]);
 
+  
 
   return (
     <div

@@ -6,14 +6,13 @@ import { SearchX } from 'lucide-react';
 import { PromptCard } from './PromptCard';
 import { SkeletonCard } from './UIElements';
 import { CATEGORIES } from '../constants/appConstants';
-import { Prompt } from '../types/prompt'; // Убедись, что путь к типам верный
+import { Prompt } from '../types/prompt';
 
-// 1. Возвращаем интерфейс (исправляет ошибку 2304)
 interface MainFeedProps {
   isLoading: boolean;
   activeCategory: string;
   setActiveCategory: (cat: string) => void;
-  filteredPrompts: Prompt[]; // Заменили any[] на Prompt[]
+  filteredPrompts: Prompt[];
   visibleCount: number;
   setVisibleCount: React.Dispatch<React.SetStateAction<number>>;
   favorites: number[];
@@ -24,7 +23,7 @@ interface MainFeedProps {
   searchQuery: string;
 }
 
-export const MainFeed: React.FC<MainFeedProps> = ({
+export const MainFeed = React.memo(function MainFeed({
   isLoading,
   activeCategory,
   setActiveCategory,
@@ -36,8 +35,8 @@ export const MainFeed: React.FC<MainFeedProps> = ({
   handleCopy,
   copiedId,
   searchQuery
-}) => {
-  
+}: MainFeedProps) {
+
   return (
     <>
       {/* Заголовок */}
@@ -87,7 +86,6 @@ export const MainFeed: React.FC<MainFeedProps> = ({
             Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
           ) : (
             <AnimatePresence mode="popLayout">
-              {/* Исправляет ошибки 7006 (p и index теперь типизированы через Prompt[]) */}
               {filteredPrompts.slice(0, visibleCount).map((p: Prompt, index: number) => (
                 <PromptCard 
                   key={p.id}
@@ -107,7 +105,6 @@ export const MainFeed: React.FC<MainFeedProps> = ({
         {filteredPrompts.length > visibleCount && !isLoading && (
           <div className="mt-12 flex justify-center px-4">
             <button
-              // Исправляет ошибку 7006 (prev теперь number)
               onClick={() => setVisibleCount((prev: number) => prev + 8)}
               className="px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-white/60 font-medium active:scale-95 transition-all hover:bg-white/10 hover:text-white"
             >
@@ -118,4 +115,4 @@ export const MainFeed: React.FC<MainFeedProps> = ({
       </section>
     </>
   );
-};
+});
