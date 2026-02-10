@@ -5,15 +5,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Trash2, ChevronLeft } from 'lucide-react';
 import { Toaster } from 'sonner';
-
-import BottomNav from '../components/BottomNav'; 
+import { Navigation } from '../components/Navigation';
 import { useAuth } from '../hooks/useAuth';
 import { useAppActions } from '../hooks/useAppActions';
 import { useImageGeneration } from '../hooks/useImageGeneration';
 
 import dynamic from 'next/dynamic';
 const GenerateModal = dynamic(() => import('../components/GenerateModal').then(m => m.GenerateModal), { ssr: false });
-const ProfileModal = dynamic(() => import('../components/ProfileModal').then(m => m.ProfileModal), { ssr: false });
 
 export default function HistoryPage() {
   const { 
@@ -30,9 +28,14 @@ export default function HistoryPage() {
 
   
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  
-  const actions = useAppActions(user, setGenerations, () => {}, fetchProfile, setIsProfileOpen);
+
+  const actions = useAppActions(
+  user,
+  setGenerations,
+  () => {},
+  fetchProfile,
+  () => {}
+);
 
   const {
     generatePrompt,
@@ -114,19 +117,14 @@ export default function HistoryPage() {
         )}
       </div>
 
-      <BottomNav 
-        onOpenGenerate={() => setIsGenerateOpen(true)}
-        onOpenProfile={() => setIsProfileOpen(true)}
-      />
+      
 
-      {isGenerateOpen && (
+            {isGenerateOpen && (
         <GenerateModal 
           isOpen={isGenerateOpen} 
           onClose={() => setIsGenerateOpen(false)} 
-          
           generatePrompt={generatePrompt}
           setGeneratePrompt={setGeneratePrompt}
-          
           isGenerating={isGenerating} 
           handleGenerate={handleGenerate} 
           modelId={modelId} 
@@ -138,25 +136,9 @@ export default function HistoryPage() {
           handleRemoveImage={handleRemoveImage} 
         />
       )}
-      
-      {isProfileOpen && (
-        <ProfileModal 
-          user={user} 
-          isProfileOpen={isProfileOpen} 
-          setIsProfileOpen={setIsProfileOpen} 
-          balance={balance} 
-          purchases={purchases} 
-          email="" 
-          setEmail={()=>{}} 
-          password="" 
-          setPassword={()=>{}} 
-          authMode="login" 
-          setAuthMode={()=>{}} 
-          handleAuth={()=>{}} 
-          handleTopUp={()=>{}} 
-          isTopUpLoading={false} 
-        />
-      )}
+
+      <Navigation onOpenGenerator={() => setIsGenerateOpen(true)} />
     </div>
+
   );
 }
