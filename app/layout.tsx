@@ -20,7 +20,7 @@ export default function RootLayout({
         className={`${inter.className} bg-[#0a0a0a] text-white antialiased selection:bg-white/20`}
       >
         {/* Обертка для контента, чтобы избежать скачков при загрузке */}
-        <div className="relative min-h-screen flex flex-col">
+        <div className="relative min-h-screen flex flex-col overflow-x-hidden">
           {children}
         </div>
       </body>

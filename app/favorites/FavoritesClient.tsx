@@ -21,16 +21,18 @@ interface FavoritesClientProps {
 }
 
 export default function FavoritesClient({ prompts }: FavoritesClientProps) {
-  const { 
-    user, 
-    favorites, 
-    isLoading,
-    setFavorites, 
-    setGenerations, 
-    fetchProfile, 
-    balance, 
-    purchases 
-  } = useAuth();
+  const {
+  user,
+  authReady,
+  favorites,
+  favoritesLoading,
+  balance,
+  purchases,
+  setFavorites,
+  setGenerations,
+  fetchProfile,
+} = useAuth();
+
 
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -66,7 +68,8 @@ export default function FavoritesClient({ prompts }: FavoritesClientProps) {
       </header>
 
       <div className="px-4 py-6">
-        {isLoading ? (
+        {!authReady || favoritesLoading ? (
+
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {Array.from({ length: 6 }).map((_, i) => (
               <div

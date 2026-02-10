@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { Header } from './components/Header';
@@ -31,14 +31,21 @@ interface ClientAppProps {
 export default function ClientApp({ prompts }: ClientAppProps) {
   const router = useRouter();
 
-  // AUTH
+  // AUTH - ИСПРАВЛЕННЫЙ ВЫЗОВ useAuth
   const {
     user,
+    authReady,
+    favoritesLoading,
+    generationsLoading,
+
+    balance,
     favorites,
+    purchases,
+    generations,
+
     setFavorites,
     setGenerations,
     fetchProfile,
-    isLoading: isAuthLoading,
   } = useAuth();
 
   // GENERATION
@@ -73,6 +80,23 @@ export default function ClientApp({ prompts }: ClientAppProps) {
     fetchProfile,
     () => {}
   );
+  const onToggleFavorite = useCallback(
+  (e: React.MouseEvent, id: number) => {
+    toggleFavorite(e, id, favorites);
+  },
+  [toggleFavorite, favorites]
+);
+
+const onHandleCopy = useCallback(
+  (id: number, text: string, price: number) => {
+    handleCopy(id, text, price, setCopiedId);
+  },
+  [handleCopy]
+);
+
+
+  // ЛОКАЛЬНЫЙ INDIKATOR ЗАГРУЗКИ - вместо isAuthLoading
+  const isLoading = favoritesLoading || generationsLoading;
 
   // DEBOUNCE SEARCH
   useEffect(() => {
@@ -91,6 +115,18 @@ export default function ClientApp({ prompts }: ClientAppProps) {
     });
   }, [activeCategory, debouncedSearch, prompts]);
 
+  // Если аутентификация не готова, показываем минимальный скелетон или null
+  if (!authReady) {
+  return (
+    <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="animate-pulse text-white/60 text-sm">
+        Загрузка…
+      </div>
+    </div>
+  );
+}
+
+
   return (
     <div
       className={`${inter.className} min-h-screen bg-black text-white antialiased overflow-x-hidden`}
@@ -98,28 +134,29 @@ export default function ClientApp({ prompts }: ClientAppProps) {
       <Toaster position="bottom-center" theme="dark" />
 
       <Header
-        user={user}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        isSearchActive={isSearchActive}
-        setIsSearchActive={setIsSearchActive}
-        onOpenProfile={() => router.push('/profile')}
-        onResetView={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-      />
+  user={user}
+  authReady={authReady}
+  searchQuery={searchQuery}
+  setSearchQuery={setSearchQuery}
+  isSearchActive={isSearchActive}
+  setIsSearchActive={setIsSearchActive}
+  onOpenProfile={() => router.push('/profile')}
+  onResetView={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+/>
+
 
       <main className="pb-28 pt-8">
         <MainFeed
-          isLoading={isAuthLoading && filteredPrompts.length === 0}
+          // Используем локальный isLoading вместо isAuthLoading
+          isLoading={isLoading && filteredPrompts.length === 0}
           activeCategory={activeCategory}
           setActiveCategory={setActiveCategory}
           filteredPrompts={filteredPrompts}
           visibleCount={visibleCount}
           setVisibleCount={setVisibleCount}
           favorites={favorites}
-          toggleFavorite={(e, id) => toggleFavorite(e, id, favorites)}
-          handleCopy={(id, text, price) =>
-            handleCopy(id, text, price, setCopiedId)
-          }
+          toggleFavorite={onToggleFavorite}
+handleCopy={onHandleCopy}
           copiedId={copiedId}
           searchQuery={searchQuery}
           isSearchActive={isSearchActive}

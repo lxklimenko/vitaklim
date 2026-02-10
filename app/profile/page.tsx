@@ -13,7 +13,7 @@ import { Navigation } from '../components/Navigation';
 
 export default function ProfilePage() {
   // Получаем данные из хука
-  const { user, balance, fetchProfile, isLoading: isAuthLoading } = useAuth();
+  const { user, balance, fetchProfile, authReady } = useAuth();
   const router = useRouter();
 
   // Состояния для формы входа
@@ -24,12 +24,8 @@ export default function ProfilePage() {
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
 
   // 1. ИСПРАВЛЕНИЕ: Передаем user.id в fetchProfile
-  useEffect(() => {
-    if (user) {
-      fetchProfile(user.id); 
-    }
-  }, [user]);
 
+  
   // Логика входа / регистрации
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,13 +79,14 @@ export default function ProfilePage() {
     }, 1000);
   };
 
-  if (isAuthLoading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-white">
-        <Loader2 className="animate-spin" size={32} />
-      </div>
-    );
-  }
+  if (!authReady) {
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center text-white">
+      <Loader2 className="animate-spin" size={32} />
+    </div>
+  );
+}
+
 
   return (
     <div className="min-h-screen bg-black text-white pb-28 font-sans">

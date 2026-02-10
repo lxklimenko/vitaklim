@@ -17,15 +17,17 @@ const ProfileModal = dynamic(() => import('../components/ProfileModal').then(m =
 
 export default function HistoryPage() {
   const { 
-    user, 
-    generations, 
-    isLoading,
-    setGenerations, 
-    fetchGenerations, 
-    fetchProfile, 
-    balance, 
-    purchases 
-  } = useAuth();
+  user,
+  authReady,
+  generations,
+  generationsLoading,
+  setGenerations,
+  fetchGenerations,
+  fetchProfile,
+  balance,
+  purchases
+} = useAuth();
+
   
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -64,7 +66,8 @@ export default function HistoryPage() {
       </header>
 
       <div className="px-4 py-6">
-        {isLoading ? (
+        {!authReady || generationsLoading ? (
+
           <div className="grid grid-cols-2 gap-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <div

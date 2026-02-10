@@ -11,6 +11,7 @@ interface HeaderProps {
   setIsSearchActive: (isActive: boolean) => void;
   onOpenProfile: () => void;
   onResetView: () => void;
+  authReady: boolean; // Добавлено свойство authReady
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -21,6 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
   setIsSearchActive,
   onOpenProfile,
   onResetView,
+  authReady, // Добавлено в деструктуризацию
 }) => {
   return (
     <header className="sticky top-0 z-[100] glass border-b border-white/[0.05] pt-safe">
@@ -58,7 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onOpenProfile} 
           className="text-[12px] font-semibold text-white/70 hover:text-white transition-colors duration-500 select-none flex-shrink-0 px-2 tracking-tight"
         >
-          {user === undefined ? "" : user ? user.email?.split('@')[0] : "Войти"}
+          {!authReady ? "" : user ? user.email?.split('@')[0] : "Войти"}
         </button>
       </div>
     </header>
