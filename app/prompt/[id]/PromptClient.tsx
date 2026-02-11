@@ -112,7 +112,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-white">
+      <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center text-black">
         <Loader2 className="animate-spin" size={32} />
       </div>
     );
@@ -125,41 +125,32 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   const isFavorite = favorites.includes(prompt.id);
 
   return (
-    <div className="min-h-screen bg-black text-white pb-20">
-      {/* HERO — эталонный блок (без нижней панели) */}
-      <div className="relative w-full h-[85vh] bg-black overflow-hidden">
-        <Image
-          src={prompt.image.src}
-          alt={prompt.title}
-          fill
-          className="object-cover"
-          sizes="100vw"
-          priority
-        />
-
-        {/* Верхний overlay */}
-        <div className="absolute top-0 left-0 right-0 z-10 p-4 flex justify-between items-center bg-gradient-to-b from-black/70 to-transparent">
-          <Link
-            href="/"
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-black/40 backdrop-blur"
-          >
-            <ChevronLeft size={22} />
-          </Link>
-
-          <button
-            onClick={(e) => actions.toggleFavorite(e, prompt.id, favorites)}
-            className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur ${
-              isFavorite ? 'bg-red-500/20 text-red-500' : 'bg-black/40'
-            }`}
-          >
-            <Heart size={20} className={isFavorite ? 'fill-current' : ''} />
-          </button>
+    <div className="min-h-screen bg-[#f5f5f7] text-black pb-20">
+      {/* Image block with hover effect */}
+      <div className="max-w-4xl mx-auto px-6 pt-10">
+        <div className="relative w-full aspect-square rounded-3xl overflow-hidden bg-[#111] 
+          transition-all duration-500 ease-out 
+          hover:scale-[1.01]">
+          <Image
+            src={prompt.image.src}
+            alt={prompt.title}
+            fill
+            className="object-cover"
+            sizes="100vw"
+            priority
+          />
         </div>
       </div>
 
-      {/* ACTION BAR — полностью сохранена как в оригинале */}
-      <div className="max-w-4xl mx-auto px-6 -mt-6 relative z-10">
-        <div className="flex items-center justify-between bg-[#0f0f10] border border-white/10 rounded-2xl px-4 py-3 shadow-lg">
+      {/* ACTION BAR — с hover-эффектом */}
+      <div className="max-w-4xl mx-auto px-6 mt-8">
+        <div className="flex items-center justify-between 
+          bg-white/80 backdrop-blur-md 
+          border border-black/5 
+          rounded-2xl 
+          px-6 py-4 
+          shadow-sm
+          transition-all duration-300 hover:shadow-md">
           {/* Левая часть */}
           <div className="flex items-center gap-3">
             <button
@@ -218,38 +209,35 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
       </div>
 
-      {/* TABS */}
+      {/* TABS — Apple Segmented Control */}
       <div className="max-w-4xl mx-auto px-6 pt-8">
-        {/* Tab buttons */}
-        <div className="flex gap-2 mb-6">
+        <div className="inline-flex p-1 bg-black/5 rounded-full mb-6">
           <button
             onClick={() => setActiveTab('description')}
-            className={`px-4 py-2 rounded-full text-sm transition ${
+            className={`px-5 py-2 rounded-full text-sm font-medium transition ${
               activeTab === 'description'
-                ? 'bg-white text-black'
-                : 'bg-white/5 text-white/60 hover:bg-white/10'
+                ? 'bg-white shadow-sm text-black'
+                : 'text-black/60 hover:text-black'
             }`}
           >
             Описание
           </button>
-
           <button
             onClick={() => setActiveTab('prompt')}
-            className={`px-4 py-2 rounded-full text-sm transition ${
+            className={`px-5 py-2 rounded-full text-sm font-medium transition ${
               activeTab === 'prompt'
-                ? 'bg-white text-black'
-                : 'bg-white/5 text-white/60 hover:bg-white/10'
+                ? 'bg-white shadow-sm text-black'
+                : 'text-black/60 hover:text-black'
             }`}
           >
             Prompt
           </button>
-
           <button
             onClick={() => setActiveTab('settings')}
-            className={`px-4 py-2 rounded-full text-sm transition ${
+            className={`px-5 py-2 rounded-full text-sm font-medium transition ${
               activeTab === 'settings'
-                ? 'bg-white text-black'
-                : 'bg-white/5 text-white/60 hover:bg-white/10'
+                ? 'bg-white shadow-sm text-black'
+                : 'text-black/60 hover:text-black'
             }`}
           >
             Настройки
@@ -257,7 +245,13 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
 
         {/* Tab content */}
-        <div className="bg-[#1c1c1e] rounded-2xl p-5 text-sm text-white/80">
+        <div className="bg-white 
+          border border-black/5 
+          rounded-2xl 
+          p-6 
+          text-sm 
+          text-black/80 
+          shadow-sm">
           {activeTab === 'description' && (
             <p>{prompt.description || 'Описание недоступно.'}</p>
           )}
@@ -267,7 +261,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
           )}
 
           {activeTab === 'settings' && (
-            <div className="space-y-2 text-white/70">
+            <div className="space-y-2 text-black/70">
               <div>Модель: {prompt.tool}</div>
               <div>Категория: {prompt.category}</div>
               {prompt.image?.aspect && <div>Соотношение: {prompt.image.aspect}</div>}
