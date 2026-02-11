@@ -159,27 +159,25 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
       </div>
 
-      {/* ACTION BAR — тёмная, без теней, в цвет фона */}
+      {/* ACTION BAR — тёмная, без теней, все кнопки справа */}
       <div className="max-w-4xl mx-auto px-6 mt-8">
-        <div className="flex items-center justify-between 
+        <div className="flex items-center justify-end 
           bg-[#0a0a0a] 
           border border-white/10 
           rounded-2xl 
           px-6 py-4 
           shadow-none">
-          {/* Левая часть — только копирование */}
-          <div className="flex items-center gap-3">
+          {/* Единая группа кнопок справа */}
+          <div className="flex items-center gap-2">
+            {/* Copy */}
             <button
               onClick={() => actions.handleCopy(prompt.id, prompt.prompt, 0, setCopiedId)}
-              className="flex items-center justify-center w-11 h-11 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition"
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition"
               title="Скопировать prompt"
             >
               {copiedId === prompt.id ? <Check size={18} /> : <Copy size={18} />}
             </button>
-          </div>
 
-          {/* Правая часть */}
-          <div className="flex items-center gap-2">
             {/* Избранное */}
             <button
               onClick={(e) => actions.toggleFavorite(e, prompt.id, favorites)}
