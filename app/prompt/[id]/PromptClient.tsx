@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { notFound, useParams } from 'next/navigation';
 import { ChevronLeft, Share2, Copy, Check, Download, Heart, Loader2 } from 'lucide-react';
 import { supabase } from '@/app/lib/supabase';
@@ -10,6 +11,13 @@ import { supabase } from '@/app/lib/supabase';
 import { Prompt } from '../../types/prompt';
 import { useAuth } from '../../hooks/useAuth';
 import { useAppActions } from '../../hooks/useAppActions';
+import { useImageGeneration } from '../../hooks/useImageGeneration';
+
+// Динамический импорт модалки (без SSR)
+const GenerateModal = dynamic(
+  () => import('../../components/GenerateModal').then(m => m.GenerateModal),
+  { ssr: false }
+);
 
 interface PromptClientProps {
   prompts: Prompt[];
@@ -27,10 +35,28 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   const [isLoading, setIsLoading] = useState(!staticPrompt);
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
+  // Стейт для открытия модалки генерации
+  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
+
   const { user, favorites, setFavorites, setGenerations, fetchProfile } = useAuth();
   const setIsProfileOpen = () => {};
 
   const actions = useAppActions(user, setGenerations, setFavorites, fetchProfile, setIsProfileOpen);
+
+  // Хук генерации — точно такой же, как в ClientApp
+  const {
+    generatePrompt,
+    setGeneratePrompt,
+    isGenerating,
+    modelId,
+    setModelId,
+    aspectRatio,
+    setAspectRatio,
+    referenceImage,
+    handleFileChange,
+    handleRemoveImage,
+    handleGenerate,
+  } = useImageGeneration(user, () => {});
 
   // 3. Если нет в статике — грузим из Supabase
   useEffect(() => {
@@ -131,12 +157,63 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
       </div>
 
+      {/* ACTION BAR */}
+      <div className="max-w-4xl mx-auto px-6 -mt-6 relative z-10">
+        <div className="flex items-center justify-between bg-[#0f0f10] border border-white/10 rounded-2xl px-4 py-3 shadow-lg">
+          {/* Левая часть */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setGeneratePrompt(prompt.prompt);
+                setIsGenerateOpen(true);
+              }}
+              className="flex items-center justify-center w-11 h-11 rounded-xl bg-white text-black hover:opacity-90 active:scale-95 transition"
+              title="Повторить генерацию"
+            >
+              <Loader2 size={18} />
+            </button>
+
+            <button
+              onClick={() => actions.handleCopy(prompt.id, prompt.prompt, 0, setCopiedId)}
+              className="flex items-center justify-center w-11 h-11 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition"
+              title="Скопировать prompt"
+            >
+              {copiedId === prompt.id ? <Check size={18} /> : <Copy size={18} />}
+            </button>
+          </div>
+
+          {/* Правая часть (пока пустая — задел под будущее) */}
+          <div className="text-xs text-white/40">
+            {/* здесь будут ❤️ ⬇️ 🔗 🧠 */}
+          </div>
+        </div>
+      </div>
+
       {/* НИЖНЯЯ ЧАСТЬ (пока минимально) */}
       <div className="max-w-4xl mx-auto px-6 pt-6">
         <pre className="bg-[#1c1c1e] rounded-xl p-4 text-sm whitespace-pre-wrap text-white/80">
           {prompt.prompt}
         </pre>
       </div>
+
+      {/* Модалка генерации — все пропсы из useImageGeneration */}
+      {isGenerateOpen && (
+        <GenerateModal
+          isOpen={isGenerateOpen}
+          onClose={() => setIsGenerateOpen(false)}
+          generatePrompt={generatePrompt}
+          setGeneratePrompt={setGeneratePrompt}
+          isGenerating={isGenerating}
+          handleGenerate={handleGenerate}
+          modelId={modelId}
+          setModelId={setModelId}
+          aspectRatio={aspectRatio}
+          setAspectRatio={setAspectRatio}
+          referenceImage={referenceImage}
+          handleFileChange={handleFileChange}
+          handleRemoveImage={handleRemoveImage}
+        />
+      )}
     </div>
   );
 }
