@@ -269,7 +269,31 @@ export default function PromptClient({ prompts }: PromptClientProps) {
           text-white/80 
           shadow-none">
           {activeTab === 'description' && (
-            <p>{prompt.description || 'Описание недоступно.'}</p>
+            <div className="space-y-6">
+              <p className="text-white/80">
+                {prompt.description || 'Описание недоступно.'}
+              </p>
+
+              <div>
+                <button
+                  onClick={() => {
+                    setGeneratePrompt(prompt.prompt);
+                    setIsGenerateOpen(true);
+                  }}
+                  className="w-full md:w-auto 
+                             px-8 py-4 
+                             rounded-2xl 
+                             bg-white 
+                             text-black 
+                             font-medium 
+                             hover:opacity-90 
+                             active:scale-95 
+                             transition-all duration-200"
+                >
+                  Повторить генерацию
+                </button>
+              </div>
+            </div>
           )}
 
           {activeTab === 'prompt' && (
