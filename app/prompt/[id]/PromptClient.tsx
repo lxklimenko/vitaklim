@@ -100,7 +100,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
   const prompt = staticPrompt || dbPrompt;
 
-  // ----- ШАГ 1: Функция скачивания изображения -----
+  // ----- Функция скачивания изображения -----
   const handleDownload = () => {
     const link = document.createElement('a');
     link.href = prompt.image.src;
@@ -126,8 +126,8 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
   return (
     <div className="min-h-screen bg-black text-white pb-20">
-      {/* HERO */}
-      <div className="relative w-full h-[85vh] bg-black">
+      {/* HERO — эталонный блок (без нижней панели) */}
+      <div className="relative w-full h-[85vh] bg-black overflow-hidden">
         <Image
           src={prompt.image.src}
           alt={prompt.title}
@@ -155,22 +155,9 @@ export default function PromptClient({ prompts }: PromptClientProps) {
             <Heart size={20} className={isFavorite ? 'fill-current' : ''} />
           </button>
         </div>
-
-        {/* Нижний икон-бар */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex gap-3 bg-black/40 backdrop-blur px-4 py-2 rounded-full">
-          <button className="w-10 h-10 flex items-center justify-center">
-            <Download size={20} />
-          </button>
-          <button className="w-10 h-10 flex items-center justify-center">
-            <Copy size={20} />
-          </button>
-          <button className="w-10 h-10 flex items-center justify-center">
-            <Share2 size={20} />
-          </button>
-        </div>
       </div>
 
-      {/* ACTION BAR */}
+      {/* ACTION BAR — полностью сохранена как в оригинале */}
       <div className="max-w-4xl mx-auto px-6 -mt-6 relative z-10">
         <div className="flex items-center justify-between bg-[#0f0f10] border border-white/10 rounded-2xl px-4 py-3 shadow-lg">
           {/* Левая часть */}
@@ -195,7 +182,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
             </button>
           </div>
 
-          {/* ----- ШАГ 2: Новая правая часть ----- */}
+          {/* Правая часть */}
           <div className="flex items-center gap-2">
             {/* Избранное */}
             <button
