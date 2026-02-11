@@ -167,19 +167,8 @@ export default function PromptClient({ prompts }: PromptClientProps) {
           rounded-2xl 
           px-6 py-4 
           shadow-none">
-          {/* Левая часть */}
+          {/* Левая часть — только копирование */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                setGeneratePrompt(prompt.prompt);
-                setIsGenerateOpen(true);
-              }}
-              className="flex items-center justify-center w-11 h-11 rounded-xl bg-white text-black hover:opacity-90 active:scale-95 transition"
-              title="Повторить генерацию"
-            >
-              <Loader2 size={18} />
-            </button>
-
             <button
               onClick={() => actions.handleCopy(prompt.id, prompt.prompt, 0, setCopiedId)}
               className="flex items-center justify-center w-11 h-11 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition"
@@ -280,15 +269,17 @@ export default function PromptClient({ prompts }: PromptClientProps) {
                     setGeneratePrompt(prompt.prompt);
                     setIsGenerateOpen(true);
                   }}
-                  className="w-full md:w-auto 
-                             px-8 py-4 
-                             rounded-2xl 
-                             bg-white 
-                             text-black 
-                             font-medium 
-                             hover:opacity-90 
-                             active:scale-95 
-                             transition-all duration-200"
+                  className="w-full md:w-auto
+                             px-8 py-4
+                             rounded-2xl
+                             bg-gradient-to-b from-white to-zinc-200
+                             text-black
+                             font-semibold
+                             shadow-lg shadow-white/10
+                             hover:shadow-white/20
+                             hover:-translate-y-0.5
+                             active:translate-y-0
+                             transition-all duration-300 ease-out"
                 >
                   Повторить генерацию
                 </button>
