@@ -100,6 +100,16 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
   const prompt = staticPrompt || dbPrompt;
 
+  // ----- ШАГ 1: Функция скачивания изображения -----
+  const handleDownload = () => {
+    const link = document.createElement('a');
+    link.href = prompt.image.src;
+    link.download = `prompt-${prompt.id}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center text-white">
@@ -185,9 +195,38 @@ export default function PromptClient({ prompts }: PromptClientProps) {
             </button>
           </div>
 
-          {/* Правая часть (пока пустая — задел под будущее) */}
-          <div className="text-xs text-white/40">
-            {/* здесь будут ❤️ ⬇️ 🔗 🧠 */}
+          {/* ----- ШАГ 2: Новая правая часть ----- */}
+          <div className="flex items-center gap-2">
+            {/* Избранное */}
+            <button
+              onClick={(e) => actions.toggleFavorite(e, prompt.id, favorites)}
+              className={`w-10 h-10 flex items-center justify-center rounded-xl transition active:scale-95 ${
+                isFavorite
+                  ? 'bg-red-500/20 text-red-500'
+                  : 'bg-white/5 hover:bg-white/10'
+              }`}
+              title="В избранное"
+            >
+              <Heart size={18} className={isFavorite ? 'fill-current' : ''} />
+            </button>
+
+            {/* Скачать */}
+            <button
+              onClick={handleDownload}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition"
+              title="Скачать изображение"
+            >
+              <Download size={18} />
+            </button>
+
+            {/* Инфо / настройки (быстрый переход к промпту) */}
+            <button
+              onClick={() => setActiveTab('prompt')}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition"
+              title="Показать prompt"
+            >
+              🧠
+            </button>
           </div>
         </div>
       </div>
