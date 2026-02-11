@@ -87,36 +87,53 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
   return (
     <div className="min-h-screen bg-black text-white pb-20">
-      <div className="fixed top-0 left-0 right-0 z-50 p-4 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent">
-        <Link href="/" className="w-10 h-10 flex items-center justify-center rounded-full bg-black/40">
-          <ChevronLeft size={24} />
-        </Link>
+      {/* HERO */}
+      <div className="relative w-full h-[85vh] bg-black">
+        <Image
+          src={prompt.image.src}
+          alt={prompt.title}
+          fill
+          className="object-cover"
+          sizes="100vw"
+          priority
+        />
 
-        <button
-          onClick={(e) => actions.toggleFavorite(e, prompt.id, favorites)}
-          className={`w-10 h-10 flex items-center justify-center rounded-full ${
-            isFavorite ? 'bg-red-500/20 text-red-500' : 'bg-black/40'
-          }`}
-        >
-          <Heart size={20} className={isFavorite ? 'fill-current' : ''} />
-        </button>
-      </div>
+        {/* Верхний overlay */}
+        <div className="absolute top-0 left-0 right-0 z-10 p-4 flex justify-between items-center bg-gradient-to-b from-black/70 to-transparent">
+          <Link
+            href="/"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-black/40 backdrop-blur"
+          >
+            <ChevronLeft size={22} />
+          </Link>
 
-      <div className="max-w-4xl mx-auto pt-16 px-6">
-        <div className="aspect-square relative bg-[#1c1c1e] rounded-3xl overflow-hidden mb-6">
-          <Image
-            src={prompt.image.src}
-            alt={prompt.title}
-            fill
-            className="object-cover"
-            sizes="100vw"
-            priority
-          />
+          <button
+            onClick={(e) => actions.toggleFavorite(e, prompt.id, favorites)}
+            className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur ${
+              isFavorite ? 'bg-red-500/20 text-red-500' : 'bg-black/40'
+            }`}
+          >
+            <Heart size={20} className={isFavorite ? 'fill-current' : ''} />
+          </button>
         </div>
 
-        <h1 className="text-3xl font-bold mb-4">{prompt.title}</h1>
+        {/* Нижний икон-бар */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex gap-3 bg-black/40 backdrop-blur px-4 py-2 rounded-full">
+          <button className="w-10 h-10 flex items-center justify-center">
+            <Download size={20} />
+          </button>
+          <button className="w-10 h-10 flex items-center justify-center">
+            <Copy size={20} />
+          </button>
+          <button className="w-10 h-10 flex items-center justify-center">
+            <Share2 size={20} />
+          </button>
+        </div>
+      </div>
 
-        <pre className="bg-[#1c1c1e] rounded-xl p-4 text-sm whitespace-pre-wrap">
+      {/* НИЖНЯЯ ЧАСТЬ (пока минимально) */}
+      <div className="max-w-4xl mx-auto px-6 pt-6">
+        <pre className="bg-[#1c1c1e] rounded-xl p-4 text-sm whitespace-pre-wrap text-white/80">
           {prompt.prompt}
         </pre>
       </div>
