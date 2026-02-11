@@ -5,7 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { notFound, useParams } from 'next/navigation';
-import { ChevronLeft, Share2, Copy, Check, Download, Heart, Loader2 } from 'lucide-react';
+import { ChevronLeft, Share2, Copy, Check, Download, Heart, Loader2, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/app/lib/supabase';
 
 import { Prompt } from '../../types/prompt';
@@ -25,6 +26,7 @@ interface PromptClientProps {
 
 export default function PromptClient({ prompts }: PromptClientProps) {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
 
   // 1. Ищем в статичных промптах
@@ -112,7 +114,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center text-black">
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-white">
         <Loader2 className="animate-spin" size={32} />
       </div>
     );
@@ -125,9 +127,26 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   const isFavorite = favorites.includes(prompt.id);
 
   return (
-    <div className="min-h-screen bg-black text-white pb-20">
-      {/* Image block — новый, без обрезки, во всю ширину с чёрным фоном */}
-      <div className="w-full bg-black flex justify-center">
+    <div className="min-h-screen bg-[#0a0a0a] text-white pb-20">
+      {/* Кнопка закрытия (назад) — премиум-стиль */}
+      <div className="fixed top-6 right-6 z-50">
+        <button
+          onClick={() => router.back()}
+          className="w-11 h-11 flex items-center justify-center 
+                     rounded-full 
+                     bg-black/50 
+                     backdrop-blur-md 
+                     border border-white/20 
+                     hover:bg-black/70 
+                     hover:scale-105
+                     transition-all duration-200"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* Image block — во всю ширину с фоном #0a0a0a */}
+      <div className="w-full bg-[#0a0a0a] flex justify-center">
         <div className="w-full">
           <Image
             src={prompt.image.src}
@@ -140,15 +159,14 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
       </div>
 
-      {/* ACTION BAR — с hover-эффектом */}
+      {/* ACTION BAR — тёмная, без теней, в цвет фона */}
       <div className="max-w-4xl mx-auto px-6 mt-8">
         <div className="flex items-center justify-between 
-          bg-white/80 backdrop-blur-md 
-          border border-black/5 
+          bg-[#0a0a0a] 
+          border border-white/10 
           rounded-2xl 
           px-6 py-4 
-          shadow-sm
-          transition-all duration-300 hover:shadow-md">
+          shadow-none">
           {/* Левая часть */}
           <div className="flex items-center gap-3">
             <button
@@ -209,13 +227,13 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
       {/* TABS — Apple Segmented Control */}
       <div className="max-w-4xl mx-auto px-6 pt-8">
-        <div className="inline-flex p-1 bg-black/5 rounded-full mb-6">
+        <div className="inline-flex p-1 bg-white/5 rounded-full mb-6">
           <button
             onClick={() => setActiveTab('description')}
             className={`px-5 py-2 rounded-full text-sm font-medium transition ${
               activeTab === 'description'
                 ? 'bg-white shadow-sm text-black'
-                : 'text-black/60 hover:text-black'
+                : 'text-white/60 hover:text-white'
             }`}
           >
             Описание
@@ -225,7 +243,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
             className={`px-5 py-2 rounded-full text-sm font-medium transition ${
               activeTab === 'prompt'
                 ? 'bg-white shadow-sm text-black'
-                : 'text-black/60 hover:text-black'
+                : 'text-white/60 hover:text-white'
             }`}
           >
             Prompt
@@ -235,7 +253,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
             className={`px-5 py-2 rounded-full text-sm font-medium transition ${
               activeTab === 'settings'
                 ? 'bg-white shadow-sm text-black'
-                : 'text-black/60 hover:text-black'
+                : 'text-white/60 hover:text-white'
             }`}
           >
             Настройки
@@ -243,13 +261,13 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
 
         {/* Tab content */}
-        <div className="bg-white 
-          border border-black/5 
+        <div className="bg-[#0a0a0a] 
+          border border-white/10 
           rounded-2xl 
           p-6 
           text-sm 
-          text-black/80 
-          shadow-sm">
+          text-white/80 
+          shadow-none">
           {activeTab === 'description' && (
             <p>{prompt.description || 'Описание недоступно.'}</p>
           )}
@@ -259,7 +277,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
           )}
 
           {activeTab === 'settings' && (
-            <div className="space-y-2 text-black/70">
+            <div className="space-y-2 text-white/70">
               <div>Модель: {prompt.tool}</div>
               <div>Категория: {prompt.category}</div>
               {prompt.image?.aspect && <div>Соотношение: {prompt.image.aspect}</div>}
