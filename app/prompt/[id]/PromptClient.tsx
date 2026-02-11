@@ -125,18 +125,16 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   const isFavorite = favorites.includes(prompt.id);
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] text-black pb-20">
+    <div className="min-h-screen bg-black text-white pb-20">
       {/* Image block with hover effect */}
       <div className="max-w-4xl mx-auto px-6 pt-10">
-        <div className="relative w-full aspect-square rounded-3xl overflow-hidden bg-[#111] 
-          transition-all duration-500 ease-out 
-          hover:scale-[1.01]">
+        <div className="relative w-full min-h-[70vh] md:min-h-[80vh] rounded-3xl overflow-hidden bg-[#111] flex items-center justify-center transition-all duration-500 ease-out hover:scale-[1.01]">
           <Image
             src={prompt.image.src}
             alt={prompt.title}
-            fill
-            className="object-cover"
-            sizes="100vw"
+            width={1200}
+            height={1200}
+            className="w-full h-auto object-contain"
             priority
           />
         </div>
