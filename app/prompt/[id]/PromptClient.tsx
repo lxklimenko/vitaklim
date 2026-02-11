@@ -38,6 +38,9 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   // Стейт для открытия модалки генерации
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
 
+  // Стейт для активного таба
+  const [activeTab, setActiveTab] = useState<'description' | 'prompt' | 'settings'>('description');
+
   const { user, favorites, setFavorites, setGenerations, fetchProfile } = useAuth();
   const setIsProfileOpen = () => {};
 
@@ -189,11 +192,62 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
       </div>
 
-      {/* НИЖНЯЯ ЧАСТЬ (пока минимально) */}
-      <div className="max-w-4xl mx-auto px-6 pt-6">
-        <pre className="bg-[#1c1c1e] rounded-xl p-4 text-sm whitespace-pre-wrap text-white/80">
-          {prompt.prompt}
-        </pre>
+      {/* TABS */}
+      <div className="max-w-4xl mx-auto px-6 pt-8">
+        {/* Tab buttons */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab('description')}
+            className={`px-4 py-2 rounded-full text-sm transition ${
+              activeTab === 'description'
+                ? 'bg-white text-black'
+                : 'bg-white/5 text-white/60 hover:bg-white/10'
+            }`}
+          >
+            Описание
+          </button>
+
+          <button
+            onClick={() => setActiveTab('prompt')}
+            className={`px-4 py-2 rounded-full text-sm transition ${
+              activeTab === 'prompt'
+                ? 'bg-white text-black'
+                : 'bg-white/5 text-white/60 hover:bg-white/10'
+            }`}
+          >
+            Prompt
+          </button>
+
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`px-4 py-2 rounded-full text-sm transition ${
+              activeTab === 'settings'
+                ? 'bg-white text-black'
+                : 'bg-white/5 text-white/60 hover:bg-white/10'
+            }`}
+          >
+            Настройки
+          </button>
+        </div>
+
+        {/* Tab content */}
+        <div className="bg-[#1c1c1e] rounded-2xl p-5 text-sm text-white/80">
+          {activeTab === 'description' && (
+            <p>{prompt.description || 'Описание недоступно.'}</p>
+          )}
+
+          {activeTab === 'prompt' && (
+            <pre className="whitespace-pre-wrap">{prompt.prompt}</pre>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="space-y-2 text-white/70">
+              <div>Модель: {prompt.tool}</div>
+              <div>Категория: {prompt.category}</div>
+              {prompt.image?.aspect && <div>Соотношение: {prompt.image.aspect}</div>}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Модалка генерации — все пропсы из useImageGeneration */}
