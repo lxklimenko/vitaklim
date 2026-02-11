@@ -6,7 +6,7 @@ import { SearchX } from 'lucide-react';
 import { PromptCard } from './PromptCard';
 import { SkeletonCard } from './UIElements';
 import { CATEGORIES } from '../constants/appConstants';
-import { Prompt } from '../types/prompt';
+import type { Prompt } from '../types/prompt';
 
 interface MainFeedProps {
   isLoading: boolean;
@@ -19,7 +19,6 @@ interface MainFeedProps {
   toggleFavorite: (e: React.MouseEvent, id: number) => void;
   handleCopy: (id: number, text: string, price: number) => void;
   copiedId: number | null;
-  isSearchActive: boolean;
   searchQuery: string;
 }
 
@@ -34,15 +33,14 @@ export const MainFeed = React.memo(function MainFeed({
   toggleFavorite,
   handleCopy,
   copiedId,
-  searchQuery
+  searchQuery,
 }: MainFeedProps) {
-
   return (
     <>
       {/* Заголовок */}
       {!searchQuery && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }} 
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-6 px-4 text-center"
         >
@@ -63,7 +61,7 @@ export const MainFeed = React.memo(function MainFeed({
             onClick={() => setActiveCategory(cat)}
             className={`px-5 py-2 rounded-full text-[13px] font-semibold tracking-tight border transition-all duration-300 flex-shrink-0 ${
               activeCategory === cat
-                ? 'bg-white text-black border-white shadow-lg' 
+                ? 'bg-white text-black border-white shadow-lg'
                 : 'bg-white/5 text-white/40 border-transparent hover:bg-white/10'
             }`}
           >
@@ -83,11 +81,13 @@ export const MainFeed = React.memo(function MainFeed({
 
         <div className="grid grid-cols-3 gap-2 px-2 md:grid-cols-4 md:gap-4 md:px-6">
           {isLoading && filteredPrompts.length === 0 ? (
-            Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} />)
+            Array.from({ length: 8 }).map((_, i) => (
+              <SkeletonCard key={`skeleton-${i}`} />
+            ))
           ) : (
             <AnimatePresence mode="popLayout">
-              {filteredPrompts.slice(0, visibleCount).map((p: Prompt, index: number) => (
-                <PromptCard 
+              {filteredPrompts.slice(0, visibleCount).map((p, index) => (
+                <PromptCard
                   key={p.id}
                   prompt={p}
                   priority={index < 4}
@@ -100,15 +100,15 @@ export const MainFeed = React.memo(function MainFeed({
             </AnimatePresence>
           )}
         </div>
-        
-        {/* Кнопка "Показать больше" */}
+
+        {/* Кнопка "Показать ещё" */}
         {filteredPrompts.length > visibleCount && !isLoading && (
           <div className="mt-12 flex justify-center px-4">
             <button
-              onClick={() => setVisibleCount((prev: number) => prev + 8)}
+              onClick={() => setVisibleCount((prev) => prev + 8)}
               className="px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-white/60 font-medium active:scale-95 transition-all hover:bg-white/10 hover:text-white"
             >
-              Загрузить еще
+              Загрузить ещё
             </button>
           </div>
         )}

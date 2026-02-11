@@ -1,13 +1,12 @@
 'use client';
-
+import { useFilteredPrompts } from './hooks/useFilteredPrompts';
 import dynamic from 'next/dynamic';
-import React, { useState, useMemo, useCallback, useDeferredValue } from 'react';
+import React, { useState, useCallback, useDeferredValue } from 'react';
 import { Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { Header } from './components/Header';
 import { Navigation } from './components/Navigation';
 import { MainFeed } from './components/MainFeed';
-import { CATEGORIES } from './constants/appConstants';
 import { useAuth } from './hooks/useAuth';
 import { useImageGeneration } from './hooks/useImageGeneration';
 import { useAppActions } from './hooks/useAppActions';
@@ -37,12 +36,10 @@ export default function ClientApp({ prompts }: ClientAppProps) {
     authReady,
     favoritesLoading,
     generationsLoading,
-
     balance,
     favorites,
     purchases,
     generations,
-
     setFavorites,
     setGenerations,
     fetchProfile,
@@ -80,39 +77,30 @@ export default function ClientApp({ prompts }: ClientAppProps) {
     fetchProfile,
     () => {}
   );
+  
   const onToggleFavorite = useCallback(
-  (e: React.MouseEvent, id: number) => {
-    toggleFavorite(e, id, favorites);
-  },
-  [toggleFavorite, favorites]
-);
+    (e: React.MouseEvent, id: number) => {
+      toggleFavorite(e, id, favorites);
+    },
+    [toggleFavorite, favorites]
+  );
 
-const onHandleCopy = useCallback(
-  (id: number, text: string, price: number) => {
-    handleCopy(id, text, price, setCopiedId);
-  },
-  [handleCopy]
-);
-
+  const onHandleCopy = useCallback(
+    (id: number, text: string, price: number) => {
+      handleCopy(id, text, price, setCopiedId);
+    },
+    [handleCopy]
+  );
 
   // ЛОКАЛЬНЫЙ INDIKATOR ЗАГРУЗКИ - вместо isAuthLoading
   const isLoading = favoritesLoading || generationsLoading;
 
-
   // FILTER PROMPTS
-  const filteredPrompts = useMemo(() => {
-  const q = deferredSearch.toLowerCase();
-
-  return prompts.filter(p => {
-    const byCategory = activeCategory === 'Все' || p.category === activeCategory;
-    const bySearch =
-      p.title.toLowerCase().includes(q) ||
-      p.tool.toLowerCase().includes(q);
-    return byCategory && bySearch;
+  const filteredPrompts = useFilteredPrompts({
+    prompts,
+    activeCategory,
+    searchQuery,
   });
-}, [activeCategory, deferredSearch, prompts]);
-
-  
 
   return (
     <div
@@ -121,16 +109,15 @@ const onHandleCopy = useCallback(
       <Toaster position="bottom-center" theme="dark" />
 
       <Header
-  user={user}
-  authReady={authReady}
-  searchQuery={searchQuery}
-  setSearchQuery={setSearchQuery}
-  isSearchActive={isSearchActive}
-  setIsSearchActive={setIsSearchActive}
-  onOpenProfile={() => router.push('/profile')}
-  onResetView={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-/>
-
+        user={user}
+        authReady={authReady}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        isSearchActive={isSearchActive}
+        setIsSearchActive={setIsSearchActive}
+        onOpenProfile={() => router.push('/profile')}
+        onResetView={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      />
 
       <main className="pb-28 pt-8">
         <MainFeed
@@ -143,10 +130,10 @@ const onHandleCopy = useCallback(
           setVisibleCount={setVisibleCount}
           favorites={favorites}
           toggleFavorite={onToggleFavorite}
-handleCopy={onHandleCopy}
+          handleCopy={onHandleCopy}
           copiedId={copiedId}
           searchQuery={searchQuery}
-          isSearchActive={isSearchActive}
+          
         />
       </main>
 
