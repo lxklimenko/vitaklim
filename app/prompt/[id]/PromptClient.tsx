@@ -212,92 +212,93 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
       </div>
 
-      {/* TABS — Apple Segmented Control */}
-      <div className="max-w-4xl mx-auto px-6 pt-8">
-        <div className="inline-flex p-1 bg-white/5 rounded-full mb-6">
-          <button
-            onClick={() => setActiveTab('description')}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition ${
-              activeTab === 'description'
-                ? 'bg-white shadow-sm text-black'
-                : 'text-white/60 hover:text-white'
-            }`}
-          >
-            Описание
-          </button>
-          <button
-            onClick={() => setActiveTab('prompt')}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition ${
-              activeTab === 'prompt'
-                ? 'bg-white shadow-sm text-black'
-                : 'text-white/60 hover:text-white'
-            }`}
-          >
-            Prompt
-          </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition ${
-              activeTab === 'settings'
-                ? 'bg-white shadow-sm text-black'
-                : 'text-white/60 hover:text-white'
-            }`}
-          >
-            Настройки
-          </button>
-        </div>
-
-        {/* Tab content */}
+      {/* TABS — Apple Segmented Control — обновлённая структура */}
+      <div className="max-w-4xl mx-auto px-6 mt-6">
         <div className="bg-[#0a0a0a] 
-          border border-white/10 
-          rounded-2xl 
-          p-6 
-          text-sm 
-          text-white/80 
-          shadow-none">
-          {activeTab === 'description' && (
-            <div className="space-y-6">
-              <p className="text-white/80">
-                {prompt.description || 'Описание недоступно.'}
-              </p>
+                      border border-white/10 
+                      rounded-3xl 
+                      p-6 
+                      space-y-6">
+          {/* Сегментированный контроль */}
+          <div className="inline-flex p-1 bg-white/5 rounded-full">
+            <button
+              onClick={() => setActiveTab('description')}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+                activeTab === 'description'
+                  ? 'bg-white shadow-sm text-black'
+                  : 'text-white/60 hover:text-white'
+              }`}
+            >
+              Описание
+            </button>
+            <button
+              onClick={() => setActiveTab('prompt')}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+                activeTab === 'prompt'
+                  ? 'bg-white shadow-sm text-black'
+                  : 'text-white/60 hover:text-white'
+              }`}
+            >
+              Prompt
+            </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+                activeTab === 'settings'
+                  ? 'bg-white shadow-sm text-black'
+                  : 'text-white/60 hover:text-white'
+              }`}
+            >
+              Настройки
+            </button>
+          </div>
 
-              <div>
-                <button
-                  onClick={() => {
-                    setGeneratePrompt(prompt.prompt);
-                    setIsGenerateOpen(true);
-                  }}
-                  className="w-full md:w-auto
-                             px-8 py-4
-                             rounded-2xl
-                             bg-gradient-to-b from-white to-zinc-200
-                             text-black
-                             font-semibold
-                             shadow-lg shadow-white/10
-                             hover:shadow-white/20
-                             hover:-translate-y-0.5
-                             active:translate-y-0
-                             transition-all duration-300 ease-out"
-                >
-                  Повторить генерацию
-                </button>
+          {/* Контент вкладок — теперь без собственного фона и рамки */}
+          <div className="text-sm text-white/80">
+            {activeTab === 'description' && (
+              <div className="space-y-6">
+                <p className="text-white/80">
+                  {prompt.description || 'Описание недоступно.'}
+                </p>
+
+                <div>
+                  <button
+                    onClick={() => {
+                      setGeneratePrompt(prompt.prompt);
+                      setIsGenerateOpen(true);
+                    }}
+                    className="w-full md:w-auto
+                               px-8 py-4
+                               rounded-2xl
+                               bg-gradient-to-b from-white to-zinc-200
+                               text-black
+                               font-semibold
+                               shadow-lg shadow-white/10
+                               hover:shadow-white/20
+                               hover:-translate-y-0.5
+                               active:translate-y-0
+                               transition-all duration-300 ease-out"
+                  >
+                    Повторить генерацию
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {activeTab === 'prompt' && (
-            <pre className="whitespace-pre-wrap">{prompt.prompt}</pre>
-          )}
+            {activeTab === 'prompt' && (
+              <pre className="whitespace-pre-wrap">{prompt.prompt}</pre>
+            )}
 
-          {activeTab === 'settings' && (
-            <div className="space-y-2 text-white/70">
-              <div>Модель: {prompt.tool}</div>
-              <div>Категория: {prompt.category}</div>
-              {prompt.image?.aspect && <div>Соотношение: {prompt.image.aspect}</div>}
-            </div>
-          )}
-        </div>
-      </div>
+            {activeTab === 'settings' && (
+              <div className="space-y-2 text-white/70">
+                <div>Модель: {prompt.tool}</div>
+                <div>Категория: {prompt.category}</div>
+                {prompt.image?.aspect && <div>Соотношение: {prompt.image.aspect}</div>}
+              </div>
+            )}
+          </div>
+        </div> {/* Закрываем внутренний div с фоном и рамкой */}
+      </div> {/* Закрываем внешний контейнер max-w-4xl */}
 
       {/* Модалка генерации — все пропсы из useImageGeneration */}
       {isGenerateOpen && (
