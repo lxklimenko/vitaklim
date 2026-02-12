@@ -203,19 +203,19 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
       </div>
 
-      {/* Блок с описанием — обновлённая структура (без вкладок) */}
+      {/* Блок с описанием — теперь показывает prompt */}
       <div className="max-w-4xl mx-auto px-6 mt-6">
         <div className="bg-[#0a0a0a] 
                       border border-white/10 
                       rounded-3xl 
                       p-6 
                       space-y-6">
-          {/* Контент — только описание */}
+          {/* Контент — только промпт и кнопка */}
           <div className="text-sm text-white/80">
             <div className="space-y-6">
-              <p className="text-white/80">
-                {prompt.description || 'Описание недоступно.'}
-              </p>
+              <pre className="text-white/80 whitespace-pre-wrap leading-relaxed">
+                {prompt.prompt}
+              </pre>
 
               <div>
                 <button
