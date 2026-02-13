@@ -214,10 +214,11 @@ export default function PromptClient({ prompts }: PromptClientProps) {
           {/* Верхняя часть: текст + кнопки справа */}
           <div className="flex gap-4">
 
-            {/* Текст со скроллом */}
+            {/* Текст со скроллом — добавлен hide-scrollbar */}
             <div className="flex-1 
                             max-h-40 
                             overflow-y-auto 
+                            hide-scrollbar
                             pr-2 
                             text-white/90 
                             text-sm 
