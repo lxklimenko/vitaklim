@@ -205,41 +205,38 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
       {/* Блок с описанием — теперь показывает prompt */}
       <div className="max-w-4xl mx-auto px-6 mt-6">
-        <div className="bg-[#0a0a0a] 
+        <div className="bg-[#111111] 
                       border border-white/10 
                       rounded-3xl 
                       p-6 
                       space-y-6">
-          {/* Контент — только промпт и кнопка */}
-          <div className="text-sm text-white/80">
-            <div className="space-y-6">
-              <pre className="text-white/80 whitespace-pre-wrap leading-relaxed">
-                {prompt.prompt}
-              </pre>
-
-              <div>
-                <button
-                  onClick={() => {
-                    setGeneratePrompt(prompt.prompt);
-                    setIsGenerateOpen(true);
-                  }}
-                  className="w-full md:w-auto
-                             px-8 py-4
-                             rounded-2xl
-                             bg-gradient-to-b from-white to-zinc-200
-                             text-black
-                             font-semibold
-                             shadow-lg shadow-white/10
-                             hover:shadow-white/20
-                             hover:-translate-y-0.5
-                             active:translate-y-0
-                             transition-all duration-300 ease-out"
-                >
-                  Повторить генерацию
-                </button>
-              </div>
-            </div>
+          {/* Заголовок */}
+          <div className="text-white/50 text-xs uppercase tracking-wider">
+            Prompt
           </div>
+
+          {/* Текст промпта */}
+          <div className="text-white/90 text-sm leading-relaxed whitespace-pre-wrap">
+            {prompt.prompt}
+          </div>
+
+          {/* Кнопка */}
+          <button
+            onClick={() => {
+              setGeneratePrompt(prompt.prompt);
+              setIsGenerateOpen(true);
+            }}
+            className="w-full 
+                       py-4 
+                       rounded-2xl 
+                       bg-white 
+                       text-black 
+                       font-medium 
+                       hover:opacity-90 
+                       active:scale-95 
+                       transition-all duration-200">
+            Повторить генерацию
+          </button>
         </div>
       </div>
 
