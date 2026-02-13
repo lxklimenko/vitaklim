@@ -145,7 +145,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
       </div>
 
-      {/* Блок с описанием — обновлённый дизайн (шаг 3) */}
+      {/* Блок с описанием — обновлённый дизайн */}
       <div className="max-w-4xl mx-auto px-6 mt-6">
         <div className="bg-gradient-to-b from-[#141414] to-[#0f0f0f]
                       border border-white/10
@@ -167,15 +167,17 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
           {/* Контейнер текста с кнопками действий */}
           <div className="flex gap-4">
-            {/* Текст */}
-            <div className="relative flex-1 max-h-44">
+            {/* Текст — фиксированная высота, внутренний отступ снизу */}
+            <div className="relative flex-1 h-44">
               <div className="overflow-y-auto 
                               hide-scrollbar
                               pr-2 
+                              pb-4
                               text-white/90 
                               text-sm 
                               leading-relaxed 
-                              whitespace-pre-wrap">
+                              whitespace-pre-wrap 
+                              h-full">
                 {prompt.prompt}
               </div>
 
@@ -217,7 +219,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
             </div>
           </div>
 
-          {/* Кнопка повторить — улучшенная */}
+          {/* Кнопка повторить — теперь не перекрывается */}
           <button
             onClick={() => {
               setGeneratePrompt(prompt.prompt);
@@ -240,7 +242,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
       </div>
 
-      {/* Модалка генерации — все пропсы из useImageGeneration */}
+      {/* Модалка генерации */}
       {isGenerateOpen && (
         <GenerateModal
           isOpen={isGenerateOpen}
