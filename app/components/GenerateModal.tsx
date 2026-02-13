@@ -257,7 +257,7 @@ export function GenerateModal({
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-[#111] border-t border-white/5 pb-safe">
             <button
               onClick={handleGenerate}
-              disabled={isGenerating || !generatePrompt.trim()}
+              disabled={isGenerating}
               className="w-full py-4 rounded-xl bg-gradient-to-r from-[#FFD700] to-[#FFC000] text-black font-bold text-[16px] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,215,0,0.2)]"
             >
               {isGenerating ? (
