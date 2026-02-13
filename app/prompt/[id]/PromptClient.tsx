@@ -159,82 +159,67 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
       </div>
 
-      {/* Блок с описанием — новый дизайн (Шаг 1) */}
-      <div className="max-w-4xl mx-auto px-6 mt-3">
-        <div className="bg-[#111111] 
-                      border border-white/10 
-                      rounded-3xl 
-                      p-6 
-                      space-y-6">
+      {/* Блок с описанием — обновлённый дизайн (шаг 3) */}
+      <div className="max-w-4xl mx-auto px-6 mt-6">
+        <div className="bg-gradient-to-b from-[#141414] to-[#0f0f0f]
+                      border border-white/10
+                      rounded-3xl
+                      p-6
+                      space-y-6
+                      transition-all duration-300
+                      hover:border-white/20">
 
-          {/* Верхняя часть: текст + кнопки справа */}
-          <div className="flex gap-4">
-
-            {/* Текст со скроллом и градиентными затенениями */}
-            <div className="relative flex-1 max-h-40">
-              <div className="overflow-y-auto 
-                              hide-scrollbar
-                              pr-2 
-                              text-white/90 
-                              text-sm 
-                              leading-relaxed 
-                              whitespace-pre-wrap 
-                              h-full">
-                {prompt.prompt}
-              </div>
-
-              {/* Верхний fade */}
-              <div className="pointer-events-none absolute top-0 left-0 right-0 h-6 
-                              bg-gradient-to-b from-[#111111] to-transparent" />
-
-              {/* Нижний fade */}
-              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 
-                              bg-gradient-to-t from-[#111111] to-transparent" />
+          {/* Заголовок */}
+          <div className="flex items-center justify-between">
+            <div className="text-white/40 text-xs tracking-widest uppercase">
+              Prompt
             </div>
 
-            {/* Кнопки справа вертикально */}
-            <div className="flex flex-col gap-3">
-
-              {/* Копировать */}
-              <button
-                onClick={() => actions.handleCopy(prompt.id, prompt.prompt, 0, setCopiedId)}
-                className="w-10 h-10 flex items-center justify-center 
-                           rounded-xl 
-                           bg-white/5 
-                           hover:bg-white/10 
-                           transition">
-                {copiedId === prompt.id ? <Check size={18} /> : <Copy size={18} />}
-              </button>
-
-              {/* Избранное */}
-              <button
-                onClick={(e) => actions.toggleFavorite(e, prompt.id, favorites)}
-                className="w-10 h-10 flex items-center justify-center 
-                           rounded-xl 
-                           bg-white/5 
-                           hover:bg-white/10 
-                           transition">
-                <Heart size={18} />
-              </button>
-
-            </div>
+            {/* subtle декоративная точка */}
+            <div className="w-1.5 h-1.5 rounded-full bg-white/20"></div>
           </div>
 
-          {/* Кнопка повторить */}
+          {/* Контейнер текста со скроллом и градиентами */}
+          <div className="relative flex-1 max-h-44">
+
+            <div className="overflow-y-auto 
+                            hide-scrollbar
+                            pr-2 
+                            text-white/90 
+                            text-sm 
+                            leading-relaxed 
+                            whitespace-pre-wrap 
+                            h-full">
+              {prompt.prompt}
+            </div>
+
+            {/* Верхний fade */}
+            <div className="pointer-events-none absolute top-0 left-0 right-0 h-6 
+                            bg-gradient-to-b from-[#141414] to-transparent" />
+
+            {/* Нижний fade */}
+            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 
+                            bg-gradient-to-t from-[#0f0f0f] to-transparent" />
+
+          </div>
+
+          {/* Кнопка повторить — улучшенная */}
           <button
             onClick={() => {
               setGeneratePrompt(prompt.prompt);
               setIsGenerateOpen(true);
             }}
-            className="w-full 
-                       py-4 
-                       rounded-2xl 
-                       bg-white 
-                       text-black 
-                       font-medium 
-                       hover:opacity-90 
-                       active:scale-95 
-                       transition-all duration-200">
+            className="w-full
+                       py-4
+                       rounded-2xl
+                       bg-gradient-to-b from-white to-zinc-200
+                       text-black
+                       font-semibold
+                       shadow-lg shadow-white/10
+                       hover:shadow-white/20
+                       hover:-translate-y-0.5
+                       active:translate-y-0
+                       transition-all duration-300 ease-out">
             Повторить генерацию
           </button>
 
