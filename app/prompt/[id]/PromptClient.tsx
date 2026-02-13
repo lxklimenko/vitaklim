@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/app/lib/supabase';
 
 import { Prompt } from '../../types/prompt';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '@/app/context/AuthContext';
 import { useAppActions } from '../../hooks/useAppActions';
 import { useImageGeneration } from '../../hooks/useImageGeneration';
 

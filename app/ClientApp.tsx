@@ -7,7 +7,7 @@ import { Toaster } from 'sonner';
 import { Header } from './components/Header';
 import { Navigation } from './components/Navigation';
 import { MainFeed } from './components/MainFeed';
-import { useAuth } from './hooks/useAuth';
+import { useAuth } from '@/app/context/AuthContext';
 import { useImageGeneration } from './hooks/useImageGeneration';
 import { useAppActions } from './hooks/useAppActions';
 import type { Prompt } from './types/prompt';
