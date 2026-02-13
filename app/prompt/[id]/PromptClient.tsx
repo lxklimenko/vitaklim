@@ -43,7 +43,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   // Хуки авторизации и действий (переносим вверх)
   const { user, favorites, setFavorites, setGenerations, fetchProfile } = useAuth();
 
-  // Хук генерации — теперь используем user и колбэк закрытия
+  // Хук генерации — теперь используем user и колбэк закрытия, а также fetchProfile
   const {
     generatePrompt,
     setGeneratePrompt,
@@ -56,9 +56,13 @@ export default function PromptClient({ prompts }: PromptClientProps) {
     handleFileChange,
     handleRemoveImage,
     handleGenerate,
-  } = useImageGeneration(user, () => {
-    setIsGenerateOpen(false);
-  });
+  } = useImageGeneration(
+    user,
+    () => {
+      setIsGenerateOpen(false);
+    },
+    fetchProfile
+  );
 
   const setIsProfileOpen = () => {};
   const actions = useAppActions(user, setGenerations, setFavorites, fetchProfile, setIsProfileOpen);

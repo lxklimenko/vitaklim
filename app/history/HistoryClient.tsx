@@ -17,7 +17,8 @@ interface Props {
 export default function HistoryClient({ initialGenerations }: Props) {
   const {
     user,
-    setGenerations
+    setGenerations,
+    fetchProfile // 👈 добавляем fetchProfile
   } = useAuth()
 
   const [generations, setLocalGenerations] =
@@ -25,10 +26,14 @@ export default function HistoryClient({ initialGenerations }: Props) {
 
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // 🔥 подключаем генерацию правильно
-  const imageGen = useImageGeneration(user, () => {
-    setIsModalOpen(false)
-  })
+  // 🔁 заменяем вызов хука – передаём fetchProfile третьим аргументом
+  const imageGen = useImageGeneration(
+    user,
+    () => {
+      setIsModalOpen(false)
+    },
+    fetchProfile
+  )
 
   // Логируем текущий промпт при каждом рендере
   console.log("CURRENT PROMPT:", imageGen.generatePrompt)
