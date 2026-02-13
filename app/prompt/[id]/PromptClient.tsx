@@ -160,7 +160,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
       </div>
 
       {/* Блок с описанием — новый дизайн (Шаг 1) */}
-      <div className="max-w-4xl mx-auto px-6 mt-6">
+      <div className="max-w-4xl mx-auto px-6 mt-3">
         <div className="bg-[#111111] 
                       border border-white/10 
                       rounded-3xl 
