@@ -24,7 +24,6 @@ export default function HistoryClient({ initialGenerations }: Props) {
     useState<Generation[]>(initialGenerations)
 
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [generatePrompt, setGeneratePrompt] = useState('')
 
   // 🔥 подключаем генерацию правильно
   const imageGen = useImageGeneration(user, () => {
@@ -99,7 +98,7 @@ export default function HistoryClient({ initialGenerations }: Props) {
 
                     <button
                       onClick={() => {
-                        setGeneratePrompt(gen.prompt)
+                        imageGen.setGeneratePrompt(gen.prompt)
                         setIsModalOpen(true)
                       }}
                       className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-xl transition"
@@ -120,8 +119,8 @@ export default function HistoryClient({ initialGenerations }: Props) {
       <GenerateModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        generatePrompt={generatePrompt}
-        setGeneratePrompt={setGeneratePrompt}
+        generatePrompt={imageGen.generatePrompt}
+        setGeneratePrompt={imageGen.setGeneratePrompt}
         isGenerating={imageGen.isGenerating}
         handleGenerate={imageGen.handleGenerate}
         modelId={imageGen.modelId}
