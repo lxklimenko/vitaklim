@@ -158,7 +158,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
           {/* Заголовок */}
           <div className="flex items-center justify-between">
             <div className="text-white/40 text-xs tracking-widest uppercase">
-              Prompt
+              Nano Banano Pro
             </div>
 
             {/* subtle декоративная точка */}
