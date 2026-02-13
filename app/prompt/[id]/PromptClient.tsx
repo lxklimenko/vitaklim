@@ -203,24 +203,58 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
       </div>
 
-      {/* Блок с описанием — теперь показывает prompt */}
+      {/* Блок с описанием — новый дизайн (Шаг 1) */}
       <div className="max-w-4xl mx-auto px-6 mt-6">
         <div className="bg-[#111111] 
                       border border-white/10 
                       rounded-3xl 
                       p-6 
                       space-y-6">
-          {/* Заголовок */}
-          <div className="text-white/50 text-xs uppercase tracking-wider">
-            Prompt
+
+          {/* Верхняя часть: текст + кнопки справа */}
+          <div className="flex gap-4">
+
+            {/* Текст со скроллом */}
+            <div className="flex-1 
+                            max-h-40 
+                            overflow-y-auto 
+                            pr-2 
+                            text-white/90 
+                            text-sm 
+                            leading-relaxed 
+                            whitespace-pre-wrap">
+              {prompt.prompt}
+            </div>
+
+            {/* Кнопки справа вертикально */}
+            <div className="flex flex-col gap-3">
+
+              {/* Копировать */}
+              <button
+                onClick={() => actions.handleCopy(prompt.id, prompt.prompt, 0, setCopiedId)}
+                className="w-10 h-10 flex items-center justify-center 
+                           rounded-xl 
+                           bg-white/5 
+                           hover:bg-white/10 
+                           transition">
+                {copiedId === prompt.id ? <Check size={18} /> : <Copy size={18} />}
+              </button>
+
+              {/* Избранное */}
+              <button
+                onClick={(e) => actions.toggleFavorite(e, prompt.id, favorites)}
+                className="w-10 h-10 flex items-center justify-center 
+                           rounded-xl 
+                           bg-white/5 
+                           hover:bg-white/10 
+                           transition">
+                <Heart size={18} />
+              </button>
+
+            </div>
           </div>
 
-          {/* Текст промпта */}
-          <div className="text-white/90 text-sm leading-relaxed whitespace-pre-wrap">
-            {prompt.prompt}
-          </div>
-
-          {/* Кнопка */}
+          {/* Кнопка повторить */}
           <button
             onClick={() => {
               setGeneratePrompt(prompt.prompt);
@@ -237,6 +271,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
                        transition-all duration-200">
             Повторить генерацию
           </button>
+
         </div>
       </div>
 
