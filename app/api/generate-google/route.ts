@@ -14,6 +14,24 @@ export async function POST(req: Request) {
       );
     }
 
+    // === ШАГ 6: Проверяем баланс ===
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('balance')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      throw new Error("Профиль не найден");
+    }
+
+    if (profile.balance <= 0) {
+      return NextResponse.json(
+        { error: "Недостаточно баланса" },
+        { status: 400 }
+      );
+    }
+
     const { prompt, aspectRatio, modelId, image } = await req.json();
     const apiKey = process.env.GOOGLE_API_KEY;
 
@@ -28,7 +46,6 @@ export async function POST(req: Request) {
 
     if (isNanoBanana) {
       // 1. ЛОГИКА ДЛЯ NANO BANANA PRO (Gemini 3 Pro)
-      // Работает и с текстом, и с фото.
       const parts: any[] = [{ text: prompt }];
       
       if (image) {
@@ -45,22 +62,18 @@ export async function POST(req: Request) {
 
       body = {
         contents: [{ parts }],
-        // Оставляем пустой конфиг, так как aspect_ratio здесь вызывал ошибку
         generationConfig: {
           candidateCount: 1
         }
       };
     } else {
       // 2. ЛОГИКА ДЛЯ IMAGEN 4 (Ultra и Fast)
-      // ВАЖНО: Эти модели поддерживают ТОЛЬКО текст. 
-      // Если передать поле 'image', будет ошибка "Image in input is not supported".
       const instance: any = { prompt };
 
       body = {
         instances: [instance],
         parameters: {
           sampleCount: 1,
-          // Imagen 4 принимает пропорции в формате camelCase (aspectRatio)
           aspectRatio: aspectRatio === "auto" ? "1:1" : aspectRatio,
           outputOptions: { mimeType: "image/jpeg" }
         }
@@ -80,7 +93,7 @@ export async function POST(req: Request) {
       throw new Error(data.error?.message || "Ошибка генерации");
     }
 
-    // Извлекаем картинку в зависимости от структуры ответа модели
+    // Извлекаем картинку
     let base64Image;
     if (isNanoBanana) {
       const candidate = data.candidates?.[0];
@@ -91,18 +104,15 @@ export async function POST(req: Request) {
       }
       base64Image = imagePart.inlineData.data;
     } else {
-      // Для Imagen 4 (Ultra / Fast)
       if (!data.predictions?.[0]?.bytesBase64Encoded) {
         throw new Error("Изображение не найдено в ответе модели.");
       }
       base64Image = data.predictions[0].bytesBase64Encoded;
     }
 
-    // --- НАЧАЛО ДОБАВЛЕННОГО КОДА ---
-    // Подключаем Supabase (повторно, но можно использовать уже созданный клиент)
-    const supabaseStorage = await createClient();
+    // Сохраняем в Supabase Storage
+    const supabaseStorage = await createClient(); // можно использовать уже созданный supabase, но оставим как есть
 
-    // Получаем пользователя (повторно для надёжности)
     const { data: { user: currentUser } } = await supabaseStorage.auth.getUser();
 
     if (!currentUser) {
@@ -112,13 +122,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // Превращаем base64 в Buffer
     const buffer = Buffer.from(base64Image, 'base64');
-
-    // Создаём имя файла
     const fileName = `${currentUser.id}/${Date.now()}.jpg`;
 
-    // Загружаем в Storage
     const { error: uploadError } = await supabaseStorage.storage
       .from('generations')
       .upload(fileName, buffer, {
@@ -129,12 +135,11 @@ export async function POST(req: Request) {
       throw uploadError;
     }
 
-    // Получаем публичную ссылку
     const { data: { publicUrl } } = supabaseStorage.storage
       .from('generations')
       .getPublicUrl(fileName);
 
-    // Сохраняем в таблицу
+    // Сохраняем запись в таблицу generations
     const { error: dbError } = await supabaseStorage
       .from('generations')
       .insert({
@@ -147,12 +152,14 @@ export async function POST(req: Request) {
     if (dbError) {
       throw dbError;
     }
-    // --- КОНЕЦ ДОБАВЛЕННОГО КОДА ---
 
-    // Возвращаем публичную ссылку вместо data-url
-    return NextResponse.json({ 
-      imageUrl: publicUrl
-    });
+    // === ШАГ 7: Уменьшаем баланс на 1 ===
+    await supabase
+      .from('profiles')
+      .update({ balance: profile.balance - 1 })
+      .eq('id', user.id);
+
+    return NextResponse.json({ imageUrl: publicUrl });
 
   } catch (error: any) {
     console.error("Server Error:", error);
