@@ -1,7 +1,19 @@
 import { NextResponse } from "next/server";
+import { createClient } from '@/app/lib/supabase-server';
 
 export async function POST(req: Request) {
   try {
+    // Проверяем пользователя
+    const supabase = await createClient();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (!user || userError) {
+      return NextResponse.json(
+        { error: "Вы не авторизованы" },
+        { status: 401 }
+      );
+    }
+
     const { prompt, aspectRatio, modelId, image } = await req.json();
     const apiKey = process.env.GOOGLE_API_KEY;
 
