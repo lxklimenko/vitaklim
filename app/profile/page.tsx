@@ -152,6 +152,18 @@ export default function ProfilePage() {
                 {isSubmitting && <Loader2 className="animate-spin" size={18} />}
                 {authMode === 'login' ? 'Войти' : 'Создать аккаунт'}
               </button>
+
+              {/* Кнопка входа через Telegram (только в браузере) */}
+              {typeof window !== 'undefined' && !(window as any).Telegram && authMode === 'login' && (
+                <a
+                  href="https://t.me/Vitaklim12"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full mt-3 bg-blue-500 text-white font-bold rounded-xl py-3 hover:bg-blue-600 transition text-center block"
+                >
+                  Войти через Telegram
+                </a>
+              )}
             </form>
 
             <div className="text-center mt-4">
