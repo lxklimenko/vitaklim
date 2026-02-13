@@ -98,8 +98,60 @@ export async function POST(req: Request) {
       base64Image = data.predictions[0].bytesBase64Encoded;
     }
 
+    // --- НАЧАЛО ДОБАВЛЕННОГО КОДА ---
+    // Подключаем Supabase (повторно, но можно использовать уже созданный клиент)
+    const supabaseStorage = await createClient();
+
+    // Получаем пользователя (повторно для надёжности)
+    const { data: { user: currentUser } } = await supabaseStorage.auth.getUser();
+
+    if (!currentUser) {
+      return NextResponse.json(
+        { error: "Вы не авторизованы" },
+        { status: 401 }
+      );
+    }
+
+    // Превращаем base64 в Buffer
+    const buffer = Buffer.from(base64Image, 'base64');
+
+    // Создаём имя файла
+    const fileName = `${currentUser.id}/${Date.now()}.jpg`;
+
+    // Загружаем в Storage
+    const { error: uploadError } = await supabaseStorage.storage
+      .from('generations')
+      .upload(fileName, buffer, {
+        contentType: 'image/jpeg'
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    // Получаем публичную ссылку
+    const { data: { publicUrl } } = supabaseStorage.storage
+      .from('generations')
+      .getPublicUrl(fileName);
+
+    // Сохраняем в таблицу
+    const { error: dbError } = await supabaseStorage
+      .from('generations')
+      .insert({
+        user_id: currentUser.id,
+        prompt,
+        image_url: publicUrl,
+        is_favorite: false
+      });
+
+    if (dbError) {
+      throw dbError;
+    }
+    // --- КОНЕЦ ДОБАВЛЕННОГО КОДА ---
+
+    // Возвращаем публичную ссылку вместо data-url
     return NextResponse.json({ 
-      imageUrl: `data:image/jpeg;base64,${base64Image}` 
+      imageUrl: publicUrl
     });
 
   } catch (error: any) {
