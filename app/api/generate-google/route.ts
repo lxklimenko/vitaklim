@@ -14,24 +14,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // === ШАГ 6: Проверяем баланс ===
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('balance')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !profile) {
-      throw new Error("Профиль не найден");
-    }
-
-    if (profile.balance <= 0) {
-      return NextResponse.json(
-        { error: "Недостаточно баланса" },
-        { status: 400 }
-      );
-    }
-
     const { prompt, aspectRatio, modelId, image } = await req.json();
     const apiKey = process.env.GOOGLE_API_KEY;
 
@@ -153,11 +135,20 @@ export async function POST(req: Request) {
       throw dbError;
     }
 
-    // === ШАГ 7: Уменьшаем баланс на 1 ===
-    await supabase
-      .from('profiles')
-      .update({ balance: profile.balance - 1 })
-      .eq('id', user.id);
+    // Атомарно уменьшаем баланс
+    const { data: balanceResult, error: balanceError } = await supabase
+      .rpc('decrement_balance', { user_id: user.id });
+
+    if (balanceError) {
+      throw balanceError;
+    }
+
+    if (!balanceResult) {
+      return NextResponse.json(
+        { error: "Недостаточно баланса" },
+        { status: 400 }
+      );
+    }
 
     return NextResponse.json({ imageUrl: publicUrl });
 
