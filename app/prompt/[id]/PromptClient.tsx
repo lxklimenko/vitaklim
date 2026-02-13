@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { notFound, useParams } from 'next/navigation';
-import { ChevronLeft, Share2, Copy, Check, Download, Heart, Loader2, X } from 'lucide-react';
+import { Loader2, X, Copy, Check, Heart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/app/lib/supabase';
 
@@ -40,14 +40,6 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   // Стейт для открытия модалки генерации
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
 
-  // Вкладки больше не переключаются — всегда показываем описание
-  const activeTab = 'description';
-
-  const { user, favorites, setFavorites, setGenerations, fetchProfile } = useAuth();
-  const setIsProfileOpen = () => {};
-
-  const actions = useAppActions(user, setGenerations, setFavorites, fetchProfile, setIsProfileOpen);
-
   // Хук генерации — точно такой же, как в ClientApp
   const {
     generatePrompt,
@@ -61,7 +53,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
     handleFileChange,
     handleRemoveImage,
     handleGenerate,
-  } = useImageGeneration(user, () => {});
+  } = useImageGeneration(null, () => {});
 
   // 3. Если нет в статике — грузим из Supabase
   useEffect(() => {
@@ -102,15 +94,11 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
   const prompt = staticPrompt || dbPrompt;
 
-  // ----- Функция скачивания изображения -----
-  const handleDownload = () => {
-    const link = document.createElement('a');
-    link.href = prompt.image.src;
-    link.download = `prompt-${prompt.id}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  // Хуки авторизации и действий
+  const { user, favorites, setFavorites, setGenerations, fetchProfile } = useAuth();
+  const setIsProfileOpen = () => {};
+  const actions = useAppActions(user, setGenerations, setFavorites, fetchProfile, setIsProfileOpen);
+  const isFavorite = favorites.includes(prompt?.id);
 
   if (isLoading) {
     return (
@@ -123,8 +111,6 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   if (!prompt || !prompt.image) {
     return notFound();
   }
-
-  const isFavorite = favorites.includes(prompt.id);
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white pb-20">
@@ -179,28 +165,56 @@ export default function PromptClient({ prompts }: PromptClientProps) {
             <div className="w-1.5 h-1.5 rounded-full bg-white/20"></div>
           </div>
 
-          {/* Контейнер текста со скроллом и градиентами */}
-          <div className="relative flex-1 max-h-44">
+          {/* Контейнер текста с кнопками действий */}
+          <div className="flex gap-4">
+            {/* Текст */}
+            <div className="relative flex-1 max-h-44">
+              <div className="overflow-y-auto 
+                              hide-scrollbar
+                              pr-2 
+                              text-white/90 
+                              text-sm 
+                              leading-relaxed 
+                              whitespace-pre-wrap">
+                {prompt.prompt}
+              </div>
 
-            <div className="overflow-y-auto 
-                            hide-scrollbar
-                            pr-2 
-                            text-white/90 
-                            text-sm 
-                            leading-relaxed 
-                            whitespace-pre-wrap 
-                            h-full">
-              {prompt.prompt}
+              {/* Верхний fade */}
+              <div className="pointer-events-none absolute top-0 left-0 right-0 h-6 
+                              bg-gradient-to-b from-[#141414] to-transparent" />
+
+              {/* Нижний fade */}
+              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 
+                              bg-gradient-to-t from-[#0f0f0f] to-transparent" />
             </div>
 
-            {/* Верхний fade */}
-            <div className="pointer-events-none absolute top-0 left-0 right-0 h-6 
-                            bg-gradient-to-b from-[#141414] to-transparent" />
+            {/* Кнопки справа */}
+            <div className="flex flex-col gap-3">
+              {/* Copy */}
+              <button
+                onClick={() => actions.handleCopy(prompt.id, prompt.prompt, 0, setCopiedId)}
+                className="w-10 h-10 flex items-center justify-center 
+                           rounded-xl 
+                           bg-white/5 
+                           hover:bg-white/10 
+                           transition"
+              >
+                {copiedId === prompt.id ? <Check size={18} /> : <Copy size={18} />}
+              </button>
 
-            {/* Нижний fade */}
-            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 
-                            bg-gradient-to-t from-[#0f0f0f] to-transparent" />
-
+              {/* Favorite */}
+              <button
+                onClick={(e) => actions.toggleFavorite(e, prompt.id, favorites)}
+                className={`w-10 h-10 flex items-center justify-center 
+                            rounded-xl 
+                            transition 
+                            ${isFavorite 
+                              ? 'bg-red-500/20 text-red-500' 
+                              : 'bg-white/5 hover:bg-white/10'}`}
+              >
+                <Heart size={18} className={isFavorite ? 'fill-current' : ''} />
+              </button>
+            </div>
           </div>
 
           {/* Кнопка повторить — улучшенная */}
