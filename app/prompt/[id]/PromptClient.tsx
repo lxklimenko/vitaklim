@@ -160,12 +160,12 @@ export default function PromptClient({ prompts }: PromptClientProps) {
       </div>
 
       {/* ACTION BAR — тёмная, без теней, все кнопки справа */}
-      <div className="max-w-4xl mx-auto px-6 mt-3">
+      <div className="max-w-4xl mx-auto px-6 mt-2,5">
         <div className="flex items-center justify-end 
           bg-[#0a0a0a] 
           border border-white/10 
           rounded-2xl 
-          px-6 py-2 
+          px-6 py-1,5 
           shadow-none">
           {/* Единая группа кнопок справа */}
           <div className="flex items-center gap-2">
