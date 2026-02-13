@@ -20,6 +20,7 @@ export default function RootLayout({
       <body 
         className={`${inter.className} bg-[#0a0a0a] text-white antialiased selection:bg-white/20`}
       >
+        <script src="https://telegram.org/js/telegram-web-app.js"></script>
         {/* Обертка для контента, чтобы избежать скачков при загрузке */}
         <AuthProvider>
           <div className="relative min-h-screen flex flex-col overflow-x-hidden">
