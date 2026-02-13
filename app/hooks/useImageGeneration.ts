@@ -23,6 +23,7 @@ export function useImageGeneration(user: any, onGenerationComplete: () => void) 
   const handleRemoveImage = () => setReferenceImage(null);
 
   const handleGenerate = async () => {
+    console.log("HANDLE GENERATE CALLED");
     if (!user) {
       toast.error('Войдите в аккаунт для генерации');
       return;
