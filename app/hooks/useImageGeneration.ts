@@ -3,7 +3,11 @@ import { toast } from 'sonner';
 import { supabase } from '@/app/lib/supabase';
 import { MODELS } from '../constants/appConstants';
 
-export function useImageGeneration(user: any, onGenerationComplete: () => void) {
+export function useImageGeneration(
+  user: any,
+  onGenerationComplete: () => void,
+  refreshBalance?: (userId: string) => void
+) {
   const [generatePrompt, setGeneratePrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -50,6 +54,11 @@ export function useImageGeneration(user: any, onGenerationComplete: () => void) 
       // Устанавливаем URL для отображения
       setImageUrl(data.imageUrl);
       toast.success('Изображение сгенерировано');
+
+      if (user && refreshBalance) {
+        await refreshBalance(user.id);
+      }
+
       onGenerationComplete(); // Обновляем список в истории (если требуется)
     } catch (error: any) {
       console.error('Критическая ошибка:', error);

@@ -58,7 +58,11 @@ export default function ClientApp({ prompts }: ClientAppProps) {
     handleFileChange,
     handleRemoveImage,
     handleGenerate,
-  } = useImageGeneration(user, () => {});
+  } = useImageGeneration(
+    user,
+    () => {},
+    fetchProfile
+  );
 
   // UI STATE
   const [activeCategory, setActiveCategory] = useState('Все');
