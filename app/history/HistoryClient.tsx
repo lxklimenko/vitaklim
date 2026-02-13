@@ -30,6 +30,9 @@ export default function HistoryClient({ initialGenerations }: Props) {
     setIsModalOpen(false)
   })
 
+  // Логируем текущий промпт при каждом рендере
+  console.log("CURRENT PROMPT:", imageGen.generatePrompt)
+
   // синхронизация с auth
   useEffect(() => {
     setGenerations(initialGenerations)
@@ -98,6 +101,7 @@ export default function HistoryClient({ initialGenerations }: Props) {
 
                     <button
                       onClick={() => {
+                        console.log("SETTING PROMPT:", gen.prompt)
                         imageGen.setGeneratePrompt(gen.prompt)
                         setIsModalOpen(true)
                       }}
