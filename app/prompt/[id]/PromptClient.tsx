@@ -40,7 +40,10 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   // Стейт для открытия модалки генерации
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
 
-  // Хук генерации — точно такой же, как в ClientApp
+  // Хуки авторизации и действий (переносим вверх)
+  const { user, favorites, setFavorites, setGenerations, fetchProfile } = useAuth();
+
+  // Хук генерации — теперь используем user и колбэк закрытия
   const {
     generatePrompt,
     setGeneratePrompt,
@@ -53,7 +56,12 @@ export default function PromptClient({ prompts }: PromptClientProps) {
     handleFileChange,
     handleRemoveImage,
     handleGenerate,
-  } = useImageGeneration(null, () => {});
+  } = useImageGeneration(user, () => {
+    setIsGenerateOpen(false);
+  });
+
+  const setIsProfileOpen = () => {};
+  const actions = useAppActions(user, setGenerations, setFavorites, fetchProfile, setIsProfileOpen);
 
   // 3. Если нет в статике — грузим из Supabase
   useEffect(() => {
@@ -93,11 +101,6 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   }, [id, staticPrompt]);
 
   const prompt = staticPrompt || dbPrompt;
-
-  // Хуки авторизации и действий
-  const { user, favorites, setFavorites, setGenerations, fetchProfile } = useAuth();
-  const setIsProfileOpen = () => {};
-  const actions = useAppActions(user, setGenerations, setFavorites, fetchProfile, setIsProfileOpen);
   const isFavorite = favorites.includes(prompt?.id);
 
   if (isLoading) {
