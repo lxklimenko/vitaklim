@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, LogOut, CreditCard, Mail, User as UserIcon, Loader2 } from 'lucide-react';
@@ -23,21 +23,18 @@ export default function ProfilePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
 
-  // 1. ИСПРАВЛЕНИЕ: Передаем user.id в fetchProfile
-
-  
   // Логика входа / регистрации
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     if (!email.includes('@')) {
-      toast.error("Введите корректный email");
+      toast.error('Введите корректный email');
       setIsSubmitting(false);
       return;
     }
     if (password.length < 6) {
-      toast.error("Пароль должен быть не менее 6 символов");
+      toast.error('Пароль должен быть не менее 6 символов');
       setIsSubmitting(false);
       return;
     }
@@ -46,20 +43,20 @@ export default function ProfilePage() {
       if (authMode === 'login') {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        toast.success("С возвращением!");
-        
-        // 2. ИСПРАВЛЕНИЕ: Передаем ID пользователя после успешного входа
+        toast.success('С возвращением!');
+
+        // Передаём ID пользователя после успешного входа
         if (data.user) {
-            fetchProfile(data.user.id);
+          fetchProfile(data.user.id);
         }
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        toast.success("Аккаунт создан! Проверьте почту.");
+        toast.success('Аккаунт создан! Проверьте почту.');
         setAuthMode('login');
       }
     } catch (error: any) {
-      toast.error(error.message || "Ошибка авторизации");
+      toast.error(error.message || 'Ошибка авторизации');
     } finally {
       setIsSubmitting(false);
     }
@@ -74,19 +71,18 @@ export default function ProfilePage() {
   const handleTopUp = async () => {
     setIsTopUpLoading(true);
     setTimeout(() => {
-      toast.info("Функция оплаты в разработке");
+      toast.info('Функция оплаты в разработке');
       setIsTopUpLoading(false);
     }, 1000);
   };
 
   if (!authReady) {
-  return (
-    <div className="min-h-screen bg-black flex items-center justify-center text-white">
-      <Loader2 className="animate-spin" size={32} />
-    </div>
-  );
-}
-
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center text-white">
+        <Loader2 className="animate-spin" size={32} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black text-white pb-28 font-sans">
@@ -100,11 +96,11 @@ export default function ProfilePage() {
           </Link>
           <h1 className="text-xl font-bold">Профиль</h1>
         </div>
-        
+
         {user && (
-           <button onClick={handleLogout} className="text-red-400 hover:text-red-300">
-             <LogOut size={20} />
-           </button>
+          <button onClick={handleLogout} className="text-red-400 hover:text-red-300">
+            <LogOut size={20} />
+          </button>
         )}
       </header>
 
@@ -153,8 +149,8 @@ export default function ProfilePage() {
                 {authMode === 'login' ? 'Войти' : 'Создать аккаунт'}
               </button>
 
-              {/* Кнопка входа через Telegram (только в браузере) */}
-              {typeof window !== 'undefined' && !(window as any).Telegram && authMode === 'login' && (
+              {/* Кнопка входа через Telegram (всегда показывается в режиме входа) */}
+              {authMode === 'login' && (
                 <a
                   href="https://t.me/Vitaklim12"
                   target="_blank"
@@ -171,8 +167,8 @@ export default function ProfilePage() {
                 onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
                 className="text-white/60 hover:text-white text-sm"
               >
-                {authMode === 'login' 
-                  ? 'Нет аккаунта? Зарегистрироваться' 
+                {authMode === 'login'
+                  ? 'Нет аккаунта? Зарегистрироваться'
                   : 'Уже есть аккаунт? Войти'}
               </button>
             </div>
@@ -186,7 +182,9 @@ export default function ProfilePage() {
                   {user.email?.[0].toUpperCase()}
                 </div>
                 <div className="overflow-hidden">
-                  <p className="text-white/40 text-xs uppercase tracking-wider font-medium mb-1">Аккаунт</p>
+                  <p className="text-white/40 text-xs uppercase tracking-wider font-medium mb-1">
+                    Аккаунт
+                  </p>
                   <p className="font-medium truncate">{user.email}</p>
                 </div>
               </div>
@@ -199,24 +197,30 @@ export default function ProfilePage() {
                 <CreditCard className="text-white/20" />
               </div>
 
-              <button 
+              <button
                 onClick={handleTopUp}
                 disabled={isTopUpLoading}
                 className="w-full bg-white text-black font-bold rounded-xl py-3 hover:bg-gray-200 transition flex justify-center items-center gap-2"
               >
-                {isTopUpLoading ? <Loader2 className="animate-spin" size={18}/> : 'Пополнить баланс'}
+                {isTopUpLoading ? <Loader2 className="animate-spin" size={18} /> : 'Пополнить баланс'}
               </button>
             </div>
 
             <div className="space-y-2">
               <h3 className="text-lg font-bold mb-4">Настройки</h3>
-              
-              <Link href="/history" className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition">
+
+              <Link
+                href="/history"
+                className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition"
+              >
                 <span>История генераций</span>
                 <ChevronLeft className="rotate-180 text-white/40" size={20} />
               </Link>
-              
-              <a href="mailto:support@example.com" className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition">
+
+              <a
+                href="mailto:support@example.com"
+                className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition"
+              >
                 <div className="flex items-center gap-3">
                   <Mail size={18} className="text-white/60" />
                   <span>Поддержка</span>
@@ -225,17 +229,15 @@ export default function ProfilePage() {
             </div>
 
             <div className="pt-4">
-               <p className="text-center text-white/20 text-xs">ID: {user.id}</p>
-               <p className="text-center text-white/20 text-xs mt-1">Версия 1.0.2</p>
+              <p className="text-center text-white/20 text-xs">ID: {user.id}</p>
+              <p className="text-center text-white/20 text-xs mt-1">Версия 1.0.2</p>
             </div>
           </div>
         )}
       </div>
 
-      {/* 3. ИСПРАВЛЕНИЕ: Убрали лишний пропс onOpenProfile */}
-      <Navigation
-        onOpenGenerator={() => router.push('/')} 
-      />
+      {/* Убрали лишний пропс onOpenProfile */}
+      <Navigation onOpenGenerator={() => router.push('/')} />
     </div>
   );
 }
