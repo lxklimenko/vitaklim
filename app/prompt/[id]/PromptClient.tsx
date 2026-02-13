@@ -159,50 +159,6 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
       </div>
 
-      {/* ACTION BAR — тёмная, без теней, все кнопки справа */}
-      <div className="max-w-4xl mx-auto px-6 mt-3">
-        <div className="flex items-center justify-end 
-          bg-[#0a0a0a] 
-          border border-white/10 
-          rounded-2xl 
-          px-6 py-1,5 
-          shadow-none">
-          {/* Единая группа кнопок справа */}
-          <div className="flex items-center gap-2">
-            {/* Copy */}
-            <button
-              onClick={() => actions.handleCopy(prompt.id, prompt.prompt, 0, setCopiedId)}
-              className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition"
-              title="Скопировать prompt"
-            >
-              {copiedId === prompt.id ? <Check size={18} /> : <Copy size={18} />}
-            </button>
-
-            {/* Избранное */}
-            <button
-              onClick={(e) => actions.toggleFavorite(e, prompt.id, favorites)}
-              className={`w-10 h-10 flex items-center justify-center rounded-xl transition active:scale-95 ${
-                isFavorite
-                  ? 'bg-red-500/20 text-red-500'
-                  : 'bg-white/5 hover:bg-white/10'
-              }`}
-              title="В избранное"
-            >
-              <Heart size={18} className={isFavorite ? 'fill-current' : ''} />
-            </button>
-
-            {/* Скачать */}
-            <button
-              onClick={handleDownload}
-              className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition"
-              title="Скачать изображение"
-            >
-              <Download size={18} />
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Блок с описанием — новый дизайн (Шаг 1) */}
       <div className="max-w-4xl mx-auto px-6 mt-6">
         <div className="bg-[#111111] 
@@ -214,17 +170,26 @@ export default function PromptClient({ prompts }: PromptClientProps) {
           {/* Верхняя часть: текст + кнопки справа */}
           <div className="flex gap-4">
 
-            {/* Текст со скроллом — добавлен hide-scrollbar */}
-            <div className="flex-1 
-                            max-h-40 
-                            overflow-y-auto 
-                            hide-scrollbar
-                            pr-2 
-                            text-white/90 
-                            text-sm 
-                            leading-relaxed 
-                            whitespace-pre-wrap">
-              {prompt.prompt}
+            {/* Текст со скроллом и градиентными затенениями */}
+            <div className="relative flex-1 max-h-40">
+              <div className="overflow-y-auto 
+                              hide-scrollbar
+                              pr-2 
+                              text-white/90 
+                              text-sm 
+                              leading-relaxed 
+                              whitespace-pre-wrap 
+                              h-full">
+                {prompt.prompt}
+              </div>
+
+              {/* Верхний fade */}
+              <div className="pointer-events-none absolute top-0 left-0 right-0 h-6 
+                              bg-gradient-to-b from-[#111111] to-transparent" />
+
+              {/* Нижний fade */}
+              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 
+                              bg-gradient-to-t from-[#111111] to-transparent" />
             </div>
 
             {/* Кнопки справа вертикально */}
