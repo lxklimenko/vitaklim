@@ -9,6 +9,8 @@ export function useAuth() {
   const [authReady, setAuthReady] = useState(false);
   
   const [balance, setBalance] = useState<number>(0);
+  const [telegramUsername, setTelegramUsername] = useState<string | null>(null);
+  const [telegramFirstName, setTelegramFirstName] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
   const [generations, setGenerations] = useState<Generation[]>([]);
@@ -21,10 +23,14 @@ export function useAuth() {
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('balance')
+      .select('balance, telegram_username, telegram_first_name')
       .eq('id', userId)
       .single();
-    if (!error && data) setBalance(data.balance);
+    if (!error && data) {
+      setBalance(data.balance);
+      setTelegramUsername(data.telegram_username);
+      setTelegramFirstName(data.telegram_first_name);
+    }
   };
 
   const fetchFavorites = async (userId: string) => {
@@ -164,6 +170,8 @@ export function useAuth() {
       if (_event === 'SIGNED_OUT') {
         setUser(null);
         setBalance(0);
+        setTelegramUsername(null);
+        setTelegramFirstName(null);
         setFavorites([]);
         setPurchases([]);
         setGenerations([]);
@@ -209,6 +217,8 @@ export function useAuth() {
     favoritesLoading,
     generationsLoading,
     balance,
+    telegramUsername,
+    telegramFirstName,
     favorites,
     purchases,
     generations,
