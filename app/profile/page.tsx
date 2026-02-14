@@ -152,7 +152,7 @@ export default function ProfilePage() {
               {/* Кнопка входа через Telegram (всегда показывается в режиме входа) */}
               {authMode === 'login' && (
                 <a
-                  href="https://t.me/Vitaklim12"
+                  href="https://t.me/Vitaklimbot"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full mt-3 bg-blue-500 text-white font-bold rounded-xl py-3 hover:bg-blue-600 transition text-center block"
