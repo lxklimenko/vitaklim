@@ -123,10 +123,14 @@ export function useAuth() {
           setUser(session.user);
           loadAllUserData(session.user.id);
 
-          // Обновляем telegram_id в profiles
+          // Обновляем данные профиля из Telegram
           await supabase
             .from('profiles')
-            .update({ telegram_id: telegramUser.id })
+            .update({
+              telegram_id: telegramUser.id,
+              telegram_username: telegramUser.username || null,
+              telegram_first_name: telegramUser.first_name || null,
+            })
             .eq('id', session.user.id);
         }
 
