@@ -13,20 +13,20 @@ export function useAuth() {
   const [purchases, setPurchases] = useState<any[]>([]);
   const [generations, setGenerations] = useState<Generation[]>([]);
   
-  // Отдельные флаги загрузки вместо глобального isLoading
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [generationsLoading, setGenerationsLoading] = useState(false);
   
-  // Флаг для отслеживания загрузки истории генераций
   const generationsLoaded = useRef(false);
 
-  // Загрузка баланса
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase.from('profiles').select('balance').eq('id', userId).single();
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('balance')
+      .eq('id', userId)
+      .single();
     if (!error && data) setBalance(data.balance);
   };
 
-  // Загрузка избранного с флагом загрузки
   const fetchFavorites = async (userId: string) => {
     setFavoritesLoading(true);
     const { data } = await supabase
@@ -37,21 +37,20 @@ export function useAuth() {
     if (data) {
       setFavorites(data.map((f: any) => f.prompt_id));
     }
-
     setFavoritesLoading(false);
   };
 
-  // Загрузка покупок
   const fetchPurchases = async (userId: string) => {
-    const { data, error } = await supabase.from('purchases').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('purchases')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
     if (!error && data) setPurchases(data);
   };
 
-  // Загрузка истории генераций (с флагом принудительной загрузки)
   const fetchGenerations = async (userId: string, force = false) => {
-    // Если уже загружено и это не принудительное обновление — выходим
     if (generationsLoaded.current && !force) return;
-    
     setGenerationsLoading(true);
 
     const { data } = await supabase
@@ -65,11 +64,9 @@ export function useAuth() {
       setGenerations(data as Generation[]);
       generationsLoaded.current = true;
     }
-
     setGenerationsLoading(false);
   };
 
-  // Параллельная загрузка данных пользователя (без загрузки истории)
   const loadAllUserData = useCallback(async (userId: string) => {
     try {
       await Promise.all([
@@ -83,7 +80,6 @@ export function useAuth() {
 
   useEffect(() => {
     const initSession = async () => {
-      // 1️⃣ Проверяем есть ли Telegram
       let telegramUser: any = null;
 
       if (typeof window !== 'undefined' && (window as any).Telegram) {
@@ -91,18 +87,15 @@ export function useAuth() {
         telegramUser = tg?.initDataUnsafe?.user;
       }
 
-      // 2️⃣ Если есть Telegram пользователь — делаем авто-логин
       if (telegramUser) {
         const fakeEmail = `telegram_${telegramUser.id}@tg.local`;
         const fakePassword = `tg_${telegramUser.id}`;
 
-        // Пытаемся войти
         const { data, error } = await supabase.auth.signInWithPassword({
           email: fakeEmail,
           password: fakePassword,
         });
 
-        // Если пользователя нет — создаём
         if (error) {
           const { data: signUpData } = await supabase.auth.signUp({
             email: fakeEmail,
@@ -123,22 +116,38 @@ export function useAuth() {
           setUser(session.user);
           loadAllUserData(session.user.id);
 
-          // Обновляем данные профиля из Telegram
-          await supabase
+          // 🔥 Проверяем существование профиля
+          const { data: existingProfile } = await supabase
             .from('profiles')
-            .update({
+            .select('id')
+            .eq('id', session.user.id)
+            .single();
+
+          if (!existingProfile) {
+            await supabase.from('profiles').insert({
+              id: session.user.id,
+              balance: 0,
               telegram_id: telegramUser.id,
               telegram_username: telegramUser.username || null,
               telegram_first_name: telegramUser.first_name || null,
-            })
-            .eq('id', session.user.id);
+            });
+          } else {
+            // Обновляем Telegram-данные, если профиль уже есть
+            await supabase
+              .from('profiles')
+              .update({
+                telegram_id: telegramUser.id,
+                telegram_username: telegramUser.username || null,
+                telegram_first_name: telegramUser.first_name || null,
+              })
+              .eq('id', session.user.id);
+          }
         }
 
         setAuthReady(true);
         return;
       }
 
-      // 3️⃣ Обычная логика (Email login)
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session?.user) {
@@ -152,7 +161,6 @@ export function useAuth() {
     initSession();
 
     const { data: authData } = supabase.auth.onAuthStateChange((_event, session) => {
-      // ❗ Реальный logout
       if (_event === 'SIGNED_OUT') {
         setUser(null);
         setBalance(0);
@@ -163,19 +171,17 @@ export function useAuth() {
         return;
       }
 
-      // ❗ Реальный login — с обновлением Telegram данных, если доступны
       if (_event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
         loadAllUserData(session.user.id);
 
-        // Проверяем Telegram
         if (typeof window !== 'undefined' && (window as any).Telegram) {
           const tg = (window as any).Telegram.WebApp;
           const telegramUser = tg?.initDataUnsafe?.user;
 
           if (telegramUser) {
-            // Безопасное обновление профиля с обработкой ошибки
             (async () => {
+              // Аналогичную проверку можно добавить и здесь для надёжности
               const { error } = await supabase
                 .from('profiles')
                 .update({
