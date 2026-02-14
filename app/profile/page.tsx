@@ -13,7 +13,14 @@ import { Navigation } from '../components/Navigation';
 
 export default function ProfilePage() {
   // Получаем данные из хука
-  const { user, balance, fetchProfile, authReady } = useAuth();
+  const {
+    user,
+    balance,
+    fetchProfile,
+    authReady,
+    telegramUsername,
+    telegramFirstName
+  } = useAuth();
   const router = useRouter();
 
   // Состояния для формы входа
@@ -185,7 +192,13 @@ export default function ProfilePage() {
                   <p className="text-white/40 text-xs uppercase tracking-wider font-medium mb-1">
                     Аккаунт
                   </p>
-                  <p className="font-medium truncate">{user.email}</p>
+                  <p className="font-medium truncate">
+                    {telegramFirstName
+                      ? telegramFirstName
+                      : telegramUsername
+                        ? `@${telegramUsername}`
+                        : user.email}
+                  </p>
                 </div>
               </div>
 
@@ -236,7 +249,6 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* Убрали лишний пропс onOpenProfile */}
       <Navigation onOpenGenerator={() => router.push('/')} />
     </div>
   );
