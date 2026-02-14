@@ -163,10 +163,34 @@ export function useAuth() {
         return;
       }
 
-      // ❗ Реальный login
+      // ❗ Реальный login — с обновлением Telegram данных, если доступны
       if (_event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
         loadAllUserData(session.user.id);
+
+        // Проверяем Telegram
+        if (typeof window !== 'undefined' && (window as any).Telegram) {
+          const tg = (window as any).Telegram.WebApp;
+          const telegramUser = tg?.initDataUnsafe?.user;
+
+          if (telegramUser) {
+            // Безопасное обновление профиля с обработкой ошибки
+            (async () => {
+              const { error } = await supabase
+                .from('profiles')
+                .update({
+                  telegram_id: telegramUser.id,
+                  telegram_username: telegramUser.username || null,
+                  telegram_first_name: telegramUser.first_name || null,
+                })
+                .eq('id', session.user.id);
+              
+              if (error) {
+                console.error('Ошибка обновления Telegram данных:', error);
+              }
+            })();
+          }
+        }
       }
     });
 
