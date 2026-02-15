@@ -94,60 +94,27 @@ export function useAuth() {
       }
 
       if (telegramUser) {
-        const fakeEmail = `telegram_${telegramUser.id}@tg.local`;
-        const fakePassword = `tg_${telegramUser.id}`;
-
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: fakeEmail,
-          password: fakePassword,
+        // 1️⃣ Отправляем Telegram данные на сервер
+        await fetch('/api/auth/telegram', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ telegramUser })
         });
 
-        if (error) {
-          const { data: signUpData } = await supabase.auth.signUp({
-            email: fakeEmail,
-            password: fakePassword,
-          });
+        const email = `telegram_${telegramUser.id}@telegram.local`;
+        const password = `secure_${telegramUser.id}`;
 
-          if (signUpData.user) {
-            await supabase.auth.signInWithPassword({
-              email: fakeEmail,
-              password: fakePassword,
-            });
-          }
-        }
+        // 2️⃣ Логинимся обычным способом
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-        const { data: { session } } = await supabase.auth.getSession();
-
-        if (session?.user) {
-          setUser(session.user);
-          loadAllUserData(session.user.id);
-
-          // 🔥 Проверяем существование профиля
-          const { data: existingProfile } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('id', session.user.id)
-            .single();
-
-          if (!existingProfile) {
-            await supabase.from('profiles').insert({
-              id: session.user.id,
-              balance: 0,
-              telegram_id: telegramUser.id,
-              telegram_username: telegramUser.username || null,
-              telegram_first_name: telegramUser.first_name || null,
-            });
-          } else {
-            // Обновляем Telegram-данные, если профиль уже есть
-            await supabase
-              .from('profiles')
-              .update({
-                telegram_id: telegramUser.id,
-                telegram_username: telegramUser.username || null,
-                telegram_first_name: telegramUser.first_name || null,
-              })
-              .eq('id', session.user.id);
-          }
+        if (data?.user) {
+          setUser(data.user);
+          loadAllUserData(data.user.id);
         }
 
         setAuthReady(true);
@@ -189,7 +156,6 @@ export function useAuth() {
 
           if (telegramUser) {
             (async () => {
-              // Аналогичную проверку можно добавить и здесь для надёжности
               const { error } = await supabase
                 .from('profiles')
                 .update({
