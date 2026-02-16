@@ -1,19 +1,26 @@
 import { NextResponse } from 'next/server'
 import { YooCheckout } from '@a2seven/yoo-checkout'
 
-const shopId = process.env.YOOKASSA_SHOP_ID!
-const secretKey = process.env.YOOKASSA_SECRET_KEY!
-
-const checkout = new YooCheckout({
-  shopId,
-  secretKey,
-})
-
 export async function POST(req: Request) {
-  console.log("ENV SHOP:", process.env.YOOKASSA_SHOP_ID)
-  console.log("ENV SECRET:", process.env.YOOKASSA_SECRET_KEY)
-
   try {
+    const shopId = process.env.YOOKASSA_SHOP_ID
+    const secretKey = process.env.YOOKASSA_SECRET_KEY
+
+    console.log("ENV SHOP:", shopId)
+    console.log("ENV SECRET:", secretKey)
+
+    if (!shopId || !secretKey) {
+      return NextResponse.json(
+        { error: 'Missing YooKassa credentials' },
+        { status: 500 }
+      )
+    }
+
+    const checkout = new YooCheckout({
+      shopId,
+      secretKey,
+    })
+
     const body = await req.json()
     const { amount, userId } = body
 
@@ -27,7 +34,7 @@ export async function POST(req: Request) {
     const payment = await checkout.createPayment(
       {
         amount: {
-          value: amount.toFixed(2),
+          value: Number(amount).toFixed(2),
           currency: 'RUB',
         },
         confirmation: {
@@ -46,11 +53,11 @@ export async function POST(req: Request) {
     return NextResponse.json({
       confirmationUrl: payment.confirmation?.confirmation_url,
     })
-  } catch (error) {
-    console.error('YooKassa error:', error)
+  } catch (error: any) {
+    console.error('YooKassa FULL error:', error?.response?.data || error)
 
     return NextResponse.json(
-      { error: 'Payment creation failed' },
+      { error: error?.response?.data || 'Payment creation failed' },
       { status: 500 }
     )
   }
