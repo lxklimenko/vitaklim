@@ -1,4 +1,13 @@
 import { NextResponse } from 'next/server'
+import { YooCheckout } from '@a2seven/yoo-checkout'
+
+const shopId = process.env.YOOKASSA_SHOP_ID!
+const secretKey = process.env.YOOKASSA_SECRET_KEY!
+
+const checkout = new YooCheckout({
+  shopId,
+  secretKey,
+})
 
 export async function POST(req: Request) {
   try {
@@ -12,23 +21,33 @@ export async function POST(req: Request) {
       )
     }
 
-    console.log('Создание платежа:', {
-      userId,
-      amount,
-    })
+    const payment = await checkout.createPayment(
+      {
+        amount: {
+          value: amount.toFixed(2),
+          currency: 'RUB',
+        },
+        confirmation: {
+          type: 'redirect',
+          return_url: 'https://vitaklim.vercel.app/profile',
+        },
+        capture: true,
+        description: `Пополнение баланса пользователем ${userId}`,
+        metadata: {
+          userId,
+        },
+      },
+      Math.random().toString(36).substring(2, 15)
+    )
 
-    // Пока просто возвращаем заглушку
     return NextResponse.json({
-      success: true,
-      message: 'Payment endpoint works',
-      amount,
-      userId,
+      confirmationUrl: payment.confirmation?.confirmation_url,
     })
   } catch (error) {
-    console.error('Payment error:', error)
+    console.error('YooKassa error:', error)
 
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Payment creation failed' },
       { status: 500 }
     )
   }
