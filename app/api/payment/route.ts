@@ -10,6 +10,9 @@ const checkout = new YooCheckout({
 })
 
 export async function POST(req: Request) {
+  console.log("ENV SHOP:", process.env.YOOKASSA_SHOP_ID)
+  console.log("ENV SECRET:", process.env.YOOKASSA_SECRET_KEY)
+
   try {
     const body = await req.json()
     const { amount, userId } = body
