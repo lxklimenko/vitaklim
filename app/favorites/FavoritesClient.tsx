@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, Heart } from 'lucide-react';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 
 import { Navigation } from '../components/Navigation';
 import { PromptCard } from '../components/PromptCard';
@@ -22,21 +22,21 @@ interface FavoritesClientProps {
 
 export default function FavoritesClient({ prompts }: FavoritesClientProps) {
   const {
-  user,
-  authReady,
-  favorites,
-  favoritesLoading,
-  balance,
-  purchases,
-  setFavorites,
-  setGenerations,
-  fetchProfile,
-} = useAuth();
-
+    user,
+    authReady,
+    favorites,
+    favoritesLoading,
+    balance,
+    purchases,
+    setFavorites,
+    setGenerations,
+    fetchProfile,
+  } = useAuth();
 
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [isTopUpLoading, setIsTopUpLoading] = useState(false);
 
   const actions = useAppActions(user, setGenerations, setFavorites, fetchProfile, setIsProfileOpen);
 
@@ -56,6 +56,43 @@ export default function FavoritesClient({ prompts }: FavoritesClientProps) {
 
   const favoritePrompts = prompts.filter(p => favorites.includes(p.id));
 
+  const handleTopUp = async (amount: number) => {
+    if (!user) {
+      toast.error('Нужно войти в аккаунт');
+      return;
+    }
+
+    try {
+      setIsTopUpLoading(true);
+
+      const res = await fetch('/api/payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount,
+          userId: user.id,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || 'Ошибка оплаты');
+        return;
+      }
+
+      console.log('Ответ сервера:', data);
+      toast.success('Запрос на оплату отправлен');
+    } catch (error) {
+      console.error(error);
+      toast.error('Ошибка соединения');
+    } finally {
+      setIsTopUpLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white pb-32 font-sans">
       <Toaster position="bottom-center" theme="dark" />
@@ -69,7 +106,6 @@ export default function FavoritesClient({ prompts }: FavoritesClientProps) {
 
       <div className="px-4 py-6">
         {!authReady || favoritesLoading ? (
-
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {Array.from({ length: 6 }).map((_, i) => (
               <div
@@ -108,12 +144,15 @@ export default function FavoritesClient({ prompts }: FavoritesClientProps) {
           setIsProfileOpen={setIsProfileOpen}
           balance={balance}
           purchases={purchases}
-          email="" setEmail={()=>{}}
-          password="" setPassword={()=>{}}
-          authMode="login" setAuthMode={()=>{}}
-          handleAuth={()=>{}}
-          handleTopUp={()=>{}}
-          isTopUpLoading={false}
+          email=""
+          setEmail={() => {}}
+          password=""
+          setPassword={() => {}}
+          authMode="login"
+          setAuthMode={() => {}}
+          handleAuth={() => {}}
+          handleTopUp={handleTopUp}
+          isTopUpLoading={isTopUpLoading}
         />
       )}
 
