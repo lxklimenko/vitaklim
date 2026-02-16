@@ -81,11 +81,41 @@ export default function ProfilePage() {
   };
 
   const handleTopUp = async () => {
-    setIsTopUpLoading(true);
-    setTimeout(() => {
-      toast.info('Функция оплаты в разработке');
+    if (!user) {
+      toast.error('Нужно войти в аккаунт');
+      return;
+    }
+  
+    try {
+      setIsTopUpLoading(true);
+  
+      const res = await fetch('/api/payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: 10,
+          userId: user.id,
+        }),
+      });
+  
+      const data = await res.json();
+  
+      if (!res.ok) {
+        toast.error(data.error || 'Ошибка оплаты');
+        return;
+      }
+  
+      console.log('Ответ сервера:', data);
+  
+      toast.success('Запрос на оплату отправлен');
+    } catch (error) {
+      console.error(error);
+      toast.error('Ошибка соединения');
+    } finally {
       setIsTopUpLoading(false);
-    }, 1000);
+    }
   };
 
   if (!authReady) {
