@@ -18,6 +18,8 @@ export function useAuth() {
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [generationsLoading, setGenerationsLoading] = useState(false);
   
+  const [profileReady, setProfileReady] = useState(false);          // <-- добавлено
+  
   const generationsLoaded = useRef(false);
 
   const fetchProfile = async (userId: string) => {
@@ -30,6 +32,7 @@ export function useAuth() {
       setBalance(data.balance);
       setTelegramUsername(data.telegram_username);
       setTelegramFirstName(data.telegram_first_name);
+      setProfileReady(true);                                          // <-- добавлено
     }
   };
 
@@ -143,6 +146,7 @@ export function useAuth() {
         setPurchases([]);
         setGenerations([]);
         generationsLoaded.current = false;
+        setProfileReady(false);                                        // <-- добавлено
         return;
       }
 
@@ -180,6 +184,7 @@ export function useAuth() {
   return { 
     user,
     authReady,
+    profileReady,                                                     // <-- добавлено
     favoritesLoading,
     generationsLoading,
     balance,

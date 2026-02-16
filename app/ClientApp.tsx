@@ -34,6 +34,7 @@ export default function ClientApp({ prompts }: ClientAppProps) {
   const {
     user,
     authReady,
+    profileReady,            // ✅ добавлено
     favoritesLoading,
     generationsLoading,
     balance,
@@ -117,6 +118,7 @@ export default function ClientApp({ prompts }: ClientAppProps) {
       <Header
         user={user}
         authReady={authReady}
+        profileReady={profileReady}        // ✅ передаём в Header
         telegramUsername={telegramUsername}
         telegramFirstName={telegramFirstName}
         searchQuery={searchQuery}

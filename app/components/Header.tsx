@@ -12,6 +12,7 @@ interface HeaderProps {
   onOpenProfile: () => void;
   onResetView: () => void;
   authReady: boolean;
+  profileReady: boolean;
   telegramUsername?: string | null;
   telegramFirstName?: string | null;
 }
@@ -20,6 +21,7 @@ export const Header: React.FC<HeaderProps> = ({
   user,
   telegramUsername,
   telegramFirstName,
+  profileReady,
   searchQuery,
   setSearchQuery,
   isSearchActive,
