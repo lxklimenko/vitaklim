@@ -11,6 +11,7 @@ export function useAuth() {
   const [balance, setBalance] = useState<number>(0);
   const [telegramUsername, setTelegramUsername] = useState<string | null>(null);
   const [telegramFirstName, setTelegramFirstName] = useState<string | null>(null);
+  const [telegramAvatarUrl, setTelegramAvatarUrl] = useState<string | null>(null); // добавлено
   const [favorites, setFavorites] = useState<number[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
   const [generations, setGenerations] = useState<Generation[]>([]);
@@ -18,21 +19,22 @@ export function useAuth() {
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [generationsLoading, setGenerationsLoading] = useState(false);
   
-  const [profileReady, setProfileReady] = useState(false);          // <-- добавлено
-  
+  const [profileReady, setProfileReady] = useState(false);
+
   const generationsLoaded = useRef(false);
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('balance, telegram_username, telegram_first_name')
+      .select('balance, telegram_username, telegram_first_name, telegram_avatar_url') // изменено
       .eq('id', userId)
       .single();
     if (!error && data) {
       setBalance(data.balance);
       setTelegramUsername(data.telegram_username);
       setTelegramFirstName(data.telegram_first_name);
-      setProfileReady(true);                                          // <-- добавлено
+      setTelegramAvatarUrl(data.telegram_avatar_url); // добавлено
+      setProfileReady(true);
     }
   };
 
@@ -142,11 +144,12 @@ export function useAuth() {
         setBalance(0);
         setTelegramUsername(null);
         setTelegramFirstName(null);
+        setTelegramAvatarUrl(null); // добавлено
         setFavorites([]);
         setPurchases([]);
         setGenerations([]);
         generationsLoaded.current = false;
-        setProfileReady(false);                                        // <-- добавлено
+        setProfileReady(false);
         return;
       }
 
@@ -166,6 +169,7 @@ export function useAuth() {
                   telegram_id: telegramUser.id,
                   telegram_username: telegramUser.username || null,
                   telegram_first_name: telegramUser.first_name || null,
+                  // telegram_avatar_url не обновляем здесь, так как его нет в initDataUnsafe
                 })
                 .eq('id', session.user.id);
               
@@ -184,12 +188,13 @@ export function useAuth() {
   return { 
     user,
     authReady,
-    profileReady,                                                     // <-- добавлено
+    profileReady,
     favoritesLoading,
     generationsLoading,
     balance,
     telegramUsername,
     telegramFirstName,
+    telegramAvatarUrl, // добавлено
     favorites,
     purchases,
     generations,

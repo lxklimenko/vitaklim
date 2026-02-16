@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
         telegram_id: telegramUser.id,
         telegram_username: telegramUser.username || null,
         telegram_first_name: telegramUser.first_name || null,
+        telegram_avatar_url: telegramUser.photo_url || null,
       })
     } else {
       userId = userFound.id
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
           telegram_id: telegramUser.id,
           telegram_username: telegramUser.username || null,
           telegram_first_name: telegramUser.first_name || null,
+          telegram_avatar_url: telegramUser.photo_url || null,
         })
         .eq('id', userId)
     }

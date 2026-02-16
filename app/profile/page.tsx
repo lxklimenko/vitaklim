@@ -19,7 +19,8 @@ export default function ProfilePage() {
     fetchProfile,
     authReady,
     telegramUsername,
-    telegramFirstName
+    telegramFirstName,
+    telegramAvatarUrl,          // 👈 добавлено
   } = useAuth();
   
   // Определяем, вошел ли пользователь через Telegram
@@ -189,8 +190,17 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-6">
             <div className="bg-gradient-to-br from-white/10 to-white/5 border border-white/10 rounded-2xl p-6">
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xl font-bold">
-                  {user.email?.[0].toUpperCase()}
+                {/* Аватар — заменён по инструкции */}
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xl font-bold">
+                  {telegramAvatarUrl ? (
+                    <img
+                      src={telegramAvatarUrl}
+                      alt="avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    user.email?.[0].toUpperCase()
+                  )}
                 </div>
                 <div className="overflow-hidden">
                   <p className="text-white/40 text-xs uppercase tracking-wider font-medium mb-1">
