@@ -66,13 +66,15 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onOpenProfile} 
           className="text-[12px] font-semibold text-white/70 hover:text-white transition-colors duration-500 select-none flex-shrink-0 px-2 tracking-tight"
         >
-          {!authReady || !profileReady
+          {!authReady
             ? ""
             : user
-              ? telegramFirstName || telegramUsername
+              ? user.email?.includes('@telegram.local')
                 ? telegramFirstName
                   ? telegramFirstName
-                  : `@${telegramUsername}`
+                  : telegramUsername
+                    ? `@${telegramUsername}`
+                    : ""
                 : user.email?.split('@')[0]
               : "Войти"}
         </button>
