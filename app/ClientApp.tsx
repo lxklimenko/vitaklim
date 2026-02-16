@@ -6,7 +6,6 @@ import { Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { Header } from './components/Header';
 import { Navigation } from './components/Navigation';
-import { useTelegram } from './hooks/useTelegram';
 import { MainFeed } from './components/MainFeed';
 import { useAuth } from '@/app/context/AuthContext';
 import { useImageGeneration } from './hooks/useImageGeneration';
@@ -30,9 +29,8 @@ interface ClientAppProps {
 
 export default function ClientApp({ prompts }: ClientAppProps) {
   const router = useRouter();
-  const tgUser = useTelegram();
 
-  // AUTH - ИСПРАВЛЕННЫЙ ВЫЗОВ useAuth
+  // AUTH
   const {
     user,
     authReady,
@@ -98,7 +96,7 @@ export default function ClientApp({ prompts }: ClientAppProps) {
     [handleCopy]
   );
 
-  // ЛОКАЛЬНЫЙ INDIKATOR ЗАГРУЗКИ - вместо isAuthLoading
+  // ЛОКАЛЬНЫЙ ИНДИКАТОР ЗАГРУЗКИ
   const isLoading = favoritesLoading || generationsLoading;
 
   // FILTER PROMPTS
@@ -127,7 +125,6 @@ export default function ClientApp({ prompts }: ClientAppProps) {
 
       <main className="pb-28 pt-8">
         <MainFeed
-          // Используем локальный isLoading вместо isAuthLoading
           isLoading={isLoading && filteredPrompts.length === 0}
           activeCategory={activeCategory}
           setActiveCategory={setActiveCategory}
@@ -139,7 +136,6 @@ export default function ClientApp({ prompts }: ClientAppProps) {
           handleCopy={onHandleCopy}
           copiedId={copiedId}
           searchQuery={searchQuery}
-          
         />
       </main>
 
@@ -161,13 +157,6 @@ export default function ClientApp({ prompts }: ClientAppProps) {
           handleFileChange={handleFileChange}
           handleRemoveImage={handleRemoveImage}
         />
-      )}
-
-      {/* Telegram ID display */}
-      {tgUser && (
-        <div className="fixed bottom-4 right-4 bg-green-600 text-white text-xs px-3 py-1 rounded-lg shadow-lg z-50">
-          Telegram ID: {tgUser.id}
-        </div>
       )}
     </div>
   );
