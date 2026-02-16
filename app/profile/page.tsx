@@ -136,7 +136,7 @@ export default function ProfilePage() {
           <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-white/10 transition">
             <ChevronLeft size={24} />
           </Link>
-          <h1 className="text-xl font-bold">Профиль</h1>
+          <h1 className="text-xl font-bold">Профиль TEST 123</h1>
         </div>
 
         {user && (
