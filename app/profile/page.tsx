@@ -21,6 +21,10 @@ export default function ProfilePage() {
     telegramUsername,
     telegramFirstName
   } = useAuth();
+  
+  // Определяем, вошел ли пользователь через Telegram
+  const isTelegramUser = !!telegramFirstName || !!telegramUsername;
+
   const router = useRouter();
 
   // Состояния для формы входа
@@ -199,6 +203,11 @@ export default function ProfilePage() {
                         ? `@${telegramUsername}`
                         : user.email}
                   </p>
+                  {!isTelegramUser && (
+                    <p className="text-white/40 text-xs mt-1 truncate">
+                      {user.email}
+                    </p>
+                  )}
                 </div>
               </div>
 
