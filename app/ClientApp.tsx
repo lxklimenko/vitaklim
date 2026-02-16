@@ -43,6 +43,8 @@ export default function ClientApp({ prompts }: ClientAppProps) {
     setFavorites,
     setGenerations,
     fetchProfile,
+    telegramUsername,
+    telegramFirstName,
   } = useAuth();
 
   // GENERATION
@@ -115,6 +117,8 @@ export default function ClientApp({ prompts }: ClientAppProps) {
       <Header
         user={user}
         authReady={authReady}
+        telegramUsername={telegramUsername}
+        telegramFirstName={telegramFirstName}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         isSearchActive={isSearchActive}
