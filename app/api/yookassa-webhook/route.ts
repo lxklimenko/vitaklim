@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
-import { headers } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // ⚠️ только service role!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
 export async function POST(req: Request) {
@@ -13,7 +12,6 @@ export async function POST(req: Request) {
 
     console.log('YooKassa webhook:', body)
 
-    // Проверяем что это успешная оплата
     if (body.event !== 'payment.succeeded') {
       return NextResponse.json({ ok: true })
     }
@@ -21,21 +19,49 @@ export async function POST(req: Request) {
     const payment = body.object
     const userId = payment.metadata?.userId
     const amount = Number(payment.amount?.value)
+    const yookassaId = payment.id
 
-    if (!userId || !amount) {
+    if (!userId || !amount || !yookassaId) {
       console.error('Missing metadata')
       return NextResponse.json({ error: 'Invalid metadata' }, { status: 400 })
     }
 
-    // 🔥 Увеличиваем баланс
-    const { data, error } = await supabase.rpc('increment_balance', {
+    // 🔐 Проверяем, не обработан ли уже этот платеж
+    const { data: existingPayment } = await supabase
+      .from('payments')
+      .select('id')
+      .eq('yookassa_id', yookassaId)
+      .single()
+
+    if (existingPayment) {
+      console.log('Payment already processed')
+      return NextResponse.json({ ok: true })
+    }
+
+    // 💾 Сохраняем платеж
+    const { error: insertError } = await supabase
+      .from('payments')
+      .insert({
+        user_id: userId,
+        amount,
+        status: 'succeeded',
+        yookassa_id: yookassaId
+      })
+
+    if (insertError) {
+      console.error('Insert payment error:', insertError)
+      return NextResponse.json({ error: 'Insert failed' }, { status: 500 })
+    }
+
+    // 💰 Увеличиваем баланс
+    const { error: balanceError } = await supabase.rpc('increment_balance', {
       user_id: userId,
       amount_to_add: amount
     })
 
-    if (error) {
-      console.error('Supabase error:', error)
-      return NextResponse.json({ error: 'DB error' }, { status: 500 })
+    if (balanceError) {
+      console.error('Balance update error:', balanceError)
+      return NextResponse.json({ error: 'Balance update failed' }, { status: 500 })
     }
 
     console.log(`Balance updated for ${userId}`)
