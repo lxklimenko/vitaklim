@@ -66,7 +66,7 @@ export async function POST(req: Request) {
         metadata: {
           userId,
         },
-        // Добавляем чек согласно 54-ФЗ (временный email для тестирования)
+        // Чек согласно 54-ФЗ с обязательными полями payment_subject и payment_mode
         receipt: {
           customer: {
             email: 'klim93@bk.ru', // можно заменить на реальный email пользователя
@@ -80,6 +80,8 @@ export async function POST(req: Request) {
                 currency: 'RUB',
               },
               vat_code: 1, // без НДС
+              payment_subject: 'service',      // признак предмета расчета — услуга
+              payment_mode: 'full_payment',    // признак способа расчета — полный расчет
             },
           ],
           tax_system_code: 1, // ОСН (общая система налогообложения)
