@@ -83,8 +83,16 @@ export default function FavoritesClient({ prompts }: FavoritesClientProps) {
         return;
       }
 
-      console.log('Ответ сервера:', data);
-      toast.success('Запрос на оплату отправлен');
+      if (data.confirmationUrl) {
+        if ((window as any).Telegram?.WebApp) {
+          (window as any).Telegram.WebApp.openLink(data.confirmationUrl);
+        } else {
+          window.location.href = data.confirmationUrl;
+        }
+        return;
+      }
+
+      toast.error('Не удалось получить ссылку на оплату');
     } catch (error) {
       console.error(error);
       toast.error('Ошибка соединения');
