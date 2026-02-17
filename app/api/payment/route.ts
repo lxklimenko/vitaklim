@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { YooCheckout } from '@a2seven/yoo-checkout';
-import { randomUUID } from 'crypto'; // Available in Node.js environment
+import { randomUUID } from 'crypto';
 
 export async function POST(req: Request) {
   // Allow only POST method
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const shopId = process.env.YOOKASSA_SHOP_ID;
     const secretKey = process.env.YOOKASSA_SECRET_KEY;
 
-    // Log credentials for debugging (remove in production)
+    // Log credentials presence (remove in production)
     console.log('ENV SHOP:', shopId ? '✅ present' : '❌ missing');
     console.log('ENV SECRET:', secretKey ? '✅ present' : '❌ missing');
 
@@ -59,12 +59,30 @@ export async function POST(req: Request) {
         },
         confirmation: {
           type: 'redirect',
-          return_url: 'https://vitaklim.vercel.app/profile', // Consider making this configurable
+          return_url: 'https://vitaklim.vercel.app/profile', // Make configurable if needed
         },
         capture: true,
         description: `Пополнение баланса пользователем ${userId}`,
         metadata: {
           userId,
+        },
+        // Добавляем чек согласно 54-ФЗ (временный email для тестирования)
+        receipt: {
+          customer: {
+            email: 'klim93@bk.ru', // можно заменить на реальный email пользователя
+          },
+          items: [
+            {
+              description: 'Пополнение баланса',
+              quantity: '1.00',
+              amount: {
+                value: numericAmount.toFixed(2),
+                currency: 'RUB',
+              },
+              vat_code: 1, // без НДС
+            },
+          ],
+          tax_system_code: 1, // ОСН (общая система налогообложения)
         },
       },
       idempotenceKey
@@ -82,7 +100,8 @@ export async function POST(req: Request) {
     console.error('YooKassa FULL error:', error?.response?.data || error);
 
     // Return a user-friendly error message
-    const errorMessage = error?.response?.data?.description || error?.message || 'Payment creation failed';
+    const errorMessage =
+      error?.response?.data?.description || error?.message || 'Payment creation failed';
     return NextResponse.json(
       { error: errorMessage },
       { status: error?.response?.status || 500 }
