@@ -111,7 +111,15 @@ export default function ProfilePage() {
   
       // Редирект на страницу оплаты, если получена ссылка
       if (data.confirmationUrl) {
-        window.location.href = data.confirmationUrl;
+        // Используем Telegram WebApp, если доступен, иначе обычный переход
+        if (typeof window !== 'undefined') {
+          const tg = (window as any).Telegram?.WebApp;
+          if (tg) {
+            tg.openLink(data.confirmationUrl);
+          } else {
+            window.location.href = data.confirmationUrl;
+          }
+        }
         return;
       }
   
