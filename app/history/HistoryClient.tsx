@@ -71,30 +71,20 @@ export default function HistoryClient({ initialGenerations }: Props) {
               История пока пуста
             </div>
           ) : (
-            <div className="space-y-6">
+            // Заменено: grid-cols-2 gap-4 вместо space-y-6
+            <div className="grid grid-cols-2 gap-4">
               {generations.map((gen) => (
-                <div key={gen.id} className="grid grid-cols-2 gap-4">
-                  {/* Reference Image */}
-                  <div className="relative w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 shadow-lg">
-                    {gen.reference_image_url ? (
-                      <Image
-                        src={gen.reference_image_url}
-                        alt="Reference"
-                        fill
-                        className="object-cover"
-                      />
-                    ) : null}
-                  </div>
-
-                  {/* Generated Image */}
-                  <div className="relative w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 shadow-lg">
-                    <Image
-                      src={gen.image_url}
-                      alt="Generated"
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
+                // Упрощено: только одна карточка с generated image
+                <div
+                  key={gen.id}
+                  className="relative w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 shadow-lg"
+                >
+                  <Image
+                    src={gen.image_url}
+                    alt="Generated"
+                    fill
+                    className="object-cover"
+                  />
                 </div>
               ))}
             </div>
