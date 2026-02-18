@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css"; // КРИТИЧНО: Этот импорт подключает Tailwind
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/600.css';
 import { AuthProvider } from '@/app/context/AuthContext';
-
-const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
 export const metadata: Metadata = {
   title: "PromptVision | Маркетплейс премиальных промптов",
@@ -18,9 +17,9 @@ export default function RootLayout({
   return (
     <html lang="ru" className="dark">
       <body 
-        className={`${inter.className} bg-[#0a0a0a] text-white antialiased selection:bg-white/20`}
+        className="font-sans bg-[#0a0a0a] text-white antialiased selection:bg-white/20"
       >
-        <script src="https://telegram.org/js/telegram-web-app.js"></script>
+        <script src="https://telegram.org/js/telegram-web-app.js" />
         {/* Обертка для контента, чтобы избежать скачков при загрузке */}
         <AuthProvider>
           <div className="relative min-h-screen flex flex-col overflow-x-hidden">

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import crypto from 'crypto'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,11 +9,32 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
+    const rawBody = await req.text()
+    const signature = req.headers.get('content-hmac')
 
-    console.log('YooKassa webhook:', body)
+    if (!signature) {
+      return NextResponse.json({ error: 'No signature' }, { status: 401 })
+    }
 
-    if (body.event !== 'payment.succeeded') {
+    const secret = process.env.YOOKASSA_WEBHOOK_SECRET!
+
+    const hash = crypto
+      .createHmac('sha256', secret)
+      .update(rawBody)
+      .digest('hex')
+
+    if (hash !== signature) {
+      console.error('Invalid webhook signature')
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+    }
+
+    const body = JSON.parse(rawBody)
+
+    // Более строгая проверка: событие должно быть payment.succeeded И статус платежа должен быть succeeded
+    if (
+      body.event !== 'payment.succeeded' ||
+      body.object?.status !== 'succeeded'
+    ) {
       return NextResponse.json({ ok: true })
     }
 
@@ -22,49 +44,24 @@ export async function POST(req: Request) {
     const yookassaId = payment.id
 
     if (!userId || !amount || !yookassaId) {
-      console.error('Missing metadata')
       return NextResponse.json({ error: 'Invalid metadata' }, { status: 400 })
     }
 
-    // 🔐 Проверяем, не обработан ли уже этот платеж
     const { data: existingPayment } = await supabase
       .from('payments')
       .select('id')
       .eq('yookassa_id', yookassaId)
-      .single()
+      .maybeSingle()
 
     if (existingPayment) {
-      console.log('Payment already processed')
       return NextResponse.json({ ok: true })
     }
 
-    // 💾 Сохраняем платеж
-    const { error: insertError } = await supabase
-      .from('payments')
-      .insert({
-        user_id: userId,
-        amount,
-        status: 'succeeded',
-        yookassa_id: yookassaId
-      })
-
-    if (insertError) {
-      console.error('Insert payment error:', insertError)
-      return NextResponse.json({ error: 'Insert failed' }, { status: 500 })
-    }
-
-    // 💰 Увеличиваем баланс
-    const { error: balanceError } = await supabase.rpc('increment_balance', {
-      user_id: userId,
-      amount_to_add: amount
+    await supabase.rpc('process_successful_payment', {
+      p_user_id: userId,
+      p_amount: amount,
+      p_yookassa_id: yookassaId
     })
-
-    if (balanceError) {
-      console.error('Balance update error:', balanceError)
-      return NextResponse.json({ error: 'Balance update failed' }, { status: 500 })
-    }
-
-    console.log(`Balance updated for ${userId}`)
 
     return NextResponse.json({ success: true })
 

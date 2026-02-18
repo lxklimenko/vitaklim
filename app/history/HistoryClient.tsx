@@ -78,44 +78,42 @@ export default function HistoryClient({ initialGenerations }: Props) {
               {generations.map((gen) => (
                 <div
                   key={gen.id}
-                  className="bg-zinc-900 rounded-2xl p-4 shadow-lg"
+                  className="group relative bg-zinc-900/60 backdrop-blur-sm rounded-3xl overflow-hidden border border-white/5 hover:border-white/20 transition-all duration-300"
                 >
                   {gen.image_url && (
-                    <div className="relative w-full h-64 mb-4 rounded-xl overflow-hidden">
+                    <div className="relative w-full aspect-[4/3] overflow-hidden">
                       <Image
                         src={gen.image_url}
                         alt="Generated"
                         fill
-                        className="object-cover"
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                     </div>
                   )}
 
-                  <p className="text-sm text-gray-300 mb-4">
-                    {gen.prompt}
-                  </p>
-
-                  <div className="flex gap-4">
+                  {/* Overlay кнопки */}
+                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition">
                     <button
                       onClick={() => handleDelete(gen.id)}
-                      className="flex items-center gap-2 text-sm bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl transition"
+                      className="p-2 rounded-xl bg-black/60 hover:bg-red-600/80 backdrop-blur text-white transition"
                     >
                       <Trash2 size={16} />
-                      Удалить
                     </button>
 
                     <button
                       onClick={() => {
-                        console.log("SETTING PROMPT:", gen.prompt)
                         imageGen.setGeneratePrompt(gen.prompt)
                         setIsModalOpen(true)
                       }}
-                      className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-xl transition"
+                      className="p-2 rounded-xl bg-black/60 hover:bg-blue-600/80 backdrop-blur text-white transition"
                     >
                       <RefreshCw size={16} />
-                      Повторить
                     </button>
                   </div>
+
+                  <p className="absolute bottom-0 w-full text-sm text-white/80 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+                    {gen.prompt}
+                  </p>
                 </div>
               ))}
             </div>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { YooCheckout } from '@a2seven/yoo-checkout';
 import { randomUUID } from 'crypto';
+import { createClient } from '@/app/lib/supabase-server'; // Шаг 1: импорт серверного клиента
 
 export async function POST(req: Request) {
   // Allow only POST method
@@ -29,12 +30,28 @@ export async function POST(req: Request) {
     const checkout = new YooCheckout({ shopId, secretKey });
 
     const body = await req.json();
-    const { amount, userId } = body;
+    // Шаг 2: убираем userId из тела запроса
+    const { amount } = body;
 
-    // Validate required fields
-    if (!amount || !userId) {
+    // Шаг 3: получаем авторизованного пользователя через Supabase
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
       return NextResponse.json(
-        { error: 'Missing amount or userId' },
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const userId = user.id; // теперь userId берётся из сессии
+
+    // Шаг 4: удаляем проверку userId (проверяем только amount)
+    if (!amount) {
+      return NextResponse.json(
+        { error: 'Missing amount' },
         { status: 400 }
       );
     }
@@ -69,7 +86,7 @@ export async function POST(req: Request) {
         // Чек согласно 54-ФЗ с обязательными полями payment_subject и payment_mode
         receipt: {
           customer: {
-            email: 'klim93@bk.ru', // можно заменить на реальный email пользователя
+            email: 'klim93@bk.ru', // можно заменить на реальный email пользователя (например, user.email)
           },
           items: [
             {
