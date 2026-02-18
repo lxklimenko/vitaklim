@@ -74,7 +74,7 @@ export default function HistoryClient({ initialGenerations }: Props) {
               История пока пуста
             </div>
           ) : (
-            <div className="space-y-8">
+            <div className="grid grid-cols-2 gap-4">
               {generations.map((gen) => (
                 <div key={gen.id} className="grid grid-cols-2 gap-4">
                   {/* Reference Image */}
