@@ -71,10 +71,10 @@ export default function HistoryClient({ initialGenerations }: Props) {
               История пока пуста
             </div>
           ) : (
-            // Изменено: grid-cols-2 gap-5 px-1 вместо grid-cols-2 gap-4
-            <div className="grid grid-cols-2 gap-5 px-1">
+            // Заменено: space-y-6 вместо grid-cols-2 gap-5 px-1
+            <div className="space-y-6">
               {generations.map((gen) => (
-                // Карточка поколения (содержит два изображения)
+                // Внутренний grid оставлен без изменений
                 <div key={gen.id} className="grid grid-cols-2 gap-4">
                   {/* Reference Image */}
                   {gen.reference_image_url && (
