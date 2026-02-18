@@ -76,7 +76,7 @@ export default function HistoryClient({ initialGenerations }: Props) {
               {generations.map((gen) => (
                 <Link
                   key={gen.id}
-                  href={`/generation/${gen.id}`}
+                  href={`/generation/${gen.id}/`}
                   className="relative w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 shadow-lg block"
                 >
                   <Image
