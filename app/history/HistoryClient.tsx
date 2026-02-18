@@ -74,46 +74,32 @@ export default function HistoryClient({ initialGenerations }: Props) {
               История пока пуста
             </div>
           ) : (
-            <div className="grid gap-6">
+            <div className="space-y-8">
               {generations.map((gen) => (
-                <div
-                  key={gen.id}
-                  className="group relative bg-zinc-900/60 backdrop-blur-sm rounded-3xl overflow-hidden border border-white/5 hover:border-white/20 transition-all duration-300"
-                >
-                  {gen.image_url && (
-                    <div className="relative w-full aspect-[4/3] overflow-hidden">
+                <div key={gen.id} className="grid grid-cols-2 gap-4">
+                  {/* Reference Image */}
+                  {gen.reference_image_url && (
+                    <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-zinc-900">
                       <Image
-                        src={gen.image_url}
-                        alt="Generated"
+                        src={gen.reference_image_url}
+                        alt="Reference"
                         fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        className="object-cover"
                       />
                     </div>
                   )}
 
-                  {/* Overlay кнопки */}
-                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition">
-                    <button
-                      onClick={() => handleDelete(gen.id)}
-                      className="p-2 rounded-xl bg-black/60 hover:bg-red-600/80 backdrop-blur text-white transition"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        imageGen.setGeneratePrompt(gen.prompt)
-                        setIsModalOpen(true)
-                      }}
-                      className="p-2 rounded-xl bg-black/60 hover:bg-blue-600/80 backdrop-blur text-white transition"
-                    >
-                      <RefreshCw size={16} />
-                    </button>
-                  </div>
-
-                  <p className="absolute bottom-0 w-full text-sm text-white/80 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-                    {gen.prompt}
-                  </p>
+                  {/* Generated Image */}
+                  {gen.image_url && (
+                    <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-zinc-900">
+                      <Image
+                        src={gen.image_url}
+                        alt="Generated"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -105,6 +105,8 @@ export async function POST(req: Request) {
     }
 
     const buffer = Buffer.from(base64Image, 'base64');
+    // Готовим переменную для ссылки на reference (если он есть)
+    let referencePublicUrl: string | null = null;
     const fileName = `${currentUser.id}/${Date.now()}.jpg`;
 
     const { error: uploadError } = await supabaseStorage.storage
@@ -121,6 +123,27 @@ export async function POST(req: Request) {
       .from('generations')
       .getPublicUrl(fileName);
 
+    // Если есть reference-картинка — сохраняем её тоже
+    if (image) {
+      const referenceBase64 = image.split(',')[1];
+      const referenceBuffer = Buffer.from(referenceBase64, 'base64');
+      const referenceFileName = `${currentUser.id}/reference-${Date.now()}.jpg`;
+
+      const { error: refUploadError } = await supabaseStorage.storage
+        .from('generations')
+        .upload(referenceFileName, referenceBuffer, {
+          contentType: 'image/jpeg'
+        });
+
+      if (!refUploadError) {
+        const { data: { publicUrl: refUrl } } = supabaseStorage.storage
+          .from('generations')
+          .getPublicUrl(referenceFileName);
+
+        referencePublicUrl = refUrl;
+      }
+    }
+
     // Сохраняем запись в таблицу generations
     const { error: dbError } = await supabaseStorage
       .from('generations')
@@ -128,6 +151,7 @@ export async function POST(req: Request) {
         user_id: currentUser.id,
         prompt,
         image_url: publicUrl,
+        reference_image_url: referencePublicUrl,
         is_favorite: false
       });
 
