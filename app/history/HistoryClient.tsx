@@ -18,7 +18,7 @@ export default function HistoryClient({ initialGenerations }: Props) {
   const {
     user,
     setGenerations,
-    fetchProfile // 👈 добавляем fetchProfile
+    fetchProfile
   } = useAuth()
 
   const [generations, setLocalGenerations] =
@@ -26,7 +26,6 @@ export default function HistoryClient({ initialGenerations }: Props) {
 
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // 🔁 заменяем вызов хука – передаём fetchProfile третьим аргументом
   const imageGen = useImageGeneration(
     user,
     () => {
@@ -35,10 +34,8 @@ export default function HistoryClient({ initialGenerations }: Props) {
     fetchProfile
   )
 
-  // Логируем текущий промпт при каждом рендере
   console.log("CURRENT PROMPT:", imageGen.generatePrompt)
 
-  // синхронизация с auth
   useEffect(() => {
     setGenerations(initialGenerations)
   }, [initialGenerations, setGenerations])
@@ -74,12 +71,14 @@ export default function HistoryClient({ initialGenerations }: Props) {
               История пока пуста
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
+            // Изменено: grid-cols-2 gap-5 px-1 вместо grid-cols-2 gap-4
+            <div className="grid grid-cols-2 gap-5 px-1">
               {generations.map((gen) => (
+                // Карточка поколения (содержит два изображения)
                 <div key={gen.id} className="grid grid-cols-2 gap-4">
                   {/* Reference Image */}
                   {gen.reference_image_url && (
-                    <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-zinc-900">
+                    <div className="relative w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 shadow-lg">
                       <Image
                         src={gen.reference_image_url}
                         alt="Reference"
@@ -91,7 +90,7 @@ export default function HistoryClient({ initialGenerations }: Props) {
 
                   {/* Generated Image */}
                   {gen.image_url && (
-                    <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-zinc-900">
+                    <div className="relative w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 shadow-lg">
                       <Image
                         src={gen.image_url}
                         alt="Generated"
