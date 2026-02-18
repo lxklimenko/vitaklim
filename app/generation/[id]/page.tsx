@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
-import Image from 'next/image'
 import { notFound } from 'next/navigation'
+import GenerationClient from './GenerationClient'
 
 // Initialize Supabase client with service role (server-only)
 const supabase = createClient(
@@ -33,26 +33,9 @@ export default async function GenerationPage({ params }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="max-w-4xl mx-auto px-4 pt-6">
-        {/* Optional title or metadata */}
-        {generation.prompt && (
-          <h1 className="text-xl font-medium mb-4 text-center text-gray-200">
-            {generation.prompt}
-          </h1>
-        )}
-
-        {/* Image container with proper aspect ratio */}
-        <div className="relative w-full aspect-[4/5] rounded-3xl overflow-hidden bg-zinc-900">
-          <Image
-            src={generation.image_url}
-            alt={generation.prompt || 'Generated image'}
-            fill
-            className="object-contain"
-            priority
-          />
-        </div>
-      </div>
-    </div>
+    <GenerationClient
+      imageUrl={generation.image_url}
+      prompt={generation.prompt}
+    />
   )
 }
