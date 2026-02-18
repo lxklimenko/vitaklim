@@ -71,34 +71,30 @@ export default function HistoryClient({ initialGenerations }: Props) {
               История пока пуста
             </div>
           ) : (
-            // Заменено: space-y-6 вместо grid-cols-2 gap-5 px-1
             <div className="space-y-6">
               {generations.map((gen) => (
-                // Внутренний grid оставлен без изменений
                 <div key={gen.id} className="grid grid-cols-2 gap-4">
                   {/* Reference Image */}
-                  {gen.reference_image_url && (
-                    <div className="relative w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 shadow-lg">
+                  <div className="relative w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 shadow-lg">
+                    {gen.reference_image_url ? (
                       <Image
                         src={gen.reference_image_url}
                         alt="Reference"
                         fill
                         className="object-cover"
                       />
-                    </div>
-                  )}
+                    ) : null}
+                  </div>
 
                   {/* Generated Image */}
-                  {gen.image_url && (
-                    <div className="relative w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 shadow-lg">
-                      <Image
-                        src={gen.image_url}
-                        alt="Generated"
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  )}
+                  <div className="relative w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 shadow-lg">
+                    <Image
+                      src={gen.image_url}
+                      alt="Generated"
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
                 </div>
               ))}
             </div>
