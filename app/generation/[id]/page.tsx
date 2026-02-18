@@ -1,28 +1,23 @@
-import { createClient } from '@/app/lib/supabase-server'
+import { createClient } from '@supabase/supabase-js'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 interface Props {
   params: { id: string }
 }
 
 export default async function GenerationPage({ params }: Props) {
-  const supabase = await createClient()
 
-  // 1. Проверяем, авторизован ли пользователь
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    notFound()
-  }
-
-  // 2. Запрашиваем запись, принадлежащую текущему пользователю
   const { data: generation } = await supabase
     .from('generations')
     .select('*')
     .eq('id', params.id)
-    .eq('user_id', user.id)   // добавляем фильтр по user_id
-    .maybeSingle()             // используем maybeSingle вместо single
+    .maybeSingle()
 
   if (!generation) {
     notFound()
