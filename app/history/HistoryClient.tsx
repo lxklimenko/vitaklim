@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Trash2, RefreshCw } from 'lucide-react'
 import { Navigation } from '@/app/components/Navigation'
 import { GenerateModal } from '@/app/components/GenerateModal'
@@ -71,13 +72,12 @@ export default function HistoryClient({ initialGenerations }: Props) {
               История пока пуста
             </div>
           ) : (
-            // Заменено: grid-cols-2 gap-4 вместо space-y-6
             <div className="grid grid-cols-2 gap-4">
               {generations.map((gen) => (
-                // Упрощено: только одна карточка с generated image
-                <div
+                <Link
                   key={gen.id}
-                  className="relative w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 shadow-lg"
+                  href={`/generation/${gen.id}`}
+                  className="relative w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 shadow-lg block"
                 >
                   <Image
                     src={gen.image_url}
@@ -85,7 +85,7 @@ export default function HistoryClient({ initialGenerations }: Props) {
                     fill
                     className="object-cover"
                   />
-                </div>
+                </Link>
               ))}
             </div>
           )}
