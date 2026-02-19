@@ -36,11 +36,11 @@ export default function FavoritesPage() {
     setModelId,
     aspectRatio,
     setAspectRatio,
-    referenceImage,
+    referencePreview,
     handleFileChange,
     handleRemoveImage,
     handleGenerate
-  } = useImageGeneration(user, () => setIsGenerateOpen(false));
+  } = useImageGeneration(user, () => setIsGenerateOpen(false), fetchProfile);
 
   // Фильтруем промпты: оставляем только избранные
   const favoritePrompts: any[] = []; // Временное решение - пустой массив
@@ -112,8 +112,6 @@ export default function FavoritesPage() {
         <GenerateModal 
           isOpen={isGenerateOpen} 
           onClose={() => setIsGenerateOpen(false)} 
-          
-          // ТЕПЕРЬ ТУТ РЕАЛЬНЫЕ ДАННЫЕ
           generatePrompt={generatePrompt} 
           setGeneratePrompt={setGeneratePrompt} 
           isGenerating={isGenerating} 
@@ -122,7 +120,7 @@ export default function FavoritesPage() {
           setModelId={setModelId} 
           aspectRatio={aspectRatio} 
           setAspectRatio={setAspectRatio} 
-          referenceImage={referenceImage} 
+          referencePreview={referencePreview} 
           handleFileChange={handleFileChange} 
           handleRemoveImage={handleRemoveImage} 
         />
