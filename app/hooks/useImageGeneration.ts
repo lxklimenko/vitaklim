@@ -45,26 +45,32 @@ export function useImageGeneration(
 
     setIsGenerating(true);
     try {
-      // 1. Получаем временную ссылку от ИИ
-      const res = await fetch('/api/generate-google', { // убран trailing slash
+      // Создаём FormData и добавляем поля
+      const formData = new FormData();
+      formData.append("prompt", generatePrompt);
+      formData.append("modelId", modelId);
+      formData.append("aspectRatio", aspectRatio === 'auto' ? '1:1' : aspectRatio);
+
+      // Если есть референсное изображение (dataURL), конвертируем его в Blob и добавляем
+      if (referenceImage) {
+        const response = await fetch(referenceImage);
+        const blob = await response.blob();
+        formData.append("image", blob, "reference.jpg"); // имя файла опционально
+      }
+
+      // Отправляем запрос без ручного заголовка Content-Type (браузер сам проставит multipart/form-data)
+      const res = await fetch('/api/generate-google', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: generatePrompt,
-          modelId,
-          aspectRatio: aspectRatio === 'auto' ? '1:1' : aspectRatio,
-          image: referenceImage,
-        }),
+        body: formData,
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Ошибка API');
 
-      // Устанавливаем URL для отображения
       setImageUrl(data.imageUrl);
       toast.success('Изображение сгенерировано');
 
-      // 2. Сохраняем результат в Supabase (таблица generations)
+      // Сохраняем в Supabase
       if (user) {
         const { error } = await supabase.from('generations').insert({
           user_id: user.id,
@@ -76,7 +82,6 @@ export function useImageGeneration(
         });
         if (error) {
           console.error('Ошибка сохранения в историю:', error);
-          // Не показываем ошибку пользователю, просто логируем
         }
       }
 
@@ -84,7 +89,7 @@ export function useImageGeneration(
         await refreshBalance(user.id);
       }
 
-      onGenerationComplete(); // Обновляем список в истории
+      onGenerationComplete();
     } catch (error: any) {
       console.error('Критическая ошибка:', error);
       toast.error(error.message || 'Ошибка соединения');

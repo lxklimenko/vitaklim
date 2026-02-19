@@ -2,30 +2,28 @@ import { NextResponse } from "next/server";
 import { createClient } from '@/app/lib/supabase-server';
 import sharp from "sharp";
 
-// Стоимость одной генерации (можно вынести в переменные окружения)
-const GENERATION_COST = 1;
+// Стоимость генерации (можно задать через переменную окружения)
+const GENERATION_COST = parseInt(process.env.GENERATION_COST || "1", 10);
 
-// Модели, которые относятся к семейству Gemini (поддержка изображений)
+// Модели Gemini, поддерживающие изображения на входе
 const GEMINI_IMAGE_MODELS = [
   'gemini-2.0-flash-exp-image-generation',
   'gemini-2.0-flash-exp',
   'gemini-1.5-pro',
   'gemini-1.5-flash',
-  // при необходимости дополните список
 ];
 
 export async function POST(req: Request) {
-  try {
-    // Создаём клиент Supabase
-    const supabase = await createClient();
+  const supabase = await createClient();
 
-    // Проверяем авторизацию
+  try {
+    // 1. Аутентификация
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (!user || userError) {
       return NextResponse.json({ error: "Вы не авторизованы" }, { status: 401 });
     }
 
-    // Получаем и валидируем входные параметры
+    // 2. Валидация входных данных
     const { prompt, aspectRatio, modelId, image } = await req.json();
     if (!prompt || !modelId) {
       return NextResponse.json(
@@ -34,7 +32,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Проверяем наличие API-ключа Google
+    // 3. Проверка API-ключа Google
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
       console.error('Google API key not configured');
@@ -44,59 +42,27 @@ export async function POST(req: Request) {
       );
     }
 
-    // Определяем, относится ли модель к семейству Gemini (генерация с изображением на входе)
+    // 4. Определяем тип модели и метод API
     const isGeminiModel = GEMINI_IMAGE_MODELS.some(name => modelId.includes(name));
-
-    // Метод API в зависимости от модели
     const method = isGeminiModel ? "generateContent" : "predict";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:${method}?key=${apiKey}`;
 
-    // === Проверка баланса перед вызовом платного API ===
-    const { data: balance, error: balanceCheckError } = await supabase
-      .from('profiles')
-      .select('balance')
-      .eq('id', user.id)
-      .single();
-
-    if (balanceCheckError || !balance) {
-      console.error('Balance check failed:', balanceCheckError);
-      return NextResponse.json(
-        { error: "Не удалось проверить баланс" },
-        { status: 500 }
-      );
-    }
-
-    if (balance.balance < GENERATION_COST) {
-      return NextResponse.json(
-        { error: "Недостаточно средств на балансе" },
-        { status: 400 }
-      );
-    }
-
-    // Формируем тело запроса в зависимости от типа модели
+    // 5. Формируем тело запроса к Google API
     let requestBody;
 
     if (isGeminiModel) {
-      // Gemini: поддерживает текстовый prompt и опциональное изображение
       const parts: any[] = [{ text: prompt }];
 
       if (image) {
         try {
-          // Извлекаем base64-данные (ожидается data:image/...;base64,...)
           const base64Data = image.split(',')[1];
-          if (!base64Data) {
-            throw new Error('Неверный формат изображения');
-          }
+          if (!base64Data) throw new Error('Неверный формат изображения');
 
           const inputBuffer = Buffer.from(base64Data, "base64");
-
-          // Оптимизируем изображение: уменьшаем размер, конвертируем в JPEG
           const jpegBuffer = await sharp(inputBuffer)
             .resize({ width: 2048, withoutEnlargement: true })
             .jpeg({ quality: 85 })
             .toBuffer();
-
-          console.log("Optimized image size (KB):", Math.round(jpegBuffer.length / 1024));
 
           parts.push({
             inlineData: {
@@ -118,7 +84,7 @@ export async function POST(req: Request) {
         generationConfig: { candidateCount: 1 }
       };
     } else {
-      // Imagen: только текст, с указанием соотношения сторон
+      // Imagen — только текст + соотношение сторон
       const instance: any = { prompt };
       requestBody = {
         instances: [instance],
@@ -130,7 +96,7 @@ export async function POST(req: Request) {
       };
     }
 
-    // Вызываем Google API
+    // 6. Вызов Google API
     let response: Response;
     try {
       response = await fetch(url, {
@@ -150,12 +116,11 @@ export async function POST(req: Request) {
 
     if (!response.ok) {
       console.error("Google API Error:", data);
-      // Пробрасываем понятную ошибку пользователю
       const errorMessage = data.error?.message || "Ошибка генерации изображения";
       return NextResponse.json({ error: errorMessage }, { status: response.status });
     }
 
-    // Извлекаем сгенерированное изображение (base64)
+    // 7. Извлечение сгенерированного изображения (base64)
     let base64Image: string;
 
     if (isGeminiModel) {
@@ -172,7 +137,7 @@ export async function POST(req: Request) {
       base64Image = data.predictions[0].bytesBase64Encoded;
     }
 
-    // Сохраняем результат в Supabase Storage
+    // 8. Сохраняем результат в Storage
     const buffer = Buffer.from(base64Image, 'base64');
     const fileName = `${user.id}/${Date.now()}.jpg`;
 
@@ -189,7 +154,7 @@ export async function POST(req: Request) {
       .from('generations')
       .getPublicUrl(fileName);
 
-    // Если было передано reference-изображение, сохраняем его отдельно
+    // 9. Если передано reference-изображение, обрабатываем и сохраняем его (но окончательно запишем только после успешной транзакции)
     let referencePublicUrl: string | null = null;
     let referenceFileName: string | null = null;
 
@@ -220,76 +185,42 @@ export async function POST(req: Request) {
       }
     }
 
-    // Атомарно списываем средства и записываем генерацию через RPC
-    // Предполагается, что в БД есть функция, которая:
-    // - проверяет баланс,
-    // - уменьшает его на GENERATION_COST,
-    // - вставляет запись в generations,
-    // - возвращает true при успехе.
-    // Если такой функции нет, можно выполнить два шага вручную, но это не атомарно.
-    // Для простоты оставим два шага, но с повторной проверкой баланса перед вставкой.
-    // В production рекомендуется создать хранимую процедуру.
+    // 10. Атомарное списание средств и сохранение истории через RPC
+    const { data: rpcResult, error: rpcError } = await supabase
+      .rpc('create_generation', {
+        p_user_id: user.id,
+        p_prompt: prompt,
+        p_image_url: publicUrl,
+        p_storage_path: fileName,
+        p_reference_image_url: referencePublicUrl,
+        p_reference_storage_path: referenceFileName,
+        p_cost: GENERATION_COST
+      });
 
-    // Повторно проверяем баланс (на случай, если изменился во время генерации)
-    const { data: freshBalance, error: freshBalanceError } = await supabase
-      .from('profiles')
-      .select('balance')
-      .eq('id', user.id)
-      .single();
-
-    if (freshBalanceError || !freshBalance) {
-      throw new Error('Не удалось проверить баланс после генерации');
+    if (rpcError) {
+      console.error('RPC error:', rpcError);
+      // Если RPC завершился ошибкой, удаляем загруженные файлы
+      await supabase.storage.from('generations').remove([fileName]);
+      if (referenceFileName) {
+        await supabase.storage.from('generations').remove([referenceFileName]);
+      }
+      throw new Error('Не удалось выполнить операцию списания средств');
     }
 
-    if (freshBalance.balance < GENERATION_COST) {
-      // Недостаточно средств — удаляем загруженное изображение, чтобы не оставлять мусор
+    // Проверяем результат, возвращённый функцией (если она возвращает json)
+    if (!rpcResult?.success) {
+      // Недостаточно средств или другая логическая ошибка
       await supabase.storage.from('generations').remove([fileName]);
       if (referenceFileName) {
         await supabase.storage.from('generations').remove([referenceFileName]);
       }
       return NextResponse.json(
-        { error: "Недостаточно средств на балансе" },
+        { error: rpcResult?.error || "Не удалось списать средства" },
         { status: 400 }
       );
     }
 
-    // Уменьшаем баланс
-    const { error: decrementError } = await supabase
-      .rpc('decrement_balance', { user_id: user.id, amount: GENERATION_COST });
-
-    if (decrementError) {
-      console.error('Decrement balance error:', decrementError);
-      // В случае ошибки удаляем загруженные файлы, чтобы не оставлять бесплатные генерации
-      await supabase.storage.from('generations').remove([fileName]);
-      if (referenceFileName) {
-        await supabase.storage.from('generations').remove([referenceFileName]);
-      }
-      throw new Error('Не удалось списать средства');
-    }
-
-    // Сохраняем запись в таблицу generations
-    const { error: dbError } = await supabase
-      .from('generations')
-      .insert({
-        user_id: user.id,
-        prompt,
-        image_url: publicUrl,
-        storage_path: fileName,
-        reference_image_url: referencePublicUrl,
-        reference_storage_path: referenceFileName,
-        is_favorite: false
-      });
-
-    if (dbError) {
-      console.error('DB insert error:', dbError);
-      // Вставляем запись не удалась, но баланс уже списан — нужно вернуть средства?
-      // Это сложная ситуация, лучше использовать транзакцию.
-      // Пока просто логируем и возвращаем ошибку.
-      // В идеале — создать RPC, который делает всё вместе.
-      throw new Error('Не удалось сохранить историю генерации');
-    }
-
-    // Успех
+    // 11. Успех
     return NextResponse.json({ imageUrl: publicUrl });
 
   } catch (error: any) {
