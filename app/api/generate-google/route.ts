@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { createClient } from '@/app/lib/supabase-server';
 import sharp from "sharp";
 
-// Стоимость генерации (можно задать через переменную окружения)
+// Константы
 const GENERATION_COST = parseInt(process.env.GENERATION_COST || "1", 10);
+const STORAGE_BUCKET = 'generations';
+const FETCH_TIMEOUT = 10000; // 10 секунд
 
 // Модели Gemini, поддерживающие изображения на входе
 const GEMINI_IMAGE_MODELS = [
@@ -13,6 +15,18 @@ const GEMINI_IMAGE_MODELS = [
   'gemini-1.5-flash',
 ];
 
+interface GenerationRequest {
+  prompt: string;
+  aspectRatio?: string;
+  modelId: string;
+  image?: string; // data:image/jpeg;base64,...
+}
+
+interface RpcResult {
+  success: boolean;
+  error?: string;
+}
+
 export async function POST(req: Request) {
   const supabase = await createClient();
 
@@ -20,19 +34,42 @@ export async function POST(req: Request) {
     // 1. Аутентификация
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (!user || userError) {
-      return NextResponse.json({ error: "Вы не авторизованы" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Вы не авторизованы" },
+        { status: 401 }
+      );
     }
 
     // 2. Валидация входных данных
-    const { prompt, aspectRatio, modelId, image } = await req.json();
-    if (!prompt || !modelId) {
+    const { prompt, aspectRatio, modelId, image } = await req.json() as GenerationRequest;
+    if (!prompt?.trim() || !modelId) {
       return NextResponse.json(
         { error: "Не указан prompt или modelId" },
         { status: 400 }
       );
     }
 
-    // 3. Проверка API-ключа Google
+    // 3. Проверка баланса пользователя (чтобы не вызывать API при недостатке средств)
+    const { data: balanceData, error: balanceError } = await supabase
+      .rpc('get_user_balance', { p_user_id: user.id });
+
+    if (balanceError) {
+      console.error('Balance check error:', balanceError);
+      return NextResponse.json(
+        { error: "Ошибка проверки баланса" },
+        { status: 500 }
+      );
+    }
+
+    const currentBalance = balanceData || 0;
+    if (currentBalance < GENERATION_COST) {
+      return NextResponse.json(
+        { error: "Недостаточно средств на счете" },
+        { status: 402 }
+      );
+    }
+
+    // 4. Проверка API-ключа Google
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
       console.error('Google API key not configured');
@@ -42,16 +79,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4. Определяем тип модели и метод API
+    // 5. Определяем тип модели и метод API
     const isGeminiModel = GEMINI_IMAGE_MODELS.some(name => modelId.includes(name));
     const method = isGeminiModel ? "generateContent" : "predict";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:${method}?key=${apiKey}`;
 
-    // 5. Формируем тело запроса к Google API
-    let requestBody;
+    // 6. Формируем тело запроса к Google API
+    let requestBody: unknown;
 
     if (isGeminiModel) {
-      const parts: any[] = [{ text: prompt }];
+      const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
+        { text: prompt }
+      ];
 
       if (image) {
         try {
@@ -85,9 +124,8 @@ export async function POST(req: Request) {
       };
     } else {
       // Imagen — только текст + соотношение сторон
-      const instance: any = { prompt };
       requestBody = {
-        instances: [instance],
+        instances: [{ prompt }],
         parameters: {
           sampleCount: 1,
           aspectRatio: aspectRatio === "auto" ? "1:1" : (aspectRatio || "1:1"),
@@ -96,14 +134,20 @@ export async function POST(req: Request) {
       };
     }
 
-    // 6. Вызов Google API
+    // 7. Вызов Google API с таймаутом
     let response: Response;
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+
       response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
     } catch (fetchError) {
       console.error('Network error calling Google API:', fetchError);
       return NextResponse.json(
@@ -120,7 +164,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: errorMessage }, { status: response.status });
     }
 
-    // 7. Извлечение сгенерированного изображения (base64)
+    // 8. Извлечение сгенерированного изображения (base64)
     let base64Image: string;
 
     if (isGeminiModel) {
@@ -137,12 +181,12 @@ export async function POST(req: Request) {
       base64Image = data.predictions[0].bytesBase64Encoded;
     }
 
-    // 8. Сохраняем результат в Storage
+    // 9. Сохраняем результат в Storage
     const buffer = Buffer.from(base64Image, 'base64');
     const fileName = `${user.id}/${Date.now()}.jpg`;
 
     const { error: uploadError } = await supabase.storage
-      .from('generations')
+      .from(STORAGE_BUCKET)
       .upload(fileName, buffer, { contentType: 'image/jpeg' });
 
     if (uploadError) {
@@ -151,10 +195,10 @@ export async function POST(req: Request) {
     }
 
     const { data: { publicUrl } } = supabase.storage
-      .from('generations')
+      .from(STORAGE_BUCKET)
       .getPublicUrl(fileName);
 
-    // 9. Если передано reference-изображение, обрабатываем и сохраняем его (но окончательно запишем только после успешной транзакции)
+    // 10. Если передано reference-изображение, обрабатываем и сохраняем его
     let referencePublicUrl: string | null = null;
     let referenceFileName: string | null = null;
 
@@ -166,12 +210,12 @@ export async function POST(req: Request) {
           const refFileName = `${user.id}/reference-${Date.now()}.jpg`;
 
           const { error: refUploadError } = await supabase.storage
-            .from('generations')
+            .from(STORAGE_BUCKET)
             .upload(refFileName, refBuffer, { contentType: 'image/jpeg' });
 
           if (!refUploadError) {
             const { data: { publicUrl: refUrl } } = supabase.storage
-              .from('generations')
+              .from(STORAGE_BUCKET)
               .getPublicUrl(refFileName);
             referencePublicUrl = refUrl;
             referenceFileName = refFileName;
@@ -185,7 +229,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // 10. Атомарное списание средств и сохранение истории через RPC
+    // 11. Атомарное списание средств и сохранение истории через RPC
     const { data: rpcResult, error: rpcError } = await supabase
       .rpc('create_generation', {
         p_user_id: user.id,
@@ -200,34 +244,33 @@ export async function POST(req: Request) {
     if (rpcError) {
       console.error('RPC error:', rpcError);
       // Если RPC завершился ошибкой, удаляем загруженные файлы
-      await supabase.storage.from('generations').remove([fileName]);
+      await supabase.storage.from(STORAGE_BUCKET).remove([fileName]);
       if (referenceFileName) {
-        await supabase.storage.from('generations').remove([referenceFileName]);
+        await supabase.storage.from(STORAGE_BUCKET).remove([referenceFileName]);
       }
       throw new Error('Не удалось выполнить операцию списания средств');
     }
 
-    // Проверяем результат, возвращённый функцией (если она возвращает json)
-    if (!rpcResult?.success) {
+    // Проверяем результат, возвращённый функцией (ожидается объект с полем success)
+    const result = rpcResult as RpcResult;
+    if (!result.success) {
       // Недостаточно средств или другая логическая ошибка
-      await supabase.storage.from('generations').remove([fileName]);
+      await supabase.storage.from(STORAGE_BUCKET).remove([fileName]);
       if (referenceFileName) {
-        await supabase.storage.from('generations').remove([referenceFileName]);
+        await supabase.storage.from(STORAGE_BUCKET).remove([referenceFileName]);
       }
       return NextResponse.json(
-        { error: rpcResult?.error || "Не удалось списать средства" },
+        { error: result.error || "Не удалось списать средства" },
         { status: 400 }
       );
     }
 
-    // 11. Успех
+    // 12. Успех
     return NextResponse.json({ imageUrl: publicUrl });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Server Error:", error);
-    return NextResponse.json(
-      { error: error.message || "Внутренняя ошибка сервера" },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : "Внутренняя ошибка сервера";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
