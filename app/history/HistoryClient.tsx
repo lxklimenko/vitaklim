@@ -44,11 +44,33 @@ export default function HistoryClient({ initialGenerations }: Props) {
   const handleDelete = async (id: string) => {
     if (!user) return
 
-    await supabase.from('generations').delete().eq('id', id)
+    const generation = generations.find(g => g.id === id)
+    if (!generation) return
 
-    const updated = generations.filter((g) => g.id !== id)
-    setLocalGenerations(updated)
-    setGenerations(updated)
+    try {
+      // 1. Удаляем файл из Storage
+      const filePath = generation.image_url.split('/generations/')[1]
+
+      if (filePath) {
+        await supabase.storage
+          .from('generations')
+          .remove([filePath])
+      }
+
+      // 2. Удаляем запись из БД
+      await supabase
+        .from('generations')
+        .delete()
+        .eq('id', id)
+
+      // 3. Обновляем UI
+      const updated = generations.filter((g) => g.id !== id)
+      setLocalGenerations(updated)
+      setGenerations(updated)
+
+    } catch (error) {
+      console.error("Delete error:", error)
+    }
   }
 
   if (!user) {
@@ -74,18 +96,45 @@ export default function HistoryClient({ initialGenerations }: Props) {
           ) : (
             <div className="grid grid-cols-2 gap-4">
               {generations.map((gen) => (
-                <Link
+                <div
                   key={gen.id}
-                  href={`/generation/${gen.id}/`}
-                  className="relative w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 shadow-lg block"
+                  className="relative w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 shadow-lg group"
                 >
-                  <Image
-                    src={gen.image_url}
-                    alt="Generated"
-                    fill
-                    className="object-cover"
-                  />
-                </Link>
+                  <Link
+                    href={`/generation/${gen.id}/`}
+                    className="absolute inset-0 z-0"
+                  >
+                    <Image
+                      src={gen.image_url}
+                      alt="Generated"
+                      fill
+                      className="object-cover"
+                    />
+                  </Link>
+
+                  {/* Кнопка удаления */}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleDelete(gen.id)
+                    }}
+                    className="absolute top-3 left-3 z-10
+                               w-10 h-10
+                               flex items-center justify-center
+                               rounded-2xl
+                               bg-black/50
+                               backdrop-blur-md
+                               border border-white/20
+                               opacity-0
+                               group-hover:opacity-100
+                               transition-all duration-200
+                               hover:bg-red-500/20
+                               hover:scale-105"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
               ))}
             </div>
           )}
