@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from '@/app/lib/supabase-server';
+import sharp from "sharp";
 
 export async function POST(req: Request) {
   try {
@@ -32,21 +33,19 @@ export async function POST(req: Request) {
       
       if (image) {
         const base64Data = image.split(',')[1];
+        const inputBuffer = Buffer.from(base64Data, "base64");
 
-        let mimeType = image.split(';')[0].split(':')[1];
+        // 🔥 Конвертируем всё в JPEG
+        const jpegBuffer = await sharp(inputBuffer)
+          .jpeg({ quality: 90 })
+          .toBuffer();
 
-        if (mimeType === "image/jpg") {
-          mimeType = "image/jpeg";
-        }
+        const finalBase64 = jpegBuffer.toString("base64");
 
-        if (mimeType !== "image/jpeg" && mimeType !== "image/png") {
-          mimeType = "image/jpeg";
-        }
-        
         parts.push({
           inlineData: {
-            mimeType: mimeType,
-            data: base64Data
+            mimeType: "image/jpeg",
+            data: finalBase64
           }
         });
       }
