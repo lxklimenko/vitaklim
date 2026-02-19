@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { X, Copy, Check } from 'lucide-react';
+import { X, Copy, Check, Download } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -19,6 +19,24 @@ export default function GenerationClient({ imageUrl, prompt }: Props) {
     await navigator.clipboard.writeText(prompt);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  };
+
+  const handleDownload = async () => {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `generation-${Date.now()}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download error:", error);
+    }
   };
 
   return (
@@ -42,8 +60,9 @@ export default function GenerationClient({ imageUrl, prompt }: Props) {
       </div>
 
       {/* HERO IMAGE */}
-      <div className="w-full bg-[#0a0a0a] flex justify-center">
-        <div className="w-full">
+      <div className="relative w-full bg-[#0a0a0a] flex justify-center">
+        <div className="w-full relative">
+
           <Image
             src={imageUrl}
             alt="Generated image"
@@ -52,6 +71,24 @@ export default function GenerationClient({ imageUrl, prompt }: Props) {
             className="w-full h-auto"
             priority
           />
+
+          {/* Кнопка скачать */}
+          <div className="absolute bottom-6 left-6">
+            <button
+              onClick={handleDownload}
+              className="w-12 h-12 flex items-center justify-center 
+                         rounded-2xl
+                         bg-black/50
+                         backdrop-blur-md
+                         border border-white/20
+                         hover:bg-black/70
+                         hover:scale-105
+                         transition-all duration-200"
+            >
+              <Download size={20} />
+            </button>
+          </div>
+
         </div>
       </div>
 
