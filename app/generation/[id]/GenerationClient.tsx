@@ -21,19 +21,18 @@ export default function GenerationClient({ imageUrl, prompt }: Props) {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     try {
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
+      // Проверяем, открыто ли в Telegram
+      const isTelegram = typeof window !== 'undefined' && 
+        (window as any).Telegram?.WebApp;
 
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `generation-${Date.now()}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      if (isTelegram) {
+        (window as any).Telegram.WebApp.openLink(imageUrl);
+      } else {
+        window.open(imageUrl, '_blank');
+      }
+
     } catch (error) {
       console.error("Download error:", error);
     }
