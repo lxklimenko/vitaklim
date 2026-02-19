@@ -57,7 +57,7 @@ export default function ClientApp({ prompts }: ClientAppProps) {
     setModelId,
     aspectRatio,
     setAspectRatio,
-    referenceImage,
+    referencePreview,         // ✅ заменено referenceImage на referencePreview
     handleFileChange,
     handleRemoveImage,
     handleGenerate,
@@ -159,7 +159,7 @@ export default function ClientApp({ prompts }: ClientAppProps) {
           setModelId={setModelId}
           aspectRatio={aspectRatio}
           setAspectRatio={setAspectRatio}
-          referenceImage={referenceImage}
+          referencePreview={referencePreview}   // ✅ используется referencePreview
           handleFileChange={handleFileChange}
           handleRemoveImage={handleRemoveImage}
         />

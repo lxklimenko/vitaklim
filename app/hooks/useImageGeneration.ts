@@ -19,7 +19,7 @@ export function useImageGeneration(
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [modelId, setModelId] = useState(MODELS[0].id);
   const [aspectRatio, setAspectRatio] = useState('auto');
-  const [referenceImage, setReferenceImage] = useState<File | null>(null);
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [referencePreview, setReferencePreview] = useState<string | null>(null);
 
   // Обработка выбора файла
@@ -45,7 +45,7 @@ export function useImageGeneration(
     // Создаём preview-ссылку
     const previewUrl = URL.createObjectURL(file);
     setReferencePreview(previewUrl);
-    setReferenceImage(file);
+    setReferenceFile(file);
   }, []);
 
   // Удаление референсного изображения
@@ -54,7 +54,7 @@ export function useImageGeneration(
       URL.revokeObjectURL(referencePreview); // освобождаем память
     }
     setReferencePreview(null);
-    setReferenceImage(null);
+    setReferenceFile(null);
   }, [referencePreview]);
 
   // Основная генерация
@@ -80,9 +80,9 @@ export function useImageGeneration(
       formData.append('modelId', modelId);
       formData.append('aspectRatio', aspectRatio === 'auto' ? '1:1' : aspectRatio);
 
-      // Добавляем файл, если он есть (теперь это File, не DataURL)
-      if (referenceImage) {
-        formData.append('image', referenceImage, referenceImage.name);
+      // Добавляем файл, если он есть
+      if (referenceFile) {
+        formData.append('image', referenceFile, referenceFile.name);
       }
 
       const res = await fetch('/api/generate-google', {
@@ -95,21 +95,6 @@ export function useImageGeneration(
 
       setImageUrl(data.imageUrl);
       toast.success('Изображение сгенерировано');
-
-      // Сохраняем в историю
-      if (user) {
-        const { error } = await supabase.from('generations').insert({
-          user_id: user.id,
-          prompt: generatePrompt,
-          image_url: data.imageUrl,
-          model_id: modelId,
-          aspect_ratio: aspectRatio === 'auto' ? '1:1' : aspectRatio,
-          created_at: new Date().toISOString(),
-        });
-        if (error) {
-          console.error('Ошибка сохранения в историю:', error);
-        }
-      }
 
       // Обновляем баланс, если передана функция
       if (refreshBalance) {
@@ -128,7 +113,7 @@ export function useImageGeneration(
     generatePrompt,
     modelId,
     aspectRatio,
-    referenceImage,
+    referenceFile,
     refreshBalance,
     onGenerationComplete,
   ]);
@@ -143,8 +128,8 @@ export function useImageGeneration(
     setModelId,
     aspectRatio,
     setAspectRatio,
-    referencePreview,        // для отображения превью
-    referenceImage,          // сам файл (если нужно)
+    referenceFile,
+    referencePreview,
     handleFileChange,
     handleRemoveImage,
     handleGenerate,

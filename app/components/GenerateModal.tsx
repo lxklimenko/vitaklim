@@ -24,7 +24,7 @@ interface GenerateModalProps {
   setModelId: (v: string) => void;
   aspectRatio: string;
   setAspectRatio: (v: string) => void;
-  referenceImage: string | null;
+  referencePreview: string | null;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleRemoveImage: () => void;
 }
@@ -40,7 +40,7 @@ export function GenerateModal({
   setModelId,
   aspectRatio,
   setAspectRatio,
-  referenceImage,
+  referencePreview,
   handleFileChange,
   handleRemoveImage
 }: GenerateModalProps) {
@@ -48,6 +48,7 @@ export function GenerateModal({
   const [isRatioMenuOpen, setIsRatioMenuOpen] = useState(false);
 
   const currentModel = MODELS.find(m => m.id === modelId) || MODELS[0];
+  const isPromptEmpty = !generatePrompt.trim();
 
   return (
     <AnimatePresence>
@@ -153,33 +154,36 @@ export function GenerateModal({
             <div className="space-y-2">
               <label className="text-[13px] font-medium text-white/60 ml-1">Изображения</label>
               <div className="grid grid-cols-4 gap-2">
-                <label className="aspect-square bg-[#1c1c1e] border border-white/10 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 transition-colors overflow-hidden relative">
-                  <input 
-                    type="file" 
-                    className="hidden" 
-                    accept="image/*" 
-                    onChange={handleFileChange} 
-                  />
-                  {referenceImage ? (
+                {/* Ячейка для загрузки / предпросмотра */}
+                <div className="aspect-square bg-[#1c1c1e] border border-white/10 border-dashed rounded-xl overflow-hidden relative">
+                  {referencePreview ? (
+                    // Режим предпросмотра — не кликабельный для загрузки
                     <div className="relative w-full h-full">
-                      <img src={referenceImage} className="w-full h-full object-cover" alt="Preview" />
+                      <img src={referencePreview} className="w-full h-full object-cover" alt="Preview" />
                       <button 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRemoveImage(); }}
+                        onClick={handleRemoveImage}
                         aria-label="Удалить изображение"
-                        className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white/70 hover:bg-black/90"
+                        className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white/70 hover:bg-black/90 transition-colors"
                       >
                         <X size={14} />
                       </button>
                     </div>
                   ) : (
-                    <>
+                    // Кнопка загрузки (label)
+                    <label className="w-full h-full flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 transition-colors">
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={handleFileChange} 
+                      />
                       <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
                         <ImageIcon size={16} className="text-white/60" />
                       </div>
                       <span className="text-[9px] text-center text-white/40 px-1 leading-tight">Загрузить фото</span>
-                    </>
+                    </label>
                   )}
-                </label>
+                </div>
                 
                 <div className="col-span-3 bg-[#1c1c1e] border border-white/10 rounded-xl p-4 flex items-center justify-center text-center">
                   <p className="text-[11px] text-white/30 leading-snug">
@@ -257,8 +261,8 @@ export function GenerateModal({
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-[#111] border-t border-white/5 pb-safe">
             <button
               onClick={handleGenerate}
-              disabled={isGenerating}
-              className="w-full py-4 rounded-xl bg-gradient-to-r from-[#FFD700] to-[#FFC000] text-black font-bold text-[16px] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,215,0,0.2)]"
+              disabled={isGenerating || isPromptEmpty}
+              className="w-full py-4 rounded-xl bg-gradient-to-r from-[#FFD700] to-[#FFC000] text-black font-bold text-[16px] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,215,0,0.2)] disabled:pointer-events-none"
             >
               {isGenerating ? (
                 <>
