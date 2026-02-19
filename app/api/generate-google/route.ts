@@ -105,8 +105,10 @@ export async function POST(req: Request) {
     }
 
     const buffer = Buffer.from(base64Image, 'base64');
-    // Готовим переменную для ссылки на reference (если он есть)
+    // Готовим переменные для ссылки и пути reference (если он есть)
     let referencePublicUrl: string | null = null;
+    let referenceFileName: string | null = null;   // <-- объявляем переменную для пути reference
+
     const fileName = `${currentUser.id}/${Date.now()}.jpg`;
 
     const { error: uploadError } = await supabaseStorage.storage
@@ -127,20 +129,21 @@ export async function POST(req: Request) {
     if (image) {
       const referenceBase64 = image.split(',')[1];
       const referenceBuffer = Buffer.from(referenceBase64, 'base64');
-      const referenceFileName = `${currentUser.id}/reference-${Date.now()}.jpg`;
+      const refFileName = `${currentUser.id}/reference-${Date.now()}.jpg`;   // временная переменная
 
       const { error: refUploadError } = await supabaseStorage.storage
         .from('generations')
-        .upload(referenceFileName, referenceBuffer, {
+        .upload(refFileName, referenceBuffer, {
           contentType: 'image/jpeg'
         });
 
       if (!refUploadError) {
         const { data: { publicUrl: refUrl } } = supabaseStorage.storage
           .from('generations')
-          .getPublicUrl(referenceFileName);
+          .getPublicUrl(refFileName);
 
         referencePublicUrl = refUrl;
+        referenceFileName = refFileName;   // сохраняем путь только при успешной загрузке
       }
     }
 
@@ -153,6 +156,7 @@ export async function POST(req: Request) {
         image_url: publicUrl,
         storage_path: fileName,
         reference_image_url: referencePublicUrl,
+        reference_storage_path: referenceFileName,   // <-- новое поле
         is_favorite: false
       });
 

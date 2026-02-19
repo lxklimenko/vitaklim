@@ -50,18 +50,21 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4. Удаляем файл из Storage (используем storage_path)
+    // 4. Удаляем основной файл
     if (generation.storage_path) {
-      const { error: storageError } = await supabaseAdmin.storage
+      await supabaseAdmin.storage
         .from("generations")
         .remove([generation.storage_path]);
-
-      if (storageError) {
-        console.error("Storage delete error:", storageError);
-      }
     }
 
-    // 5. Удаляем запись из БД
+    // 5. Удаляем reference-файл
+    if (generation.reference_storage_path) {
+      await supabaseAdmin.storage
+        .from("generations")
+        .remove([generation.reference_storage_path]);
+    }
+
+    // 6. Удаляем запись из БД
     const { error: deleteError } = await supabase
       .from("generations")
       .delete()
