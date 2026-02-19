@@ -48,11 +48,11 @@ export default function FavoritesClient({ prompts }: FavoritesClientProps) {
     setModelId,
     aspectRatio,
     setAspectRatio,
-    referenceImage,
+    referencePreview,
     handleFileChange,
     handleRemoveImage,
     handleGenerate
-  } = useImageGeneration(user, () => setIsGenerateOpen(false));
+  } = useImageGeneration(user, () => {}, fetchProfile);
 
   const favoritePrompts = prompts.filter(p => favorites.includes(p.id));
 
@@ -176,7 +176,7 @@ export default function FavoritesClient({ prompts }: FavoritesClientProps) {
           setModelId={setModelId}
           aspectRatio={aspectRatio}
           setAspectRatio={setAspectRatio}
-          referenceImage={referenceImage}
+          referencePreview={referencePreview}
           handleFileChange={handleFileChange}
           handleRemoveImage={handleRemoveImage}
         />

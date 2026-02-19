@@ -201,7 +201,7 @@ export default function HistoryClient({ initialGenerations }: Props) {
         setModelId={imageGen.setModelId}
         aspectRatio={imageGen.aspectRatio}
         setAspectRatio={imageGen.setAspectRatio}
-        referenceImage={imageGen.referenceImage}
+        referencePreview={imageGen.referencePreview}
         handleFileChange={imageGen.handleFileChange}
         handleRemoveImage={imageGen.handleRemoveImage}
       />

@@ -52,7 +52,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
     setModelId,
     aspectRatio,
     setAspectRatio,
-    referenceImage,
+    referencePreview,        // ✅ заменено с referenceImage на referencePreview
     handleFileChange,
     handleRemoveImage,
     handleGenerate,
@@ -262,7 +262,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
           setModelId={setModelId}
           aspectRatio={aspectRatio}
           setAspectRatio={setAspectRatio}
-          referenceImage={referenceImage}
+          referencePreview={referencePreview}      // ✅ заменено с referenceImage на referencePreview
           handleFileChange={handleFileChange}
           handleRemoveImage={handleRemoveImage}
         />
