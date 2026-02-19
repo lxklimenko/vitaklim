@@ -32,12 +32,21 @@ export function useImageGeneration(
       toast.error('Войдите в аккаунт для генерации');
       return;
     }
-    if (!generatePrompt.trim()) return;
+    if (!generatePrompt.trim()) {
+      toast.error('Введите промпт');
+      return;
+    }
+
+    // Проверка баланса перед генерацией (если есть поле balance)
+    if (user.balance !== undefined && user.balance <= 0) {
+      toast.error('Недостаточно средств на балансе');
+      return;
+    }
 
     setIsGenerating(true);
     try {
       // 1. Получаем временную ссылку от ИИ
-      const res = await fetch('/api/generate-google/', {
+      const res = await fetch('/api/generate-google', { // убран trailing slash
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -55,11 +64,27 @@ export function useImageGeneration(
       setImageUrl(data.imageUrl);
       toast.success('Изображение сгенерировано');
 
+      // 2. Сохраняем результат в Supabase (таблица generations)
+      if (user) {
+        const { error } = await supabase.from('generations').insert({
+          user_id: user.id,
+          prompt: generatePrompt,
+          image_url: data.imageUrl,
+          model_id: modelId,
+          aspect_ratio: aspectRatio === 'auto' ? '1:1' : aspectRatio,
+          created_at: new Date().toISOString(),
+        });
+        if (error) {
+          console.error('Ошибка сохранения в историю:', error);
+          // Не показываем ошибку пользователю, просто логируем
+        }
+      }
+
       if (user && refreshBalance) {
         await refreshBalance(user.id);
       }
 
-      onGenerationComplete(); // Обновляем список в истории (если требуется)
+      onGenerationComplete(); // Обновляем список в истории
     } catch (error: any) {
       console.error('Критическая ошибка:', error);
       toast.error(error.message || 'Ошибка соединения');
