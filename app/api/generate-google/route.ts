@@ -38,10 +38,21 @@ export async function POST(req: Request) {
       const parts: any[] = [{ text: prompt }];
 
       if (image) {
-        // Конвертируем переданное изображение в JPEG
         const base64Data = image.split(',')[1];
         const inputBuffer = Buffer.from(base64Data, "base64");
-        const jpegBuffer = await sharp(inputBuffer).jpeg({ quality: 90 }).toBuffer();
+
+        // 🔥 1. Уменьшаем размер
+        // 🔥 2. Конвертируем в JPEG
+        const jpegBuffer = await sharp(inputBuffer)
+          .resize({
+            width: 2048,              // ограничиваем ширину
+            withoutEnlargement: true  // не увеличиваем маленькие изображения
+          })
+          .jpeg({ quality: 85 })      // уменьшаем вес
+          .toBuffer();
+
+        console.log("Final image size (KB):", Math.round(jpegBuffer.length / 1024));
+
         const finalBase64 = jpegBuffer.toString("base64");
 
         parts.push({
