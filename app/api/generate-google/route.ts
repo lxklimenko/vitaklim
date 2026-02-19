@@ -4,8 +4,10 @@ import sharp from "sharp";
 
 export async function POST(req: Request) {
   try {
-    // Проверяем пользователя
+    // Создаём клиент Supabase один раз и используем во всей функции
     const supabase = await createClient();
+
+    // Проверяем авторизацию пользователя
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (!user || userError) {
@@ -15,31 +17,31 @@ export async function POST(req: Request) {
       );
     }
 
+    // Получаем параметры запроса
     const { prompt, aspectRatio, modelId, image } = await req.json();
+
     const apiKey = process.env.GOOGLE_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: "API ключ не настроен" }, { status: 500 });
+    }
 
-    if (!apiKey) return NextResponse.json({ error: "No API Key" }, { status: 500 });
-
-    // Определяем семейство модели
+    // Определяем семейство модели (Gemini или Imagen)
     const isNanoBanana = modelId.includes("nano-banana") || modelId.includes("gemini-3");
     const method = isNanoBanana ? "generateContent" : "predict";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:${method}?key=${apiKey}`;
 
+    // Формируем тело запроса в зависимости от модели
     let body;
 
     if (isNanoBanana) {
-      // 1. ЛОГИКА ДЛЯ NANO BANANA PRO (Gemini 3 Pro)
+      // Gemini (Nano Banana Pro)
       const parts: any[] = [{ text: prompt }];
-      
+
       if (image) {
+        // Конвертируем переданное изображение в JPEG
         const base64Data = image.split(',')[1];
         const inputBuffer = Buffer.from(base64Data, "base64");
-
-        // 🔥 Конвертируем всё в JPEG
-        const jpegBuffer = await sharp(inputBuffer)
-          .jpeg({ quality: 90 })
-          .toBuffer();
-
+        const jpegBuffer = await sharp(inputBuffer).jpeg({ quality: 90 }).toBuffer();
         const finalBase64 = jpegBuffer.toString("base64");
 
         parts.push({
@@ -52,12 +54,10 @@ export async function POST(req: Request) {
 
       body = {
         contents: [{ parts }],
-        generationConfig: {
-          candidateCount: 1
-        }
+        generationConfig: { candidateCount: 1 }
       };
     } else {
-      // 2. ЛОГИКА ДЛЯ IMAGEN 4 (Ultra и Fast)
+      // Imagen 4 (Ultra / Fast)
       const instance: any = { prompt };
 
       body = {
@@ -70,6 +70,7 @@ export async function POST(req: Request) {
       };
     }
 
+    // Отправляем запрос к Google API
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -77,18 +78,18 @@ export async function POST(req: Request) {
     });
 
     const data = await response.json();
-    
+
     if (!response.ok) {
       console.error("API Error Details:", data);
-      throw new Error(data.error?.message || "Ошибка генерации");
+      throw new Error(data.error?.message || "Ошибка генерации изображения");
     }
 
-    // Извлекаем картинку
-    let base64Image;
+    // Извлекаем сгенерированное изображение из ответа
+    let base64Image: string;
+
     if (isNanoBanana) {
       const candidate = data.candidates?.[0];
       const imagePart = candidate?.content?.parts?.find((part: any) => part.inlineData);
-      
       if (!imagePart) {
         throw new Error("Модель не вернула изображение. Проверьте промпт на безопасность.");
       }
@@ -100,71 +101,62 @@ export async function POST(req: Request) {
       base64Image = data.predictions[0].bytesBase64Encoded;
     }
 
-    // Сохраняем в Supabase Storage
-    const supabaseStorage = await createClient(); // можно использовать уже созданный supabase, но оставим как есть
-
-    const { data: { user: currentUser } } = await supabaseStorage.auth.getUser();
-
-    if (!currentUser) {
-      return NextResponse.json(
-        { error: "Вы не авторизованы" },
-        { status: 401 }
-      );
-    }
-
+    // Сохраняем результат в Supabase Storage
     const buffer = Buffer.from(base64Image, 'base64');
-    // Готовим переменные для ссылки и пути reference (если он есть)
-    let referencePublicUrl: string | null = null;
-    let referenceFileName: string | null = null;   // <-- объявляем переменную для пути reference
+    const fileName = `${user.id}/${Date.now()}.jpg`;
 
-    const fileName = `${currentUser.id}/${Date.now()}.jpg`;
-
-    const { error: uploadError } = await supabaseStorage.storage
+    const { error: uploadError } = await supabase.storage
       .from('generations')
-      .upload(fileName, buffer, {
-        contentType: 'image/jpeg'
-      });
+      .upload(fileName, buffer, { contentType: 'image/jpeg' });
 
     if (uploadError) {
       throw uploadError;
     }
 
-    const { data: { publicUrl } } = supabaseStorage.storage
+    const { data: { publicUrl } } = supabase.storage
       .from('generations')
       .getPublicUrl(fileName);
 
-    // Если есть reference-картинка — сохраняем её тоже
+    // Если была передана reference-картинка, сохраняем её тоже (опционально)
+    let referencePublicUrl: string | null = null;
+    let referenceFileName: string | null = null;
+
     if (image) {
-      const referenceBase64 = image.split(',')[1];
-      const referenceBuffer = Buffer.from(referenceBase64, 'base64');
-      const refFileName = `${currentUser.id}/reference-${Date.now()}.jpg`;   // временная переменная
+      try {
+        const referenceBase64 = image.split(',')[1];
+        const referenceBuffer = Buffer.from(referenceBase64, 'base64');
+        const refFileName = `${user.id}/reference-${Date.now()}.jpg`;
 
-      const { error: refUploadError } = await supabaseStorage.storage
-        .from('generations')
-        .upload(refFileName, referenceBuffer, {
-          contentType: 'image/jpeg'
-        });
-
-      if (!refUploadError) {
-        const { data: { publicUrl: refUrl } } = supabaseStorage.storage
+        const { error: refUploadError } = await supabase.storage
           .from('generations')
-          .getPublicUrl(refFileName);
+          .upload(refFileName, referenceBuffer, { contentType: 'image/jpeg' });
 
-        referencePublicUrl = refUrl;
-        referenceFileName = refFileName;   // сохраняем путь только при успешной загрузке
+        if (!refUploadError) {
+          const { data: { publicUrl: refUrl } } = supabase.storage
+            .from('generations')
+            .getPublicUrl(refFileName);
+
+          referencePublicUrl = refUrl;
+          referenceFileName = refFileName;
+        } else {
+          console.error("Ошибка сохранения reference-изображения:", refUploadError);
+        }
+      } catch (refError) {
+        console.error("Не удалось обработать reference-изображение:", refError);
+        // Продолжаем без reference, не прерываем основной процесс
       }
     }
 
     // Сохраняем запись в таблицу generations
-    const { error: dbError } = await supabaseStorage
+    const { error: dbError } = await supabase
       .from('generations')
       .insert({
-        user_id: currentUser.id,
+        user_id: user.id,
         prompt,
         image_url: publicUrl,
         storage_path: fileName,
         reference_image_url: referencePublicUrl,
-        reference_storage_path: referenceFileName,   // <-- новое поле
+        reference_storage_path: referenceFileName,
         is_favorite: false
       });
 
@@ -172,7 +164,7 @@ export async function POST(req: Request) {
       throw dbError;
     }
 
-    // Атомарно уменьшаем баланс
+    // Атомарно уменьшаем баланс пользователя
     const { data: balanceResult, error: balanceError } = await supabase
       .rpc('decrement_balance', { user_id: user.id });
 
@@ -182,11 +174,12 @@ export async function POST(req: Request) {
 
     if (!balanceResult) {
       return NextResponse.json(
-        { error: "Недостаточно баланса" },
+        { error: "Недостаточно средств на балансе" },
         { status: 400 }
       );
     }
 
+    // Возвращаем ссылку на сгенерированное изображение
     return NextResponse.json({ imageUrl: publicUrl });
 
   } catch (error: any) {
