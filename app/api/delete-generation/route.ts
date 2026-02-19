@@ -50,7 +50,11 @@ export async function POST(req: Request) {
     }
 
     // 4. Удаляем файл из Storage
-    const filePath = generation.image_url.split("/generations/")[1];
+    const url = new URL(generation.image_url);
+    const fullPath = url.pathname; 
+    // /storage/v1/object/public/generations/userid/123.jpg
+
+    const filePath = fullPath.split("/public/generations/")[1];
 
     if (filePath) {
       await supabase.storage
