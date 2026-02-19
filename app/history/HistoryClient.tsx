@@ -127,8 +127,9 @@ export default function HistoryClient({ initialGenerations }: Props) {
                                bg-black/50
                                backdrop-blur-md
                                border border-white/20
-                               opacity-0
-                               group-hover:opacity-100
+                               opacity-100
+                               md:opacity-0
+                               md:group-hover:opacity-100
                                transition-all duration-200
                                hover:bg-red-500/20
                                hover:scale-105"
