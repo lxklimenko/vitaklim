@@ -32,7 +32,16 @@ export async function POST(req: Request) {
       
       if (image) {
         const base64Data = image.split(',')[1];
-        const mimeType = image.split(';')[0].split(':')[1];
+
+        let mimeType = image.split(';')[0].split(':')[1];
+
+        if (mimeType === "image/jpg") {
+          mimeType = "image/jpeg";
+        }
+
+        if (mimeType !== "image/jpeg" && mimeType !== "image/png") {
+          mimeType = "image/jpeg";
+        }
         
         parts.push({
           inlineData: {
