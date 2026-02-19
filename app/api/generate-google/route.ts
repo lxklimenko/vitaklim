@@ -151,6 +151,7 @@ export async function POST(req: Request) {
         user_id: currentUser.id,
         prompt,
         image_url: publicUrl,
+        storage_path: fileName,
         reference_image_url: referencePublicUrl,
         is_favorite: false
       });

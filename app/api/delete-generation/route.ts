@@ -49,25 +49,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4. Удаляем файл из Storage
-    try {
-      const url = new URL(generation.image_url);
-
-      // Получаем полный путь
-      // /storage/v1/object/public/generations/userid/filename.jpg
-      const parts = url.pathname.split("/generations/");
-
-      if (parts.length > 1) {
-        const filePath = parts[1]; // userid/filename.jpg
-
-        await supabase.storage
-          .from("generations")
-          .remove([filePath]);
-
-        console.log("Deleted file path:", filePath);
-      }
-    } catch (err) {
-      console.error("Storage delete error:", err);
+    // 4. Удаляем файл из Storage (используем storage_path)
+    if (generation.storage_path) {
+      await supabase.storage
+        .from("generations")
+        .remove([generation.storage_path]);
     }
 
     // 5. Удаляем запись из БД
