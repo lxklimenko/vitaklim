@@ -43,36 +43,33 @@ export default function HistoryClient({ initialGenerations }: Props) {
   }, [initialGenerations, setGenerations])
 
   const handleDelete = async (id: string) => {
-    if (!user) return
-
-    const generation = generations.find(g => g.id === id)
-    if (!generation) return
+    if (!user) return;
 
     try {
-      // 1. Удаляем файл из Storage
-      const filePath = generation.image_url.split('/generations/')[1]
+      const response = await fetch("/api/delete-generation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id }),
+      });
 
-      if (filePath) {
-        await supabase.storage
-          .from('generations')
-          .remove([filePath])
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error(result.error);
+        return;
       }
 
-      // 2. Удаляем запись из БД
-      await supabase
-        .from('generations')
-        .delete()
-        .eq('id', id)
-
-      // 3. Обновляем UI
-      const updated = generations.filter((g) => g.id !== id)
-      setLocalGenerations(updated)
-      setGenerations(updated)
+      // Обновляем UI
+      const updated = generations.filter((g) => g.id !== id);
+      setLocalGenerations(updated);
+      setGenerations(updated);
 
     } catch (error) {
-      console.error("Delete error:", error)
+      console.error("Delete error:", error);
     }
-  }
+  };
 
   if (!user) {
     return (
