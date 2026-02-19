@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from '@/app/lib/supabase-server';
 import sharp from "sharp";
+import crypto from 'crypto';
 
 // Константы
 const GENERATION_COST = parseInt(process.env.GENERATION_COST || "1", 10);
 const STORAGE_BUCKET = 'generations';
-const FETCH_TIMEOUT = 10000; // 10 секунд
+const FETCH_TIMEOUT = 60000; // 60 секунд для генерации изображения
+const MAX_IMAGE_SIZE_MB = 10;
+const ALLOWED_ASPECT_RATIOS = ['1:1', '3:4', '4:3', '9:16', '16:9'];
 
 // Модели Gemini, поддерживающие изображения на входе
 const GEMINI_IMAGE_MODELS = [
@@ -19,12 +22,19 @@ interface GenerationRequest {
   prompt: string;
   aspectRatio?: string;
   modelId: string;
-  image?: string; // data:image/jpeg;base64,...
+  imageFile?: File; // теперь это File, а не строка base64
 }
 
 interface RpcResult {
   success: boolean;
   error?: string;
+}
+
+// Утилита для генерации уникального имени файла
+function generateFileName(userId: string, prefix = ''): string {
+  const timestamp = Date.now();
+  const random = crypto.randomBytes(4).toString('hex');
+  return `${userId}/${prefix}${timestamp}-${random}.jpg`;
 }
 
 export async function POST(req: Request) {
@@ -40,8 +50,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2. Валидация входных данных
-    const { prompt, aspectRatio, modelId, image } = await req.json() as GenerationRequest;
+    // 2. Парсинг multipart/form-data
+    const formData = await req.formData();
+    const prompt = formData.get('prompt')?.toString();
+    const aspectRatio = formData.get('aspectRatio')?.toString();
+    const modelId = formData.get('modelId')?.toString();
+    const imageFile = formData.get('image') as File | null; // поле может называться "image"
+
     if (!prompt?.trim() || !modelId) {
       return NextResponse.json(
         { error: "Не указан prompt или modelId" },
@@ -49,7 +64,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 3. Проверка баланса пользователя (чтобы не вызывать API при недостатке средств)
+    // 3. Проверка баланса пользователя
     const { data: balanceData, error: balanceError } = await supabase
       .rpc('get_user_balance', { p_user_id: user.id });
 
@@ -86,21 +101,27 @@ export async function POST(req: Request) {
 
     // 6. Формируем тело запроса к Google API
     let requestBody: unknown;
+    let processedImageBuffer: Buffer | null = null; // сохраним для reference
 
     if (isGeminiModel) {
       const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
         { text: prompt }
       ];
 
-      if (image) {
+      if (imageFile) {
         try {
-          const base64Data = image.split(',')[1];
-          if (!base64Data) throw new Error('Неверный формат изображения');
+          // Проверка размера файла
+          if (imageFile.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+            throw new Error(`Размер изображения превышает ${MAX_IMAGE_SIZE_MB} МБ`);
+          }
 
-          const inputBuffer = Buffer.from(base64Data, "base64");
+          const arrayBuffer = await imageFile.arrayBuffer();
+          const inputBuffer = Buffer.from(arrayBuffer);
+
+          // Оптимизация изображения для отправки в Gemini
           const jpegBuffer = await sharp(inputBuffer)
             .resize({ width: 2048, withoutEnlargement: true })
-            .jpeg({ quality: 85 })
+            .jpeg({ quality: 90 })
             .toBuffer();
 
           parts.push({
@@ -109,10 +130,13 @@ export async function POST(req: Request) {
               data: jpegBuffer.toString("base64")
             }
           });
+
+          // Сохраняем обработанный буфер для возможного сохранения как reference
+          processedImageBuffer = jpegBuffer;
         } catch (imgError) {
           console.error('Image processing error:', imgError);
           return NextResponse.json(
-            { error: "Ошибка обработки изображения" },
+            { error: imgError instanceof Error ? imgError.message : "Ошибка обработки изображения" },
             { status: 400 }
           );
         }
@@ -124,11 +148,20 @@ export async function POST(req: Request) {
       };
     } else {
       // Imagen — только текст + соотношение сторон
+      let safeAspectRatio = '1:1';
+      if (aspectRatio && aspectRatio !== 'auto') {
+        if (ALLOWED_ASPECT_RATIOS.includes(aspectRatio)) {
+          safeAspectRatio = aspectRatio;
+        } else {
+          console.warn(`Неподдерживаемый aspectRatio: ${aspectRatio}, используется 1:1`);
+        }
+      }
+
       requestBody = {
         instances: [{ prompt }],
         parameters: {
           sampleCount: 1,
-          aspectRatio: aspectRatio === "auto" ? "1:1" : (aspectRatio || "1:1"),
+          aspectRatio: safeAspectRatio,
           outputOptions: { mimeType: "image/jpeg" }
         }
       };
@@ -183,7 +216,7 @@ export async function POST(req: Request) {
 
     // 9. Сохраняем результат в Storage
     const buffer = Buffer.from(base64Image, 'base64');
-    const fileName = `${user.id}/${Date.now()}.jpg`;
+    const fileName = generateFileName(user.id);
 
     const { error: uploadError } = await supabase.storage
       .from(STORAGE_BUCKET)
@@ -198,34 +231,28 @@ export async function POST(req: Request) {
       .from(STORAGE_BUCKET)
       .getPublicUrl(fileName);
 
-    // 10. Если передано reference-изображение, обрабатываем и сохраняем его
+    // 10. Если было передано reference-изображение, сохраняем его обработанную версию
     let referencePublicUrl: string | null = null;
     let referenceFileName: string | null = null;
 
-    if (image) {
+    if (processedImageBuffer) {
       try {
-        const refBase64 = image.split(',')[1];
-        if (refBase64) {
-          const refBuffer = Buffer.from(refBase64, 'base64');
-          const refFileName = `${user.id}/reference-${Date.now()}.jpg`;
+        const refFileName = generateFileName(user.id, 'reference-');
+        const { error: refUploadError } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .upload(refFileName, processedImageBuffer, { contentType: 'image/jpeg' });
 
-          const { error: refUploadError } = await supabase.storage
+        if (!refUploadError) {
+          const { data: { publicUrl: refUrl } } = supabase.storage
             .from(STORAGE_BUCKET)
-            .upload(refFileName, refBuffer, { contentType: 'image/jpeg' });
-
-          if (!refUploadError) {
-            const { data: { publicUrl: refUrl } } = supabase.storage
-              .from(STORAGE_BUCKET)
-              .getPublicUrl(refFileName);
-            referencePublicUrl = refUrl;
-            referenceFileName = refFileName;
-          } else {
-            console.error("Ошибка сохранения reference-изображения:", refUploadError);
-          }
+            .getPublicUrl(refFileName);
+          referencePublicUrl = refUrl;
+          referenceFileName = refFileName;
+        } else {
+          console.error("Ошибка сохранения reference-изображения:", refUploadError);
         }
       } catch (refError) {
-        console.error("Не удалось обработать reference-изображение:", refError);
-        // Продолжаем без reference
+        console.error("Не удалось сохранить reference-изображение:", refError);
       }
     }
 
@@ -251,7 +278,7 @@ export async function POST(req: Request) {
       throw new Error('Не удалось выполнить операцию списания средств');
     }
 
-    // Проверяем результат, возвращённый функцией (ожидается объект с полем success)
+    // Проверяем результат, возвращённый функцией
     const result = rpcResult as RpcResult;
     if (!result.success) {
       // Недостаточно средств или другая логическая ошибка
