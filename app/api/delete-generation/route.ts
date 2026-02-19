@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase-server";
+import { supabaseAdmin } from "@/app/lib/supabase-admin";
 
 export async function POST(req: Request) {
   try {
@@ -51,9 +52,13 @@ export async function POST(req: Request) {
 
     // 4. Удаляем файл из Storage (используем storage_path)
     if (generation.storage_path) {
-      await supabase.storage
+      const { error: storageError } = await supabaseAdmin.storage
         .from("generations")
         .remove([generation.storage_path]);
+
+      if (storageError) {
+        console.error("Storage delete error:", storageError);
+      }
     }
 
     // 5. Удаляем запись из БД
