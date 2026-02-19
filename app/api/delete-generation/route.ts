@@ -50,16 +50,24 @@ export async function POST(req: Request) {
     }
 
     // 4. Удаляем файл из Storage
-    const url = new URL(generation.image_url);
-    const fullPath = url.pathname; 
-    // /storage/v1/object/public/generations/userid/123.jpg
+    try {
+      const url = new URL(generation.image_url);
 
-    const filePath = fullPath.split("/public/generations/")[1];
+      // Получаем полный путь
+      // /storage/v1/object/public/generations/userid/filename.jpg
+      const parts = url.pathname.split("/generations/");
 
-    if (filePath) {
-      await supabase.storage
-        .from("generations")
-        .remove([filePath]);
+      if (parts.length > 1) {
+        const filePath = parts[1]; // userid/filename.jpg
+
+        await supabase.storage
+          .from("generations")
+          .remove([filePath]);
+
+        console.log("Deleted file path:", filePath);
+      }
+    } catch (err) {
+      console.error("Storage delete error:", err);
     }
 
     // 5. Удаляем запись из БД
