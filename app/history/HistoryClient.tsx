@@ -18,7 +18,6 @@ interface Props {
 export default function HistoryClient({ initialGenerations }: Props) {
   const {
     user,
-    setGenerations,
     fetchProfile
   } = useAuth()
 
@@ -37,10 +36,6 @@ export default function HistoryClient({ initialGenerations }: Props) {
   )
 
   console.log("CURRENT PROMPT:", imageGen.generatePrompt)
-
-  useEffect(() => {
-    setGenerations(initialGenerations)
-  }, [initialGenerations, setGenerations])
 
   const handleDelete = async (id: string) => {
     if (!user) return;
@@ -64,8 +59,6 @@ export default function HistoryClient({ initialGenerations }: Props) {
       // Обновляем UI
       const updated = generations.filter((g) => g.id !== id);
       setLocalGenerations(updated);
-      setGenerations(updated);
-
     } catch (error) {
       console.error("Delete error:", error);
     }

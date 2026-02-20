@@ -1,6 +1,6 @@
 'use client';
 import { useFilteredPrompts } from './hooks/useFilteredPrompts';
-import { useTelegramInit } from './hooks/useTelegramInit'; // <-- добавлен импорт
+import { useTelegramInit } from './hooks/useTelegramInit';
 import dynamic from 'next/dynamic';
 import React, { useState, useCallback, useDeferredValue } from 'react';
 import { Inter } from 'next/font/google';
@@ -32,20 +32,17 @@ export default function ClientApp({ prompts }: ClientAppProps) {
   const router = useRouter();
 
   // Telegram initialization
-  useTelegramInit(); // <-- добавлен вызов хука
+  useTelegramInit();
 
   // AUTH
   const {
     user,
     authReady,
-    profileReady,            // ✅ добавлено
+    profileReady,
     favoritesLoading,
-    generationsLoading,
     favorites,
     purchases,
-    generations,
     setFavorites,
-    setGenerations,
     fetchProfile,
     telegramUsername,
     telegramFirstName,
@@ -60,7 +57,7 @@ export default function ClientApp({ prompts }: ClientAppProps) {
     setModelId,
     aspectRatio,
     setAspectRatio,
-    referencePreview,         // ✅ заменено referenceImage на referencePreview
+    referencePreview,
     handleFileChange,
     handleRemoveImage,
     handleGenerate,
@@ -82,7 +79,6 @@ export default function ClientApp({ prompts }: ClientAppProps) {
   // ACTIONS
   const { toggleFavorite, handleCopy } = useAppActions(
     user,
-    setGenerations,
     setFavorites,
     fetchProfile,
     () => {}
@@ -103,13 +99,13 @@ export default function ClientApp({ prompts }: ClientAppProps) {
   );
 
   // ЛОКАЛЬНЫЙ ИНДИКАТОР ЗАГРУЗКИ
-  const isLoading = favoritesLoading || generationsLoading;
+  const isLoading = favoritesLoading;
 
-  // FILTER PROMPTS
+  // FILTER PROMPTS (using deferred search for better performance)
   const filteredPrompts = useFilteredPrompts({
     prompts,
     activeCategory,
-    searchQuery,
+    searchQuery: deferredSearch, // используем отложенное значение
   });
 
   return (
@@ -121,7 +117,7 @@ export default function ClientApp({ prompts }: ClientAppProps) {
       <Header
         user={user}
         authReady={authReady}
-        profileReady={profileReady}        // ✅ передаём в Header
+        profileReady={profileReady}
         telegramUsername={telegramUsername}
         telegramFirstName={telegramFirstName}
         searchQuery={searchQuery}
@@ -162,7 +158,7 @@ export default function ClientApp({ prompts }: ClientAppProps) {
           setModelId={setModelId}
           aspectRatio={aspectRatio}
           setAspectRatio={setAspectRatio}
-          referencePreview={referencePreview}   // ✅ используется referencePreview
+          referencePreview={referencePreview}
           handleFileChange={handleFileChange}
           handleRemoveImage={handleRemoveImage}
         />

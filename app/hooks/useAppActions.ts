@@ -4,7 +4,6 @@ import { Generation } from '../types'; // Убедитесь, что типы с
 
 export const useAppActions = (
   user: any,
-  setGenerations: React.Dispatch<React.SetStateAction<any[]>>,
   setFavorites: React.Dispatch<React.SetStateAction<number[]>>,
   fetchProfile: (id: string) => Promise<void>,
   setIsProfileOpen: (isOpen: boolean) => void
@@ -43,22 +42,6 @@ export const useAppActions = (
     }
   };
 
-  // 2. Удаление генерации
-  const handleDeleteGeneration = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    if (!user) return;
-
-    try {
-      const { error } = await supabase.from('generations').delete().eq('id', id);
-      if (error) throw error;
-      setGenerations(prev => prev.filter(gen => gen.id !== id));
-      toast.success("Генерация удалена");
-    } catch (error) {
-      console.error('Error deleting:', error);
-      toast.error("Ошибка при удалении");
-    }
-  };
-
   // 3. Шаринг
   const handleShare = async (imageUrl: string) => {
     try {
@@ -71,21 +54,6 @@ export const useAppActions = (
       }
     } catch (error) {
       // Игнорируем AbortError (если пользователь закрыл окно шаринга)
-    }
-  };
-
-  // 4. Избранное (Генерации)
-  const toggleGenerationFavorite = async (generation: Generation) => {
-    if (!user) return;
-    try {
-      const newStatus = !generation.is_favorite;
-      setGenerations(prev => prev.map(gen => gen.id === generation.id ? { ...gen, is_favorite: newStatus } : gen));
-      
-      const { error } = await supabase.from('generations').update({ is_favorite: newStatus }).eq('id', generation.id);
-      if (error) throw error; // Если ошибка, можно откатить состояние обратно, но для простоты оставим так
-      toast.success(newStatus ? 'Добавлено в избранное' : 'Удалено из избранного');
-    } catch (error) {
-      toast.error('Ошибка при обновлении');
     }
   };
 
@@ -133,9 +101,7 @@ export const useAppActions = (
   return {
     handleDownload,
     handleDownloadOriginal,
-    handleDeleteGeneration,
     handleShare,
-    toggleGenerationFavorite,
     toggleFavorite,
     handleCopy
   };
