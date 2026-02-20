@@ -13,13 +13,11 @@ export function useAuth() {
   const [telegramAvatarUrl, setTelegramAvatarUrl] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
-  const [generations, setGenerations] = useState<Generation[]>([]);
   
   // Добавлено состояние для баланса
   const [balance, setBalance] = useState<number>(0);
   
   const [favoritesLoading, setFavoritesLoading] = useState(false);
-  const [generationsLoading, setGenerationsLoading] = useState(false);
   
   const [profileReady, setProfileReady] = useState(false);
 
@@ -142,7 +140,6 @@ export function useAuth() {
         setTelegramAvatarUrl(null);
         setFavorites([]);
         setPurchases([]);
-        setGenerations([]);
         setBalance(0); // Сбрасываем баланс при выходе
         setProfileReady(false);
         return;
@@ -185,17 +182,14 @@ export function useAuth() {
     authReady,
     profileReady,
     favoritesLoading,
-    generationsLoading,
     telegramUsername,
     telegramFirstName,
     telegramAvatarUrl,
     favorites,
     purchases,
-    generations,
     balance,          // Добавлено
     setBalance,       // Добавлено (если требуется снаружи)
     setFavorites,
-    setGenerations,
     setPurchases,
     fetchProfile,
   };
