@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css"; // КРИТИЧНО: Этот импорт подключает Tailwind
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/600.css';
@@ -19,7 +20,11 @@ export default function RootLayout({
       <body 
         className="font-sans bg-[#0a0a0a] text-white antialiased selection:bg-white/20"
       >
-        <script src="https://telegram.org/js/telegram-web-app.js" />
+        {/* Скрипт Telegram Web App будет автоматически добавлен в head */}
+        <Script 
+          src="https://telegram.org/js/telegram-web-app.js"
+          strategy="beforeInteractive"
+        />
         {/* Обертка для контента, чтобы избежать скачков при загрузке */}
         <AuthProvider>
           <div className="relative min-h-screen flex flex-col overflow-x-hidden">

@@ -1,5 +1,6 @@
 'use client';
 import { useFilteredPrompts } from './hooks/useFilteredPrompts';
+import { useTelegramInit } from './hooks/useTelegramInit'; // <-- добавлен импорт
 import dynamic from 'next/dynamic';
 import React, { useState, useCallback, useDeferredValue } from 'react';
 import { Inter } from 'next/font/google';
@@ -29,6 +30,9 @@ interface ClientAppProps {
 
 export default function ClientApp({ prompts }: ClientAppProps) {
   const router = useRouter();
+
+  // Telegram initialization
+  useTelegramInit(); // <-- добавлен вызов хука
 
   // AUTH
   const {
