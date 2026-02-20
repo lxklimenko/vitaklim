@@ -41,7 +41,6 @@ export default function ClientApp({ prompts }: ClientAppProps) {
     profileReady,            // ✅ добавлено
     favoritesLoading,
     generationsLoading,
-    balance,
     favorites,
     purchases,
     generations,

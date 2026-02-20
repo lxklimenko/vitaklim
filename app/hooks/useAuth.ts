@@ -8,7 +8,6 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   
-  const [balance, setBalance] = useState<number>(0);
   const [telegramUsername, setTelegramUsername] = useState<string | null>(null);
   const [telegramFirstName, setTelegramFirstName] = useState<string | null>(null);
   const [telegramAvatarUrl, setTelegramAvatarUrl] = useState<string | null>(null);
@@ -26,11 +25,10 @@ export function useAuth() {
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('balance, telegram_username, telegram_first_name, telegram_avatar_url')
+      .select('telegram_username, telegram_first_name, telegram_avatar_url')
       .eq('id', userId)
       .single();
     if (!error && data) {
-      setBalance(data.balance);
       setTelegramUsername(data.telegram_username);
       setTelegramFirstName(data.telegram_first_name);
       setTelegramAvatarUrl(data.telegram_avatar_url);
@@ -146,7 +144,6 @@ export function useAuth() {
     const { data: authData } = supabase.auth.onAuthStateChange((_event, session) => {
       if (_event === 'SIGNED_OUT') {
         setUser(null);
-        setBalance(0);
         setTelegramUsername(null);
         setTelegramFirstName(null);
         setTelegramAvatarUrl(null);
@@ -196,7 +193,6 @@ export function useAuth() {
     profileReady,
     favoritesLoading,
     generationsLoading,
-    balance,
     telegramUsername,
     telegramFirstName,
     telegramAvatarUrl,

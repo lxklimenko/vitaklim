@@ -1,153 +1,263 @@
-'use client'
+'use client';
 
-import { motion, AnimatePresence } from 'framer-motion'
-import { X, Send, Copy, Zap, Loader2, UserPlus } from 'lucide-react'
-import { supabase } from '@/app/lib/supabase'
-import { toast } from 'sonner'
+import React, { useState } from 'react';
+import { X, Plus, History, Coins, LogOut } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ProfileModalProps {
-  user: any
-  balance: number
-  purchases: any[]
-  isProfileOpen: boolean
-  setIsProfileOpen: (v: boolean) => void
-  handleTopUp: (amount: number) => void
-  isTopUpLoading: boolean
-  email: string
-  password: string
-  setEmail: (v: string) => void
-  setPassword: (v: string) => void
-  authMode: 'login' | 'register'
-  setAuthMode: (v: 'login' | 'register') => void
-  handleAuth: () => void
+  user: any;
+  purchases: any[];
+  isProfileOpen: boolean;
+  setIsProfileOpen: (open: boolean) => void;
+  email: string;
+  setEmail: (email: string) => void;
+  password: string;
+  setPassword: (password: string) => void;
+  authMode: 'login' | 'register';
+  setAuthMode: (mode: 'login' | 'register') => void;
+  handleAuth: (e: React.FormEvent) => Promise<void>;
+  handleTopUp: (amount: number) => Promise<void>; // теперь принимает сумму
+  handleLogout: () => Promise<void>; // добавили проп для выхода
+  isTopUpLoading: boolean;
 }
 
 export function ProfileModal({
   user,
-  balance,
   purchases,
   isProfileOpen,
   setIsProfileOpen,
-  handleTopUp,
-  isTopUpLoading,
   email,
-  password,
   setEmail,
+  password,
   setPassword,
   authMode,
   setAuthMode,
-  handleAuth
+  handleAuth,
+  handleTopUp,
+  handleLogout,
+  isTopUpLoading
 }: ProfileModalProps) {
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
+
+  if (!isProfileOpen) return null;
+
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) setIsProfileOpen(false);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
+  const onTopUp = async () => {
+    if (!selectedAmount) {
+      toast.error('Выберите сумму пополнения');
+      return;
+    }
+    await handleTopUp(selectedAmount);
+    setShowTopUp(false);
+    setSelectedAmount(null);
+  };
 
   return (
-    <AnimatePresence>
-      {isProfileOpen && (
-        <div className="fixed inset-0 z-[150] flex items-end md:items-center justify-center">
-          <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            exit={{ opacity: 0 }} 
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
-            onClick={() => setIsProfileOpen(false)} 
-          />
-
-          <motion.div
-            initial={{ y: "100%" }} 
-            animate={{ y: 0 }} 
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="relative bg-[#111] w-full h-[95vh] md:h-auto md:max-w-xl md:rounded-[2.5rem] overflow-hidden shadow-2xl z-10 flex flex-col"
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end justify-center z-150"
+      onClick={handleOverlayClick}
+    >
+      <div className="bg-[#1a1a1a] w-full max-w-md rounded-t-3xl border border-white/10 shadow-2xl animate-slide-up">
+        {/* Заголовок */}
+        <div className="flex items-center justify-between p-5 border-b border-white/10">
+          <h2 className="text-xl font-semibold">
+            {user ? 'Профиль' : 'Вход / Регистрация'}
+          </h2>
+          <button
+            onClick={() => setIsProfileOpen(false)}
+            className="p-2 rounded-full hover:bg-white/10 transition"
           >
-            <button 
-              onClick={() => setIsProfileOpen(false)} 
-              className="absolute top-6 right-6 z-[30] p-2 rounded-full bg-white/5 text-white/40 hover:text-white transition-all"
-            >
-              <X size={20} />
-            </button>
-
-            {user ? (
-              <div className="flex flex-col h-full">
-                <div className="flex justify-between items-center p-8">
-                  <div className="flex items-center gap-2.5 bg-white/5 border border-white/10 rounded-2xl pl-4 pr-1.5 py-1.5">
-                    <span className="text-[12px] font-semibold text-white/40">Баланс</span>
-                    <div className="h-6 px-3 rounded-xl bg-white/10 flex items-center">
-                      <span className="text-[13px] font-bold italic text-white">{balance} ₽</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="px-10 mb-8">
-                  <h2 className="text-3xl font-semibold tracking-tight">
-                    {user?.email?.split('@')[0]}
-                  </h2>
-                </div>
-
-                <div className="px-8 mb-6">
-                  <button 
-                    onClick={() => handleTopUp(10)} 
-                    disabled={isTopUpLoading}
-                    className="w-full bg-white text-black py-4 rounded-2xl flex items-center justify-center gap-3 font-bold"
-                  >
-                    {isTopUpLoading ? <Loader2 className="animate-spin" /> : <Zap size={18} />}
-                    Пополнить баланс на 10 ₽
-                  </button>
-                </div>
-
-                <div className="px-8 pb-10 mt-auto"> 
-                  <button 
-                    onClick={() => supabase.auth.signOut()} 
-                    className="w-full py-4 text-red-500/60 border border-red-500/10 rounded-2xl"
-                  >
-                    Завершить сессию
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="p-10 flex flex-col h-full justify-center space-y-8">
-                <div className="text-center">
-                  <h2 className="text-4xl font-bold italic uppercase mb-2">Sync Vision</h2>
-                  <p className="text-sm text-white/30">
-                    {authMode === 'login' ? 'Войдите, чтобы продолжить' : 'Создайте аккаунт'}
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  <input 
-                    type="email" 
-                    placeholder="Email" 
-                    value={email} 
-                    onChange={(e) => setEmail(e.target.value)} 
-                    className="w-full bg-white/5 rounded-2xl py-4 px-5"
-                  />
-                  <input 
-                    type="password" 
-                    placeholder="Пароль" 
-                    value={password} 
-                    onChange={(e) => setPassword(e.target.value)} 
-                    className="w-full bg-white/5 rounded-2xl py-4 px-5"
-                  />
-                </div>
-
-                <div className="space-y-4">
-                  <button 
-                    onClick={handleAuth} 
-                    className="w-full py-4 rounded-2xl bg-white text-black font-bold"
-                  >
-                    {authMode === 'login' ? 'Войти' : 'Зарегистрироваться'}
-                  </button>
-
-                  <button 
-                    onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} 
-                    className="w-full py-4 rounded-2xl bg-white/5 text-white/80"
-                  >
-                    {authMode === 'login' ? 'Создать аккаунт' : 'Уже есть аккаунт?'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </motion.div>
+            <X size={20} />
+          </button>
         </div>
-      )}
-    </AnimatePresence>
-  )
+
+        {/* Контент */}
+        <div className="p-5 max-h-[70vh] overflow-y-auto">
+          {!user ? (
+            // Форма авторизации
+            <form onSubmit={handleAuth} className="space-y-4">
+              <div>
+                <label className="block text-sm text-white/60 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-white/20"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-white/60 mb-1">Пароль</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-white/20"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-white text-black font-medium rounded-xl hover:bg-white/90 transition"
+              >
+                {authMode === 'login' ? 'Войти' : 'Зарегистрироваться'}
+              </button>
+
+              <p className="text-center text-sm text-white/40">
+                {authMode === 'login' ? 'Нет аккаунта?' : 'Уже есть аккаунт?'}{' '}
+                <button
+                  type="button"
+                  onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
+                  className="text-white/80 underline"
+                >
+                  {authMode === 'login' ? 'Создать' : 'Войти'}
+                </button>
+              </p>
+            </form>
+          ) : (
+            // Профиль пользователя
+            <div className="space-y-6">
+              {/* Информация о пользователе */}
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-2xl font-bold">
+                  {user.email?.[0]?.toUpperCase() || '?'}
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium truncate">{user.email}</p>
+                  <p className="text-sm text-white/40">ID: {user.id?.slice(0, 8) || '...'}</p>
+                </div>
+              </div>
+
+              {/* Баланс и пополнение */}
+              <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Coins size={20} className="text-yellow-400" />
+                    <span className="font-medium">Баланс</span>
+                  </div>
+                  <span className="text-xl font-bold">{user.balance || 0} ₽</span>
+                </div>
+                {!showTopUp ? (
+                  <button
+                    onClick={() => setShowTopUp(true)}
+                    className="w-full py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition"
+                  >
+                    <Plus size={16} />
+                    Пополнить
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      {[100, 300, 500, 1000].map((amount) => (
+                        <button
+                          key={amount}
+                          onClick={() => setSelectedAmount(amount)}
+                          className={`flex-1 py-2 rounded-lg text-sm transition ${
+                            selectedAmount === amount
+                              ? 'bg-white text-black'
+                              : 'bg-white/10 hover:bg-white/20'
+                          }`}
+                        >
+                          {amount} ₽
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={onTopUp}
+                      disabled={isTopUpLoading || !selectedAmount}
+                      className="w-full py-2 bg-white text-black rounded-lg text-sm font-medium hover:bg-white/90 transition disabled:opacity-50"
+                    >
+                      {isTopUpLoading ? 'Обработка...' : 'Пополнить'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowTopUp(false);
+                        setSelectedAmount(null);
+                      }}
+                      className="text-xs text-white/40 hover:text-white/60"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* История покупок */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <History size={18} className="text-white/40" />
+                  <h3 className="font-medium">История покупок</h3>
+                </div>
+                {purchases && purchases.length > 0 ? (
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {purchases.map((purchase) => (
+                      <div
+                        key={purchase.id}
+                        className="bg-white/5 rounded-lg p-3 border border-white/10"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-sm font-medium line-clamp-1">
+                              {purchase.prompt?.title || 'Промпт'}
+                            </p>
+                            <p className="text-xs text-white/40">
+                              {formatDate(purchase.created_at)}
+                            </p>
+                          </div>
+                          <span className="text-sm font-semibold text-yellow-400">
+                            -{purchase.amount} ₽
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-white/40 text-center py-4">
+                    У вас пока нет покупок
+                  </p>
+                )}
+              </div>
+
+              {/* Кнопка выхода */}
+              <button
+                onClick={handleLogout}
+                className="w-full py-3 bg-white/5 hover:bg-white/10 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition"
+              >
+                <LogOut size={16} />
+                Выйти
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Стили для анимации */}
+      <style jsx>{`
+        @keyframes slideUp {
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0);
+          }
+        }
+        .animate-slide-up {
+          animation: slideUp 0.3s ease-out;
+        }
+      `}</style>
+    </div>
+  );
 }

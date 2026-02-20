@@ -32,6 +32,18 @@ function validateTelegramInitData(initData: string) {
     return null
   }
 
+  // Добавленная проверка на устаревание данных (24 часа)
+  const authDate = urlParams.get('auth_date')
+  if (!authDate) return null
+
+  const authTimestamp = parseInt(authDate, 10)
+  const now = Math.floor(Date.now() / 1000)
+
+  // 24 часа = 86400 секунд
+  if (now - authTimestamp > 86400) {
+    return null
+  }
+
   const userString = urlParams.get('user')
   if (!userString) return null
 

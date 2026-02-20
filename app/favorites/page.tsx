@@ -18,7 +18,7 @@ const GenerateModal = dynamic(() => import('../components/GenerateModal').then(m
 const ProfileModal = dynamic(() => import('../components/ProfileModal').then(m => m.ProfileModal), { ssr: false });
 
 export default function FavoritesPage() {
-  const { user, favorites, setFavorites, setGenerations, fetchProfile, balance, purchases } = useAuth();
+  const { user, favorites, setFavorites, setGenerations, fetchProfile, purchases } = useAuth();
   
   // Состояния для модалок
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
@@ -101,10 +101,19 @@ export default function FavoritesPage() {
       {isProfileOpen && (
         <ProfileModal 
           user={user} 
+          purchases={purchases}
           isProfileOpen={isProfileOpen} 
           setIsProfileOpen={setIsProfileOpen} 
-          balance={balance} purchases={purchases} 
-          email="" setEmail={()=>{}} password="" setPassword={()=>{}} authMode="login" setAuthMode={()=>{}} handleAuth={()=>{}} handleTopUp={()=>{}} isTopUpLoading={false} 
+          email="" 
+          setEmail={() => {}} 
+          password="" 
+          setPassword={() => {}} 
+          authMode="login" 
+          setAuthMode={() => {}} 
+          handleAuth={async () => {}} 
+          handleTopUp={async () => {}} 
+          handleLogout={async () => {}} 
+          isTopUpLoading={false} 
         />
       )}
       

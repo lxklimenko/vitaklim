@@ -26,7 +26,6 @@ export default function FavoritesClient({ prompts }: FavoritesClientProps) {
     authReady,
     favorites,
     favoritesLoading,
-    balance,
     purchases,
     setFavorites,
     setGenerations,
@@ -118,7 +117,7 @@ export default function FavoritesClient({ prompts }: FavoritesClientProps) {
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className="aspect-[3/4] rounded-2xl bg-white/5 animate-pulse"
+                className="aspect-3/4 rounded-2xl bg-white/5 animate-pulse"
               />
             ))}
           </div>
@@ -150,7 +149,6 @@ export default function FavoritesClient({ prompts }: FavoritesClientProps) {
           user={user}
           isProfileOpen={isProfileOpen}
           setIsProfileOpen={setIsProfileOpen}
-          balance={balance}
           purchases={purchases}
           email=""
           setEmail={() => {}}
@@ -158,8 +156,9 @@ export default function FavoritesClient({ prompts }: FavoritesClientProps) {
           setPassword={() => {}}
           authMode="login"
           setAuthMode={() => {}}
-          handleAuth={() => {}}
+          handleAuth={async (e) => { e.preventDefault() }}
           handleTopUp={handleTopUp}
+          handleLogout={async () => {}}
           isTopUpLoading={isTopUpLoading}
         />
       )}
