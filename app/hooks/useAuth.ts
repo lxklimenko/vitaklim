@@ -96,7 +96,7 @@ export function useAuth() {
         const tg = (window as any).Telegram.WebApp;
 
         if (tg?.initData) {
-          // 1️⃣ Передаём initData на сервер
+          // 1️⃣ Передаём initData на сервер для валидации и сохранения
           await fetch('/api/auth/telegram', {
             method: 'POST',
             headers: {
@@ -107,13 +107,22 @@ export function useAuth() {
             })
           });
 
-          // Сервер создаст пользователя и установит сессию
-          // Далее просто получаем сессию
-          const { data: { session } } = await supabase.auth.getSession();
+          // Получаем user из initDataUnsafe (только для email генерации)
+          const telegramUser = tg.initDataUnsafe?.user;
 
-          if (session?.user) {
-            setUser(session.user);
-            loadAllUserData(session.user.id);
+          if (telegramUser?.id) {
+            const email = `telegram_${telegramUser.id}@telegram.local`;
+            const password = `secure_${telegramUser.id}`;
+
+            const { data, error } = await supabase.auth.signInWithPassword({
+              email,
+              password,
+            });
+
+            if (data?.user) {
+              setUser(data.user);
+              loadAllUserData(data.user.id);
+            }
           }
 
           setAuthReady(true);
