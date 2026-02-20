@@ -18,14 +18,14 @@ const GenerateModal = dynamic(() => import('../components/GenerateModal').then(m
 const ProfileModal = dynamic(() => import('../components/ProfileModal').then(m => m.ProfileModal), { ssr: false });
 
 export default function FavoritesPage() {
-  const { user, favorites, setFavorites, setGenerations, fetchProfile, purchases } = useAuth();
+  const { user, favorites, setFavorites, fetchProfile, purchases } = useAuth();
   
   // Состояния для модалок
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
   // Действия
-  const actions = useAppActions(user, setGenerations, setFavorites, fetchProfile, setIsProfileOpen);
+  const actions = useAppActions(user, setFavorites, fetchProfile, setIsProfileOpen);
 
   // --- ПОДКЛЮЧАЕМ ЛОГИКУ ГЕНЕРАЦИИ ---
   const {

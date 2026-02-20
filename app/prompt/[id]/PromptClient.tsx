@@ -47,7 +47,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
 
   // Хуки авторизации и действий (переносим вверх)
-  const { user, favorites, setFavorites, setGenerations, fetchProfile } = useAuth();
+  const { user, favorites, setFavorites, fetchProfile } = useAuth();
 
   // Хук генерации — теперь используем user и колбэк закрытия, а также fetchProfile
   const {
@@ -71,7 +71,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   );
 
   const setIsProfileOpen = () => {};
-  const actions = useAppActions(user, setGenerations, setFavorites, fetchProfile, setIsProfileOpen);
+  const actions = useAppActions(user, setFavorites, fetchProfile, setIsProfileOpen);
 
   // 3. Если нет в статике — грузим из Supabase
   useEffect(() => {
