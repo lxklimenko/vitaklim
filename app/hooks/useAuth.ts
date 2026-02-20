@@ -1,5 +1,5 @@
 // app/hooks/useAuth.ts
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/app/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { Generation } from '../types';
@@ -22,8 +22,6 @@ export function useAuth() {
   const [generationsLoading, setGenerationsLoading] = useState(false);
   
   const [profileReady, setProfileReady] = useState(false);
-
-  const generationsLoaded = useRef(false);
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
@@ -63,34 +61,24 @@ export function useAuth() {
     if (!error && data) setPurchases(data);
   };
 
-  const fetchGenerations = async (userId: string, force = false) => {
-    if (generationsLoaded.current && !force) return;
-    setGenerationsLoading(true);
-
-    const { data } = await supabase
-      .from('generations')
-      .select('id, user_id, prompt, image_url, created_at, is_favorite')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(20);
-
-    if (data) {
-      setGenerations(data as Generation[]);
-      generationsLoaded.current = true;
-    }
-    setGenerationsLoading(false);
-  };
-
-  const loadAllUserData = useCallback(async (userId: string) => {
-    try {
-      await Promise.all([
-        fetchProfile(userId),
-        fetchFavorites(userId)
-      ]);
-    } catch (error) {
-      console.error("Ошибка при параллельной загрузке данных пользователя:", error);
-    }
-  }, []);
+  // 🔧 Заменяем функцию loadAllUserData
+  const loadAllUserData = useCallback(
+    async (userId: string, skipProfile = false) => {
+      try {
+        if (skipProfile) {
+          await fetchFavorites(userId)
+        } else {
+          await Promise.all([
+            fetchProfile(userId),
+            fetchFavorites(userId)
+          ])
+        }
+      } catch (error) {
+        console.error("Ошибка при загрузке данных пользователя:", error);
+      }
+    },
+    []
+  )
 
   useEffect(() => {
     const initSession = async () => {
@@ -156,7 +144,6 @@ export function useAuth() {
         setPurchases([]);
         setGenerations([]);
         setBalance(0); // Сбрасываем баланс при выходе
-        generationsLoaded.current = false;
         setProfileReady(false);
         return;
       }
@@ -211,6 +198,5 @@ export function useAuth() {
     setGenerations,
     setPurchases,
     fetchProfile,
-    fetchGenerations
   };
 }

@@ -7,21 +7,31 @@ import { ChevronLeft, LogOut, CreditCard, Mail, User as UserIcon, Loader2 } from
 import { Toaster, toast } from 'sonner';
 import { supabase } from '@/app/lib/supabase';
 
-// Импорты
 import { useAuth } from '../hooks/useAuth';
 import { Navigation } from '../components/Navigation';
 
-export default function ProfileClient() {
-  // Получаем данные из хука авторизации
-  const {
-    user,
-    fetchProfile,
-    authReady,
-    telegramUsername,
-    telegramFirstName,
-    telegramAvatarUrl,
-    balance,
-  } = useAuth();
+interface ProfileData {
+  telegram_username: string | null;
+  telegram_first_name: string | null;
+  telegram_avatar_url: string | null;
+  balance: number;
+}
+
+export default function ProfileClient({
+  initialProfile,
+}: {
+  initialProfile: ProfileData | null;
+}) {
+  // Берём только необходимое из хука авторизации
+  const { user, fetchProfile, authReady } = useAuth();
+
+  // Используем данные напрямую из пропса initialProfile
+  const telegramUsername = initialProfile?.telegram_username ?? null;
+  const telegramFirstName = initialProfile?.telegram_first_name ?? null;
+  const telegramAvatarUrl = initialProfile?.telegram_avatar_url ?? null;
+  const balance = initialProfile?.balance ?? 0;
+
+  const serverBalance = initialProfile?.balance ?? 0; // не используется, оставлено для совместимости
 
   // Определяем, вошел ли пользователь через Telegram
   const isTelegramUser = !!telegramFirstName || !!telegramUsername;
@@ -57,7 +67,6 @@ export default function ProfileClient() {
         if (error) throw error;
         toast.success('С возвращением!');
 
-        // Передаём ID пользователя после успешного входа
         if (data.user) {
           fetchProfile(data.user.id);
         }
@@ -109,9 +118,7 @@ export default function ProfileClient() {
 
       console.log('Ответ сервера:', data);
 
-      // Редирект на страницу оплаты, если получена ссылка
       if (data.confirmationUrl) {
-        // Используем Telegram WebApp, если доступен, иначе обычный переход
         if (typeof window !== 'undefined') {
           const tg = (window as any).Telegram?.WebApp;
           if (tg) {
@@ -205,7 +212,6 @@ export default function ProfileClient() {
                 {authMode === 'login' ? 'Войти' : 'Создать аккаунт'}
               </button>
 
-              {/* Кнопка входа через Telegram (всегда показывается в режиме входа) */}
               {authMode === 'login' && (
                 <a
                   href="https://t.me/Vitaklimbot"
