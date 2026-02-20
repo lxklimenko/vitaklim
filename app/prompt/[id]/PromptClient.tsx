@@ -13,6 +13,7 @@ import { Prompt } from '../../types/prompt';
 import { useAuth } from '@/app/context/AuthContext';
 import { useAppActions } from '../../hooks/useAppActions';
 import { useImageGeneration } from '../../hooks/useImageGeneration';
+import { useTelegramBackButton } from '@/app/hooks/useTelegramBackButton'; // ✅ добавлено
 
 // Динамический импорт модалки (без SSR)
 const GenerateModal = dynamic(
@@ -28,6 +29,11 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+
+  // ✅ Интеграция кнопки "Назад" в Telegram
+  useTelegramBackButton(() => {
+    router.back();
+  });
 
   // 1. Ищем в статичных промптах
   const staticPrompt = prompts.find(p => p.id.toString() === id);
@@ -154,7 +160,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
       {/* Блок с описанием — обновлённый дизайн */}
       <div className="max-w-4xl mx-auto px-6 mt-6">
-        <div className="bg-gradient-to-b from-[#141414] to-[#0f0f0f]
+        <div className="bg-linear-to-b from-[#141414] to-[#0f0f0f]
                       border border-white/10
                       rounded-3xl
                       p-6
@@ -190,11 +196,11 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
               {/* Верхний fade */}
               <div className="pointer-events-none absolute top-0 left-0 right-0 h-6 
-                              bg-gradient-to-b from-[#141414] to-transparent" />
+                              bg-linear-to-b from-[#141414] to-transparent" />
 
               {/* Нижний fade */}
               <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 
-                              bg-gradient-to-t from-[#0f0f0f] to-transparent" />
+                              bg-linear-to-t from-[#0f0f0f] to-transparent" />
             </div>
 
             {/* Кнопки справа */}
@@ -235,7 +241,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
             className="w-full
                        py-4
                        rounded-2xl
-                       bg-gradient-to-b from-white to-zinc-200
+                       bg-linear-to-b from-white to-zinc-200
                        text-black
                        font-semibold
                        shadow-lg shadow-white/10

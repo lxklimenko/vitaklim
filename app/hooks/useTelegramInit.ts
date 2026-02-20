@@ -9,16 +9,27 @@ export function useTelegramInit() {
     const tg = window.Telegram.WebApp
 
     tg.ready()
+
+    // Разворачиваем на максимум
     tg.expand()
 
-    // Чёрный верх
-    tg.setHeaderColor('#000000')
-
-    // Фон Telegram за пределами твоего приложения
-    tg.setBackgroundColor('#000000')
-
-    // Отключаем лишние анимации iOS
+    // Отключаем вертикальный свайп (чтобы не сворачивалось)
     tg.disableVerticalSwipes?.()
+
+    // Определяем тему Telegram
+    const isDark = tg.colorScheme === 'dark'
+
+    const bgColor = isDark ? '#000000' : '#ffffff'
+
+    // Красим системные зоны Telegram
+    tg.setHeaderColor(bgColor)
+    tg.setBackgroundColor(bgColor)
+
+    // Убираем bounce-эффект на iOS
+    document.body.style.overscrollBehaviorY = 'none'
+
+    // Добавляем класс в body для темы
+    document.body.dataset.theme = isDark ? 'dark' : 'light'
 
   }, [])
 }

@@ -28,7 +28,10 @@ export default function RootLayout({
         {/* Обертка для контента, чтобы избежать скачков при загрузке */}
         <AuthProvider>
           <div className="relative min-h-screen flex flex-col overflow-x-hidden">
-            {children}
+            {/* Добавлен div с отступом снизу для safe area */}
+            <div className="flex-1 pb-[env(safe-area-inset-bottom)]">
+              {children}
+            </div>
           </div>
         </AuthProvider>
       </body>
