@@ -76,7 +76,7 @@ export async function POST(req: Request) {
         },
         confirmation: {
           type: 'redirect',
-          return_url: 'https://vitaklim.vercel.app/profile', // Make configurable if needed
+          return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/profile`, // Make configurable if needed
         },
         capture: true,
         description: `Пополнение баланса пользователем ${userId}`,

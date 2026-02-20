@@ -15,6 +15,9 @@ export function useAuth() {
   const [purchases, setPurchases] = useState<any[]>([]);
   const [generations, setGenerations] = useState<Generation[]>([]);
   
+  // Добавлено состояние для баланса
+  const [balance, setBalance] = useState<number>(0);
+  
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [generationsLoading, setGenerationsLoading] = useState(false);
   
@@ -25,13 +28,15 @@ export function useAuth() {
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('telegram_username, telegram_first_name, telegram_avatar_url')
+      .select('telegram_username, telegram_first_name, telegram_avatar_url, balance')
       .eq('id', userId)
       .single();
     if (!error && data) {
       setTelegramUsername(data.telegram_username);
       setTelegramFirstName(data.telegram_first_name);
       setTelegramAvatarUrl(data.telegram_avatar_url);
+      // Устанавливаем баланс из полученных данных
+      setBalance(data.balance ?? 0);
       setProfileReady(true);
     }
   };
@@ -150,6 +155,7 @@ export function useAuth() {
         setFavorites([]);
         setPurchases([]);
         setGenerations([]);
+        setBalance(0); // Сбрасываем баланс при выходе
         generationsLoaded.current = false;
         setProfileReady(false);
         return;
@@ -199,6 +205,8 @@ export function useAuth() {
     favorites,
     purchases,
     generations,
+    balance,          // Добавлено
+    setBalance,       // Добавлено (если требуется снаружи)
     setFavorites,
     setGenerations,
     setPurchases,
