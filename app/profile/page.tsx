@@ -9,20 +9,23 @@ import { supabase } from '@/app/lib/supabase';
 
 // Импорты
 import { useAuth } from '../hooks/useAuth';
+import { useBalance } from '@/app/hooks/useBalance';
 import { Navigation } from '../components/Navigation';
 
 export default function ProfilePage() {
-  // Получаем данные из хука
+  // Получаем данные из хука авторизации
   const {
     user,
-    balance,
     fetchProfile,
     authReady,
     telegramUsername,
     telegramFirstName,
-    telegramAvatarUrl,          // 👈 добавлено
+    telegramAvatarUrl,
   } = useAuth();
-  
+
+  // Получаем баланс из отдельного хука
+  const { balance } = useBalance();
+
   // Определяем, вошел ли пользователь через Telegram
   const isTelegramUser = !!telegramFirstName || !!telegramUsername;
 
@@ -85,10 +88,10 @@ export default function ProfilePage() {
       toast.error('Нужно войти в аккаунт');
       return;
     }
-  
+
     try {
       setIsTopUpLoading(true);
-  
+
       const res = await fetch('/api/payment', {
         method: 'POST',
         headers: {
@@ -99,16 +102,16 @@ export default function ProfilePage() {
           userId: user.id,
         }),
       });
-  
+
       const data = await res.json();
-  
+
       if (!res.ok) {
         toast.error(data.error || 'Ошибка оплаты');
         return;
       }
-  
+
       console.log('Ответ сервера:', data);
-  
+
       // Редирект на страницу оплаты, если получена ссылка
       if (data.confirmationUrl) {
         // Используем Telegram WebApp, если доступен, иначе обычный переход
@@ -122,7 +125,7 @@ export default function ProfilePage() {
         }
         return;
       }
-  
+
       toast.error('Не удалось получить ссылку на оплату');
     } catch (error) {
       console.error(error);
@@ -232,10 +235,10 @@ export default function ProfilePage() {
         ) : (
           /* Профиль пользователя */
           <div className="flex flex-col gap-6">
-            <div className="bg-gradient-to-br from-white/10 to-white/5 border border-white/10 rounded-2xl p-6">
+            <div className="bg-linear-to-br from-white/10 to-white/5 border border-white/10 rounded-2xl p-6">
               <div className="flex items-center gap-4 mb-6">
-                {/* Аватар — заменён по инструкции */}
-                <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xl font-bold">
+                {/* Аватар */}
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xl font-bold">
                   {telegramAvatarUrl ? (
                     <img
                       src={telegramAvatarUrl}
