@@ -28,7 +28,6 @@ export default function FavoritesClient({ prompts }: FavoritesClientProps) {
     favoritesLoading,
     purchases,
     setFavorites,
-    setGenerations,
     fetchProfile,
   } = useAuth();
 
@@ -37,7 +36,7 @@ export default function FavoritesClient({ prompts }: FavoritesClientProps) {
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
 
-  const actions = useAppActions(user, setGenerations, setFavorites, fetchProfile, setIsProfileOpen);
+  const actions = useAppActions(user, setFavorites, fetchProfile, setIsProfileOpen);
 
   const {
     generatePrompt,
