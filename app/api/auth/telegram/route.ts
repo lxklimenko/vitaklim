@@ -1,23 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { supabaseAdmin } from '@/app/lib/supabase-admin'
+
+function validateTelegramInitData(initData: string) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN!
+  if (!botToken) throw new Error('BOT TOKEN not configured')
+
+  const urlParams = new URLSearchParams(initData)
+  const hash = urlParams.get('hash')
+
+  if (!hash) return null
+
+  urlParams.delete('hash')
+
+  const dataCheckString = Array.from(urlParams.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}=${value}`)
+    .join('\n')
+
+  const secretKey = crypto
+    .createHash('sha256')
+    .update(botToken)
+    .digest()
+
+  const hmac = crypto
+    .createHmac('sha256', secretKey)
+    .update(dataCheckString)
+    .digest('hex')
+
+  if (hmac !== hash) {
+    return null
+  }
+
+  const userString = urlParams.get('user')
+  if (!userString) return null
+
+  return JSON.parse(userString)
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { telegramUser } = body
+    const { initData } = body
+
+    if (!initData) {
+      return NextResponse.json({ error: 'No initData' }, { status: 400 })
+    }
+
+    const telegramUser = validateTelegramInitData(initData)
 
     if (!telegramUser?.id) {
-      return NextResponse.json({ error: 'No telegram user' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid Telegram data' }, { status: 401 })
     }
 
     const email = `telegram_${telegramUser.id}@telegram.local`
     const password = `secure_${telegramUser.id}`
 
-    // Проверяем существует ли пользователь
-    const { data: existingUser } =
+    const { data: existingUsers } =
       await supabaseAdmin.auth.admin.listUsers()
 
-    const userFound = existingUser?.users?.find(
+    const userFound = existingUsers?.users?.find(
       (u) => u.email === email
     )
 
@@ -37,7 +79,6 @@ export async function POST(req: NextRequest) {
 
       userId = createdUser.user.id
 
-      // Создаём профиль вручную
       await supabaseAdmin.from('profiles').insert({
         id: userId,
         balance: 0,
@@ -49,7 +90,6 @@ export async function POST(req: NextRequest) {
     } else {
       userId = userFound.id
 
-      // Обновляем telegram данные
       await supabaseAdmin
         .from('profiles')
         .update({
@@ -64,6 +104,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true })
 
   } catch (err) {
+    console.error(err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

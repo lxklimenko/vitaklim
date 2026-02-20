@@ -11,7 +11,7 @@ export function useAuth() {
   const [balance, setBalance] = useState<number>(0);
   const [telegramUsername, setTelegramUsername] = useState<string | null>(null);
   const [telegramFirstName, setTelegramFirstName] = useState<string | null>(null);
-  const [telegramAvatarUrl, setTelegramAvatarUrl] = useState<string | null>(null); // добавлено
+  const [telegramAvatarUrl, setTelegramAvatarUrl] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
   const [generations, setGenerations] = useState<Generation[]>([]);
@@ -26,14 +26,14 @@ export function useAuth() {
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('balance, telegram_username, telegram_first_name, telegram_avatar_url') // изменено
+      .select('balance, telegram_username, telegram_first_name, telegram_avatar_url')
       .eq('id', userId)
       .single();
     if (!error && data) {
       setBalance(data.balance);
       setTelegramUsername(data.telegram_username);
       setTelegramFirstName(data.telegram_first_name);
-      setTelegramAvatarUrl(data.telegram_avatar_url); // добавлено
+      setTelegramAvatarUrl(data.telegram_avatar_url);
       setProfileReady(true);
     }
   };
@@ -91,41 +91,37 @@ export function useAuth() {
 
   useEffect(() => {
     const initSession = async () => {
-      let telegramUser: any = null;
-
+      // Telegram авторизация через initData
       if (typeof window !== 'undefined' && (window as any).Telegram) {
         const tg = (window as any).Telegram.WebApp;
-        telegramUser = tg?.initDataUnsafe?.user;
-      }
 
-      if (telegramUser) {
-        // 1️⃣ Отправляем Telegram данные на сервер
-        await fetch('/api/auth/telegram', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ telegramUser })
-        });
+        if (tg?.initData) {
+          // 1️⃣ Передаём initData на сервер
+          await fetch('/api/auth/telegram', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              initData: tg.initData
+            })
+          });
 
-        const email = `telegram_${telegramUser.id}@telegram.local`;
-        const password = `secure_${telegramUser.id}`;
+          // Сервер создаст пользователя и установит сессию
+          // Далее просто получаем сессию
+          const { data: { session } } = await supabase.auth.getSession();
 
-        // 2️⃣ Логинимся обычным способом
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+          if (session?.user) {
+            setUser(session.user);
+            loadAllUserData(session.user.id);
+          }
 
-        if (data?.user) {
-          setUser(data.user);
-          loadAllUserData(data.user.id);
+          setAuthReady(true);
+          return;
         }
-
-        setAuthReady(true);
-        return;
       }
 
+      // Обычная сессия (email/password или cookie)
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session?.user) {
@@ -144,7 +140,7 @@ export function useAuth() {
         setBalance(0);
         setTelegramUsername(null);
         setTelegramFirstName(null);
-        setTelegramAvatarUrl(null); // добавлено
+        setTelegramAvatarUrl(null);
         setFavorites([]);
         setPurchases([]);
         setGenerations([]);
@@ -194,7 +190,7 @@ export function useAuth() {
     balance,
     telegramUsername,
     telegramFirstName,
-    telegramAvatarUrl, // добавлено
+    telegramAvatarUrl,
     favorites,
     purchases,
     generations,
