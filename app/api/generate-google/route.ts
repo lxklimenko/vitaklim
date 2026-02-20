@@ -16,6 +16,8 @@ const GEMINI_IMAGE_MODELS = [
   'gemini-2.0-flash-exp',
   'gemini-1.5-pro',
   'gemini-1.5-flash',
+  'nano-banana-pro-preview',
+  'gemini-3-pro-image-preview',
 ];
 
 interface GenerationRequest {
