@@ -40,7 +40,7 @@ export default function FavoritesPage() {
     handleFileChange,
     handleRemoveImage,
     handleGenerate
-  } = useImageGeneration(user, () => setIsGenerateOpen(false), fetchProfile);
+  } = useImageGeneration(user, () => setIsGenerateOpen(false));
 
   // Фильтруем промпты: оставляем только избранные
   const favoritePrompts: any[] = []; // Временное решение - пустой массив

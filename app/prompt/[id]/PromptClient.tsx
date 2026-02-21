@@ -49,7 +49,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   // Хуки авторизации и действий (переносим вверх)
   const { user, favorites, setFavorites, fetchProfile } = useAuth();
 
-  // Хук генерации — теперь используем user и колбэк закрытия, а также fetchProfile
+  // Хук генерации — теперь используем user и колбэк закрытия, fetchProfile удалён
   const {
     generatePrompt,
     setGeneratePrompt,
@@ -66,8 +66,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
     user,
     () => {
       setIsGenerateOpen(false);
-    },
-    fetchProfile
+    }
   );
 
   const setIsProfileOpen = () => {};
