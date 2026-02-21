@@ -9,10 +9,10 @@ export default function ClientProviders({
   children: React.ReactNode
 }) {
   return (
-    <BalanceProvider>
-  <AuthProvider>
-    {children}
-  </AuthProvider>
-</BalanceProvider>
+    <AuthProvider>
+      <BalanceProvider>
+        {children}
+      </BalanceProvider>
+    </AuthProvider>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext } from 'react'
+import { useAuth } from '@/app/context/AuthContext'
 
 interface BalanceContextType {
   balance: number
@@ -10,7 +11,7 @@ interface BalanceContextType {
 const BalanceContext = createContext<BalanceContextType | null>(null)
 
 export function BalanceProvider({ children }: { children: React.ReactNode }) {
-  const [balance, setBalance] = useState(0)
+  const { balance, setBalance } = useAuth()
 
   return (
     <BalanceContext.Provider value={{ balance, setBalance }}>
@@ -21,8 +22,10 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
 
 export function useBalance() {
   const context = useContext(BalanceContext)
+
   if (!context) {
     throw new Error('useBalance must be used inside BalanceProvider')
   }
+
   return context
 }
