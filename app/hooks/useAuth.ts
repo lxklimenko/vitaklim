@@ -3,8 +3,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/app/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { Generation } from '../types';
+import { useBalance } from '@/app/context/BalanceContext';
 
 export function useAuth() {
+  const { setBalance } = useBalance();
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   
@@ -13,9 +15,6 @@ export function useAuth() {
   const [telegramAvatarUrl, setTelegramAvatarUrl] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
-  
-  // Добавлено состояние для баланса
-  const [balance, setBalance] = useState<number>(0);
   
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   
@@ -31,7 +30,6 @@ export function useAuth() {
       setTelegramUsername(data.telegram_username);
       setTelegramFirstName(data.telegram_first_name);
       setTelegramAvatarUrl(data.telegram_avatar_url);
-      // Устанавливаем баланс из полученных данных
       setBalance(data.balance ?? 0);
       setProfileReady(true);
     }
@@ -59,10 +57,11 @@ export function useAuth() {
     if (!error && data) setPurchases(data);
   };
 
-  // 🔧 Заменяем функцию loadAllUserData
   const loadAllUserData = useCallback(
     async (userId: string, skipProfile = false) => {
       try {
+        if (profileReady && !skipProfile) return;
+
         if (skipProfile) {
           await fetchFavorites(userId)
         } else {
@@ -75,17 +74,15 @@ export function useAuth() {
         console.error("Ошибка при загрузке данных пользователя:", error);
       }
     },
-    []
+    [profileReady]
   )
 
   useEffect(() => {
     const initSession = async () => {
-      // Telegram авторизация через initData
       if (typeof window !== 'undefined' && (window as any).Telegram) {
         const tg = (window as any).Telegram.WebApp;
 
         if (tg?.initData) {
-          // 1️⃣ Передаём initData на сервер для валидации и сохранения
           await fetch('/api/auth/telegram', {
             method: 'POST',
             headers: {
@@ -96,7 +93,6 @@ export function useAuth() {
             })
           });
 
-          // Получаем user из initDataUnsafe (только для email генерации)
           const telegramUser = tg.initDataUnsafe?.user;
 
           if (telegramUser?.id) {
@@ -119,7 +115,6 @@ export function useAuth() {
         }
       }
 
-      // Обычная сессия (email/password или cookie)
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session?.user) {
@@ -140,8 +135,8 @@ export function useAuth() {
         setTelegramAvatarUrl(null);
         setFavorites([]);
         setPurchases([]);
-        setBalance(0); // Сбрасываем баланс при выходе
         setProfileReady(false);
+        setBalance(0); // сбрасываем баланс при выходе
         return;
       }
 
@@ -161,7 +156,6 @@ export function useAuth() {
                   telegram_id: telegramUser.id,
                   telegram_username: telegramUser.username || null,
                   telegram_first_name: telegramUser.first_name || null,
-                  // telegram_avatar_url не обновляем здесь, так как его нет в initDataUnsafe
                 })
                 .eq('id', session.user.id);
               
@@ -175,7 +169,7 @@ export function useAuth() {
     });
 
     return () => authData.subscription.unsubscribe();
-  }, [loadAllUserData]);
+  }, [loadAllUserData, setBalance]);
 
   return { 
     user,
@@ -187,8 +181,6 @@ export function useAuth() {
     telegramAvatarUrl,
     favorites,
     purchases,
-    balance,          // Добавлено
-    setBalance,       // Добавлено (если требуется снаружи)
     setFavorites,
     setPurchases,
     fetchProfile,

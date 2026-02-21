@@ -1,6 +1,7 @@
 'use client'
 
 import { AuthProvider } from '@/app/context/AuthContext'
+import { BalanceProvider } from '@/app/context/BalanceContext'
 
 export default function ClientProviders({
   children,
@@ -9,7 +10,9 @@ export default function ClientProviders({
 }) {
   return (
     <AuthProvider>
-      {children}
+      <BalanceProvider>
+        {children}
+      </BalanceProvider>
     </AuthProvider>
   )
 }

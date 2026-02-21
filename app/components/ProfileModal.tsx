@@ -16,8 +16,8 @@ interface ProfileModalProps {
   authMode: 'login' | 'register';
   setAuthMode: (mode: 'login' | 'register') => void;
   handleAuth: (e: React.FormEvent) => Promise<void>;
-  handleTopUp: (amount: number) => Promise<void>; // теперь принимает сумму
-  handleLogout: () => Promise<void>; // добавили проп для выхода
+  handleTopUp: (amount: number) => Promise<void>;
+  handleLogout: () => Promise<void>;
   isTopUpLoading: boolean;
 }
 
@@ -39,6 +39,7 @@ export function ProfileModal({
 }: ProfileModalProps) {
   const [showTopUp, setShowTopUp] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(false); // локальное состояние для кнопки авторизации
 
   if (!isProfileOpen) return null;
 
@@ -59,14 +60,34 @@ export function ProfileModal({
       toast.error('Выберите сумму пополнения');
       return;
     }
-    await handleTopUp(selectedAmount);
-    setShowTopUp(false);
-    setSelectedAmount(null);
+
+    try {
+      await handleTopUp(selectedAmount);
+      toast.success('Баланс успешно пополнен');
+      setShowTopUp(false);
+      setSelectedAmount(null);
+    } catch (error) {
+      toast.error('Ошибка при пополнении. Попробуйте позже.');
+      // Не закрываем окно пополнения, чтобы пользователь мог повторить
+    }
   };
+
+  const onAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAuthLoading(true);
+    try {
+      await handleAuth(e);
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  // Безопасное получение ID
+  const userId = user?.id ? String(user.id).slice(0, 8) : '...';
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end justify-center z-150"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end justify-center z-50"
       onClick={handleOverlayClick}
     >
       <div className="bg-[#1a1a1a] w-full max-w-md rounded-t-3xl border border-white/10 shadow-2xl animate-slide-up">
@@ -78,6 +99,7 @@ export function ProfileModal({
           <button
             onClick={() => setIsProfileOpen(false)}
             className="p-2 rounded-full hover:bg-white/10 transition"
+            aria-label="Закрыть"
           >
             <X size={20} />
           </button>
@@ -87,7 +109,7 @@ export function ProfileModal({
         <div className="p-5 max-h-[70vh] overflow-y-auto">
           {!user ? (
             // Форма авторизации
-            <form onSubmit={handleAuth} className="space-y-4">
+            <form onSubmit={onAuthSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm text-white/60 mb-1">Email</label>
                 <input
@@ -96,6 +118,7 @@ export function ProfileModal({
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-white/20"
                   required
+                  disabled={isAuthLoading}
                 />
               </div>
               <div>
@@ -106,14 +129,16 @@ export function ProfileModal({
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-white/20"
                   required
+                  disabled={isAuthLoading}
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 bg-white text-black font-medium rounded-xl hover:bg-white/90 transition"
+                disabled={isAuthLoading}
+                className="w-full py-3 bg-white text-black font-medium rounded-xl hover:bg-white/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {authMode === 'login' ? 'Войти' : 'Зарегистрироваться'}
+                {isAuthLoading ? 'Подождите...' : authMode === 'login' ? 'Войти' : 'Зарегистрироваться'}
               </button>
 
               <p className="text-center text-sm text-white/40">
@@ -121,7 +146,8 @@ export function ProfileModal({
                 <button
                   type="button"
                   onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
-                  className="text-white/80 underline"
+                  className="text-white/80 underline disabled:opacity-50"
+                  disabled={isAuthLoading}
                 >
                   {authMode === 'login' ? 'Создать' : 'Войти'}
                 </button>
@@ -137,7 +163,7 @@ export function ProfileModal({
                 </div>
                 <div className="flex-1">
                   <p className="font-medium truncate">{user.email}</p>
-                  <p className="text-sm text-white/40">ID: {user.id?.slice(0, 8) || '...'}</p>
+                  <p className="text-sm text-white/40">ID: {userId}</p>
                 </div>
               </div>
 
@@ -148,7 +174,7 @@ export function ProfileModal({
                     <Coins size={20} className="text-yellow-400" />
                     <span className="font-medium">Баланс</span>
                   </div>
-                  <span className="text-xl font-bold">{user.balance || 0} ₽</span>
+                  <span className="text-xl font-bold">{user.balance ?? 0} ₽</span>
                 </div>
                 {!showTopUp ? (
                   <button

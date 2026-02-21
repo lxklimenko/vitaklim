@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/app/lib/supabase';
 import { MODELS } from '../constants/appConstants';
+import { useBalance } from '@/app/context/BalanceContext';
 
 // Типизация пользователя (можно расширить или вынести в отдельный тип)
 interface User {
@@ -11,9 +12,9 @@ interface User {
 
 export function useImageGeneration(
   user: User | null,
-  onGenerationComplete: () => void,
-  refreshBalance?: (userId: string) => Promise<void>
+  onGenerationComplete: () => void
 ) {
+  const { balance, setBalance } = useBalance();
   const [generatePrompt, setGeneratePrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -68,7 +69,7 @@ export function useImageGeneration(
       toast.error('Введите промпт');
       return;
     }
-    if (user.balance !== undefined && user.balance <= 0) {
+    if (balance <= 0) {
       toast.error('Недостаточно средств на балансе');
       return;
     }
@@ -96,10 +97,8 @@ export function useImageGeneration(
       setImageUrl(data.imageUrl);
       toast.success('Изображение сгенерировано');
 
-      // Обновляем баланс, если передана функция
-      if (refreshBalance) {
-        await refreshBalance(user.id).catch(console.error);
-      }
+      // Уменьшаем локальный баланс
+      setBalance(prev => Math.max(prev - 1, 0));
 
       onGenerationComplete();
     } catch (error: any) {
@@ -114,7 +113,8 @@ export function useImageGeneration(
     modelId,
     aspectRatio,
     referenceFile,
-    refreshBalance,
+    balance,
+    setBalance,
     onGenerationComplete,
   ]);
 
