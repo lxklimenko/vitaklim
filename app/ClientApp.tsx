@@ -63,8 +63,7 @@ export default function ClientApp({ prompts }: ClientAppProps) {
     handleGenerate,
   } = useImageGeneration(
     user,
-    () => {},
-    fetchProfile
+    () => {}
   );
 
   // UI STATE
