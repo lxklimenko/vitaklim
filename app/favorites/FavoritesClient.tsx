@@ -50,7 +50,7 @@ export default function FavoritesClient({ prompts }: FavoritesClientProps) {
     handleFileChange,
     handleRemoveImage,
     handleGenerate
-  } = useImageGeneration(user, () => {}, fetchProfile);
+  } = useImageGeneration(user, () => {});
 
   const favoritePrompts = prompts.filter(p => favorites.includes(p.id));
 
