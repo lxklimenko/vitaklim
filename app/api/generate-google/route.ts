@@ -39,6 +39,8 @@ function generateFileName(userId: string, prefix = ''): string {
   return `${userId}/${prefix}${timestamp}-${random}.jpg`;
 }
 
+export const runtime = 'nodejs';
+
 export async function POST(req: Request) {
   const supabase = await createClient();
 
@@ -86,6 +88,28 @@ export async function POST(req: Request) {
       );
     }
 
+    // 🔒 Anti-spam защита: не чаще 1 генерации раз в 3 секунды
+    const { data: lastGeneration } = await supabase
+      .from('generations')
+      .select('created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lastGeneration?.created_at) {
+      const lastTime = new Date(lastGeneration.created_at).getTime();
+      const now = Date.now();
+      const diffInSeconds = (now - lastTime) / 1000;
+
+      if (diffInSeconds < 3) {
+        return NextResponse.json(
+          { error: "Слишком частые запросы. Подождите 3 секунды." },
+          { status: 429 }
+        );
+      }
+    }
+
     // 4. Проверка API-ключа Google
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
@@ -115,6 +139,19 @@ export async function POST(req: Request) {
           // Проверка размера файла
           if (imageFile.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
             throw new Error(`Размер изображения превышает ${MAX_IMAGE_SIZE_MB} МБ`);
+          }
+
+          // Проверка MIME-типа
+          const allowedMimeTypes = [
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+            'image/heic',
+            'image/heif'
+          ];
+
+          if (!allowedMimeTypes.includes(imageFile.type)) {
+            throw new Error('Неподдерживаемый формат изображения');
           }
 
           const arrayBuffer = await imageFile.arrayBuffer();
