@@ -60,6 +60,9 @@ export function useImageGeneration(
 
   // Основная генерация
   const handleGenerate = useCallback(async () => {
+    // Защита от двойного запуска
+    if (isGenerating) return;
+
     console.log('HANDLE GENERATE CALLED');
     if (!user) {
       toast.error('Войдите в аккаунт для генерации');
@@ -73,6 +76,12 @@ export function useImageGeneration(
       toast.error('Недостаточно средств на балансе');
       return;
     }
+
+    // Сохраняем предыдущий баланс для возможного отката
+    const previousBalance = balance;
+
+    // Оптимистичное списание
+    setBalance(prev => Math.max(prev - 1, 0));
 
     setIsGenerating(true);
     try {
@@ -97,11 +106,10 @@ export function useImageGeneration(
       setImageUrl(data.imageUrl);
       toast.success('Изображение сгенерировано');
 
-      // Уменьшаем локальный баланс
-      setBalance(prev => Math.max(prev - 1, 0));
-
       onGenerationComplete();
     } catch (error: any) {
+      // Откатываем баланс в случае ошибки
+      setBalance(previousBalance);
       console.error('Критическая ошибка:', error);
       toast.error(error.message || 'Ошибка соединения');
     } finally {
@@ -116,6 +124,7 @@ export function useImageGeneration(
     balance,
     setBalance,
     onGenerationComplete,
+    isGenerating,
   ]);
 
   return {
