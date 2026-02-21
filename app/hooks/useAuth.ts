@@ -3,10 +3,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/app/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { Generation } from '../types';
-import { useBalance } from '@/app/context/BalanceContext';
 
 export function useAuth() {
-  const { setBalance } = useBalance();
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   
@@ -19,6 +17,7 @@ export function useAuth() {
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   
   const [profileReady, setProfileReady] = useState(false);
+  const [balance, setBalance] = useState(0);
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
@@ -136,7 +135,7 @@ export function useAuth() {
         setFavorites([]);
         setPurchases([]);
         setProfileReady(false);
-        setBalance(0); // сбрасываем баланс при выходе
+        setBalance(0);
         return;
       }
 
@@ -169,7 +168,7 @@ export function useAuth() {
     });
 
     return () => authData.subscription.unsubscribe();
-  }, [loadAllUserData, setBalance]);
+  }, [loadAllUserData]);
 
   return { 
     user,
@@ -181,6 +180,8 @@ export function useAuth() {
     telegramAvatarUrl,
     favorites,
     purchases,
+    balance,
+    setBalance,
     setFavorites,
     setPurchases,
     fetchProfile,
