@@ -43,6 +43,8 @@ export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
   const supabase = await createClient();
+  // Для гарантированной очистки при ошибках
+  let uploadedFiles: string[] = [];
 
   try {
     // 1. Аутентификация
@@ -206,20 +208,39 @@ export async function POST(req: Request) {
       };
     }
 
-    // 7. Вызов Google API с таймаутом
+    // 7. Вызов Google API с таймаутом и ретраем при временных ошибках
     let response: Response;
-    try {
+
+    const makeRequest = async () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
-      response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal
-      });
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal
+        });
 
-      clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
+        return res;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
+    };
+
+    try {
+      response = await makeRequest();
+
+      // 🔁 Retry если временная ошибка
+      if (response.status === 429 || response.status === 503) {
+        console.warn("Google API temporary error, retrying...");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        response = await makeRequest();
+      }
+
     } catch (fetchError) {
       console.error('Network error calling Google API:', fetchError);
       return NextResponse.json(
@@ -265,6 +286,7 @@ export async function POST(req: Request) {
       console.error('Storage upload error:', uploadError);
       throw new Error('Не удалось сохранить сгенерированное изображение');
     }
+    uploadedFiles.push(fileName);
 
     const { data: { publicUrl } } = supabase.storage
       .from(STORAGE_BUCKET)
@@ -287,6 +309,7 @@ export async function POST(req: Request) {
             .getPublicUrl(refFileName);
           referencePublicUrl = refUrl;
           referenceFileName = refFileName;
+          uploadedFiles.push(refFileName);
         } else {
           console.error("Ошибка сохранения reference-изображения:", refUploadError);
         }
@@ -336,7 +359,21 @@ export async function POST(req: Request) {
 
   } catch (error: unknown) {
     console.error("Server Error:", error);
-    const message = error instanceof Error ? error.message : "Внутренняя ошибка сервера";
+
+    // 🧹 Гарантированная очистка загруженных файлов
+    if (uploadedFiles.length > 0) {
+      try {
+        await supabase.storage
+          .from(STORAGE_BUCKET)
+          .remove(uploadedFiles);
+      } catch (cleanupError) {
+        console.error("Cleanup error:", cleanupError);
+      }
+    }
+
+    const message =
+      error instanceof Error ? error.message : "Внутренняя ошибка сервера";
+
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
