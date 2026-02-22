@@ -10,21 +10,21 @@ const FETCH_TIMEOUT = 60000; // 60 секунд для генерации изо
 const MAX_IMAGE_SIZE_MB = 10;
 const ALLOWED_ASPECT_RATIOS = ['1:1', '3:4', '4:3', '9:16', '16:9'];
 
-// Модели Gemini, поддерживающие изображения на входе
-const GEMINI_IMAGE_MODELS = [
+// Модели Gemini, которые генерируют изображения (не просто принимают на входе)
+const GEMINI_IMAGE_GENERATION_MODELS = [
   'gemini-2.0-flash-exp-image-generation',
-  'gemini-2.0-flash-exp',
-  'gemini-1.5-pro',
-  'gemini-1.5-flash',
-  'nano-banana-pro-preview',
-  'gemini-3-pro-image-preview',
+  'gemini-2.0-flash-exp',              // может генерировать изображения в некоторых версиях
 ];
+
+// Модели Gemini, которые могут принимать изображения на вход (но не генерируют их)
+// Для них ответ будет текстовым – в данном API они не используются для генерации изображений,
+// поэтому оставляем только те, что действительно возвращают картинку.
 
 interface GenerationRequest {
   prompt: string;
   aspectRatio?: string;
   modelId: string;
-  imageFile?: File; // теперь это File, а не строка base64
+  imageFile?: File;
 }
 
 interface RpcResult {
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     const prompt = formData.get('prompt')?.toString();
     const aspectRatio = formData.get('aspectRatio')?.toString();
     const modelId = formData.get('modelId')?.toString();
-    const imageFile = formData.get('image') as File | null; // поле может называться "image"
+    const imageFile = formData.get('image') as File | null;
 
     if (!prompt?.trim() || !modelId) {
       return NextResponse.json(
@@ -126,15 +126,16 @@ export async function POST(req: Request) {
     }
 
     // 5. Определяем тип модели и метод API
-    const isGeminiModel = GEMINI_IMAGE_MODELS.some(name => modelId.includes(name));
-    const method = isGeminiModel ? "generateContent" : "predict";
+    const isGeminiImageModel = GEMINI_IMAGE_GENERATION_MODELS.some(name => modelId.includes(name));
+    // Для Imagen используем метод predict, для Gemini (генерация изображений) – generateContent
+    const method = isGeminiImageModel ? "generateContent" : "predict";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:${method}?key=${apiKey}`;
 
     // 6. Формируем тело запроса к Google API
     let requestBody: unknown;
-    let processedImageBuffer: Buffer | null = null; // сохраним для reference
+    let processedImageBuffer: Buffer | null = null; // для сохранения reference-изображения
 
-    if (isGeminiModel) {
+    if (isGeminiImageModel) {
       const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
         { text: prompt }
       ];
@@ -188,7 +189,10 @@ export async function POST(req: Request) {
 
       requestBody = {
         contents: [{ parts }],
-        generationConfig: { candidateCount: 1 }
+        generationConfig: {
+          candidateCount: 1,
+          responseModalities: ["image"] // обязательно для получения изображения, а не текста
+        }
       };
     } else {
       // Imagen — только текст + соотношение сторон
@@ -263,11 +267,14 @@ export async function POST(req: Request) {
     // 8. Извлечение сгенерированного изображения (base64)
     let base64Image: string;
 
-    if (isGeminiModel) {
+    if (isGeminiImageModel) {
       const candidate = data.candidates?.[0];
       const imagePart = candidate?.content?.parts?.find((part: any) => part.inlineData);
       if (!imagePart) {
-        throw new Error("Модель не вернула изображение. Возможно, промпт был заблокирован.");
+        // Модель могла вернуть текст (например, если промпт заблокирован)
+        const textPart = candidate?.content?.parts?.find((part: any) => part.text);
+        const errorText = textPart?.text || "Модель не вернула изображение. Возможно, промпт был заблокирован.";
+        throw new Error(errorText);
       }
       base64Image = imagePart.inlineData.data;
     } else {
