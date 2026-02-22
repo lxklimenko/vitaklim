@@ -195,7 +195,7 @@ export async function POST(req: Request) {
     };
 
     // 6. Формируем URL для Gemini API (используем v1) – динамически подставляем modelId
-    const url = `https://generativelanguage.googleapis.com/v1/models/${modelId}:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
 
     // 7. Вызов Gemini API с таймаутом и ретраем при временных ошибках
     let response: Response;
