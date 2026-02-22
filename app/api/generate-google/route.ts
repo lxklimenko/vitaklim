@@ -189,12 +189,9 @@ export async function POST(req: Request) {
       }
     }
 
+    // ИЗМЕНЕНИЕ: убрано поле generation_config
     const requestBody = {
-      contents: [{ parts }],
-      generation_config: {
-        response_modalities: ["image"],
-        temperature: 0.9
-      }
+      contents: [{ parts }]
     };
 
     // 6. Формируем URL для Gemini API (используем v1) – динамически подставляем modelId
