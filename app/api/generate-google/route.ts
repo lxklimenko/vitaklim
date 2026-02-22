@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from '@/app/lib/supabase-server';
 import sharp from "sharp";
 import crypto from 'crypto';
+import { GoogleAuth } from "google-auth-library"; // ✅ добавлен импорт
 
 // Константы
 const GENERATION_COST = parseInt(process.env.GENERATION_COST || "1", 10);
@@ -15,10 +16,6 @@ const GEMINI_IMAGE_GENERATION_MODELS = [
   'gemini-2.0-flash-exp-image-generation',
   'gemini-2.0-flash-exp',              // может генерировать изображения в некоторых версиях
 ];
-
-// Модели Gemini, которые могут принимать изображения на вход (но не генерируют их)
-// Для них ответ будет текстовым – в данном API они не используются для генерации изображений,
-// поэтому оставляем только те, что действительно возвращают картинку.
 
 interface GenerationRequest {
   prompt: string;
@@ -115,23 +112,40 @@ export async function POST(req: Request) {
       }
     }
 
-    // 4. Проверка API-ключа Google
-    const apiKey = process.env.GOOGLE_API_KEY;
-    if (!apiKey) {
-      console.error('Google API key not configured');
+    // 4. Проверка наличия credentials
+    const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+    if (!credentialsJson) {
+      console.error('Google credentials not configured');
       return NextResponse.json(
-        { error: "API ключ не настроен" },
+        { error: "Сервис временно недоступен (ошибка конфигурации)" },
         { status: 500 }
       );
     }
 
-    // 5. Определяем тип модели и метод API
+    // 5. Определяем тип модели и метод API (для Vertex AI)
     const isGeminiImageModel = GEMINI_IMAGE_GENERATION_MODELS.some(name => modelId.includes(name));
-    // Для Imagen используем метод predict, для Gemini (генерация изображений) – generateContent
+    // Для Gemini используем generateContent, для Imagen – predict
     const method = isGeminiImageModel ? "generateContent" : "predict";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:${method}?key=${apiKey}`;
 
-    // 6. Формируем тело запроса к Google API
+    // === VERTEX AUTH ===
+    const credentials = JSON.parse(credentialsJson);
+    const auth = new GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+    });
+
+    const client = await auth.getClient();
+    const accessToken = await client.getAccessToken();
+
+    const projectId = credentials.project_id;
+    const region = "us-central1";
+
+    // Формируем URL для Vertex AI в зависимости от типа модели
+    const vertexUrl = isGeminiImageModel
+      ? `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models/${modelId}:generateContent`
+      : `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models/${modelId}:predict`;
+
+    // 6. Формируем тело запроса к Google API (без изменений)
     let requestBody: unknown;
     let processedImageBuffer: Buffer | null = null; // для сохранения reference-изображения
 
@@ -215,7 +229,7 @@ export async function POST(req: Request) {
       };
     }
 
-    // 7. Вызов Google API с таймаутом и ретраем при временных ошибках
+    // 7. Вызов Vertex AI с таймаутом и ретраем при временных ошибках
     let response: Response;
 
     const makeRequest = async () => {
@@ -223,9 +237,12 @@ export async function POST(req: Request) {
       const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
       try {
-        const res = await fetch(url, {
+        const res = await fetch(vertexUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken.token}`,
+          },
           body: JSON.stringify(requestBody),
           signal: controller.signal
         });
@@ -243,13 +260,13 @@ export async function POST(req: Request) {
 
       // 🔁 Retry если временная ошибка
       if (response.status === 429 || response.status === 503) {
-        console.warn("Google API temporary error, retrying...");
+        console.warn("Vertex AI temporary error, retrying...");
         await new Promise(resolve => setTimeout(resolve, 1000));
         response = await makeRequest();
       }
 
     } catch (fetchError) {
-      console.error('Network error calling Google API:', fetchError);
+      console.error('Network error calling Vertex AI:', fetchError);
       return NextResponse.json(
         { error: "Ошибка сети при обращении к API генерации" },
         { status: 502 }
@@ -259,7 +276,7 @@ export async function POST(req: Request) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("Google API Error:", data);
+      console.error("Vertex AI Error:", data);
       const errorMessage = data.error?.message || "Ошибка генерации изображения";
       return NextResponse.json({ error: errorMessage }, { status: response.status });
     }
