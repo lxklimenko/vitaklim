@@ -56,25 +56,21 @@ export function useAuth() {
     if (!error && data) setPurchases(data);
   };
 
+  // 🔁 Заменённый блок
   const loadAllUserData = useCallback(
     async (userId: string, skipProfile = false) => {
       try {
-        if (profileReady && !skipProfile) return;
-
-        if (skipProfile) {
-          await fetchFavorites(userId)
-        } else {
-          await Promise.all([
-            fetchProfile(userId),
-            fetchFavorites(userId)
-          ])
+        if (!skipProfile && !profileReady) {
+          await fetchProfile(userId);
         }
+
+        await fetchFavorites(userId);
       } catch (error) {
         console.error("Ошибка при загрузке данных пользователя:", error);
       }
     },
     [profileReady]
-  )
+  );
 
   useEffect(() => {
     const initSession = async () => {
