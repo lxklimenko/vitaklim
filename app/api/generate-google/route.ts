@@ -191,8 +191,8 @@ export async function POST(req: Request) {
 
     const requestBody = {
       contents: [{ parts }],
-      generationConfig: {
-        responseModalities: ["image"],
+      generation_config: {
+        response_modalities: ["image"],
         temperature: 0.9
       }
     };
