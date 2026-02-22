@@ -9,11 +9,6 @@ const STORAGE_BUCKET = 'generations';
 const FETCH_TIMEOUT = 60000; // 60 секунд для генерации изображения
 const MAX_IMAGE_SIZE_MB = 10;
 
-// Временно фиксируем модель (Gemini 1.5 Flash)
-// Внимание: эта модель не генерирует изображения, только текст.
-// Для реальной генерации изображений используйте gemini-2.0-flash-exp-image-generation
-const FIXED_MODEL_ID = "gemini-1.5-flash";
-
 interface GenerationRequest {
   prompt: string;
   aspectRatio?: string;
@@ -56,14 +51,34 @@ export async function POST(req: Request) {
     // 2. Парсинг multipart/form-data
     const formData = await req.formData();
     const prompt = formData.get('prompt')?.toString();
-    // aspectRatio и modelId больше не используются, но оставляем для обратной совместимости
     const aspectRatio = formData.get('aspectRatio')?.toString();
-    const modelId = formData.get('modelId')?.toString(); // игнорируем
+    const modelId = formData.get('modelId')?.toString();
     const imageFile = formData.get('image') as File | null;
 
     if (!prompt?.trim()) {
       return NextResponse.json(
         { error: "Не указан prompt" },
+        { status: 400 }
+      );
+    }
+
+    // Проверка наличия modelId
+    if (!modelId) {
+      return NextResponse.json(
+        { error: "Не указана модель" },
+        { status: 400 }
+      );
+    }
+
+    // 🔥 Проверка, что модель поддерживает генерацию изображений (новый список)
+    const IMAGE_MODELS = [
+      "gemini-3-pro-image-preview",
+      "gemini-2.5-flash-image"
+    ];
+
+    if (!IMAGE_MODELS.includes(modelId)) {
+      return NextResponse.json(
+        { error: "Модель не поддерживает генерацию изображений" },
         { status: 400 }
       );
     }
@@ -120,7 +135,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 5. Формируем тело запроса для Gemini API (всегда используем единый формат)
+    // 5. Формируем тело запроса для Gemini API
     let processedImageBuffer: Buffer | null = null; // для сохранения reference-изображения
 
     const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
@@ -177,16 +192,13 @@ export async function POST(req: Request) {
     const requestBody = {
       contents: [{ parts }],
       generationConfig: {
-        candidateCount: 1,
-        // Для моделей, поддерживающих генерацию изображений, необходимо указать responseModalities: ["image"]
-        // Но фиксированная модель gemini-1.5-flash не поддерживает генерацию изображений,
-        // поэтому этот параметр будет проигнорирован (модель вернёт текст).
-        responseModalities: ["image"]
+        responseModalities: ["image"],
+        temperature: 0.9
       }
     };
 
-    // 6. Формируем URL для Gemini API (используем v1 вместо v1beta)
-    const url = `https://generativelanguage.googleapis.com/v1/models/${FIXED_MODEL_ID}:generateContent?key=${apiKey}`;
+    // 6. Формируем URL для Gemini API (используем v1) – динамически подставляем modelId
+    const url = `https://generativelanguage.googleapis.com/v1/models/${modelId}:generateContent?key=${apiKey}`;
 
     // 7. Вызов Gemini API с таймаутом и ретраем при временных ошибках
     let response: Response;
@@ -240,15 +252,13 @@ export async function POST(req: Request) {
     }
 
     // 8. Извлечение сгенерированного изображения (base64)
-    // Для моделей, которые генерируют изображения, ответ содержит inlineData с base64
-    // Для текстовых моделей (как наша фиксированная) будет текстовый ответ, поэтому обрабатываем ошибку
     const candidate = data.candidates?.[0];
     const imagePart = candidate?.content?.parts?.find((part: any) => part.inlineData);
     
     if (!imagePart) {
-      // Модель не вернула изображение (например, потому что используется текстовая модель)
+      // Модель могла вернуть текст (например, если промпт заблокирован)
       const textPart = candidate?.content?.parts?.find((part: any) => part.text);
-      const errorText = textPart?.text || "Модель не вернула изображение. Возможно, используется неподдерживаемая модель или промпт был заблокирован.";
+      const errorText = textPart?.text || "Модель не вернула изображение. Возможно, промпт был заблокирован.";
       throw new Error(errorText);
     }
 
