@@ -2,20 +2,17 @@ import { NextResponse } from "next/server";
 import { createClient } from '@/app/lib/supabase-server';
 import sharp from "sharp";
 import crypto from 'crypto';
-import { GoogleAuth } from "google-auth-library"; // ✅ добавлен импорт
 
 // Константы
 const GENERATION_COST = parseInt(process.env.GENERATION_COST || "1", 10);
 const STORAGE_BUCKET = 'generations';
 const FETCH_TIMEOUT = 60000; // 60 секунд для генерации изображения
 const MAX_IMAGE_SIZE_MB = 10;
-const ALLOWED_ASPECT_RATIOS = ['1:1', '3:4', '4:3', '9:16', '16:9'];
 
-// Модели Gemini, которые генерируют изображения (не просто принимают на входе)
-const GEMINI_IMAGE_GENERATION_MODELS = [
-  'gemini-2.0-flash-exp-image-generation',
-  'gemini-2.0-flash-exp',              // может генерировать изображения в некоторых версиях
-];
+// Временно фиксируем модель (Gemini 1.5 Flash)
+// Внимание: эта модель не генерирует изображения, только текст.
+// Для реальной генерации изображений используйте gemini-2.0-flash-exp-image-generation
+const FIXED_MODEL_ID = "gemini-1.5-flash";
 
 interface GenerationRequest {
   prompt: string;
@@ -59,13 +56,14 @@ export async function POST(req: Request) {
     // 2. Парсинг multipart/form-data
     const formData = await req.formData();
     const prompt = formData.get('prompt')?.toString();
+    // aspectRatio и modelId больше не используются, но оставляем для обратной совместимости
     const aspectRatio = formData.get('aspectRatio')?.toString();
-    const modelId = formData.get('modelId')?.toString();
+    const modelId = formData.get('modelId')?.toString(); // игнорируем
     const imageFile = formData.get('image') as File | null;
 
-    if (!prompt?.trim() || !modelId) {
+    if (!prompt?.trim()) {
       return NextResponse.json(
-        { error: "Не указан prompt или modelId" },
+        { error: "Не указан prompt" },
         { status: 400 }
       );
     }
@@ -112,124 +110,85 @@ export async function POST(req: Request) {
       }
     }
 
-    // 4. Проверка наличия credentials
-    const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-    if (!credentialsJson) {
-      console.error('Google credentials not configured');
+    // 4. Проверка наличия API-ключа
+    const apiKey = process.env.GOOGLE_API_KEY;
+    if (!apiKey) {
+      console.error('Google API key not configured');
       return NextResponse.json(
         { error: "Сервис временно недоступен (ошибка конфигурации)" },
         { status: 500 }
       );
     }
 
-    // 5. Определяем тип модели и метод API (для Vertex AI)
-    const isGeminiImageModel = GEMINI_IMAGE_GENERATION_MODELS.some(name => modelId.includes(name));
-    // Для Gemini используем generateContent, для Imagen – predict
-    const method = isGeminiImageModel ? "generateContent" : "predict";
-
-    // === VERTEX AUTH ===
-    const credentials = JSON.parse(credentialsJson);
-    const auth = new GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/cloud-platform"],
-    });
-
-    const client = await auth.getClient();
-    const accessToken = await client.getAccessToken();
-
-    const projectId = credentials.project_id;
-    const region = "us-central1";
-
-    // Формируем URL для Vertex AI в зависимости от типа модели
-    const vertexUrl = isGeminiImageModel
-      ? `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models/${modelId}:generateContent`
-      : `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models/${modelId}:predict`;
-
-    // 6. Формируем тело запроса к Google API (без изменений)
-    let requestBody: unknown;
+    // 5. Формируем тело запроса для Gemini API (всегда используем единый формат)
     let processedImageBuffer: Buffer | null = null; // для сохранения reference-изображения
 
-    if (isGeminiImageModel) {
-      const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
-        { text: prompt }
-      ];
+    const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
+      { text: prompt }
+    ];
 
-      if (imageFile) {
-        try {
-          // Проверка размера файла
-          if (imageFile.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
-            throw new Error(`Размер изображения превышает ${MAX_IMAGE_SIZE_MB} МБ`);
+    if (imageFile) {
+      try {
+        // Проверка размера файла
+        if (imageFile.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+          throw new Error(`Размер изображения превышает ${MAX_IMAGE_SIZE_MB} МБ`);
+        }
+
+        // Проверка MIME-типа
+        const allowedMimeTypes = [
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+          'image/heic',
+          'image/heif'
+        ];
+
+        if (!allowedMimeTypes.includes(imageFile.type)) {
+          throw new Error('Неподдерживаемый формат изображения');
+        }
+
+        const arrayBuffer = await imageFile.arrayBuffer();
+        const inputBuffer = Buffer.from(arrayBuffer);
+
+        // Оптимизация изображения для отправки в Gemini
+        const jpegBuffer = await sharp(inputBuffer)
+          .resize({ width: 2048, withoutEnlargement: true })
+          .jpeg({ quality: 90 })
+          .toBuffer();
+
+        parts.push({
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: jpegBuffer.toString("base64")
           }
+        });
 
-          // Проверка MIME-типа
-          const allowedMimeTypes = [
-            'image/jpeg',
-            'image/png',
-            'image/webp',
-            'image/heic',
-            'image/heif'
-          ];
-
-          if (!allowedMimeTypes.includes(imageFile.type)) {
-            throw new Error('Неподдерживаемый формат изображения');
-          }
-
-          const arrayBuffer = await imageFile.arrayBuffer();
-          const inputBuffer = Buffer.from(arrayBuffer);
-
-          // Оптимизация изображения для отправки в Gemini
-          const jpegBuffer = await sharp(inputBuffer)
-            .resize({ width: 2048, withoutEnlargement: true })
-            .jpeg({ quality: 90 })
-            .toBuffer();
-
-          parts.push({
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: jpegBuffer.toString("base64")
-            }
-          });
-
-          // Сохраняем обработанный буфер для возможного сохранения как reference
-          processedImageBuffer = jpegBuffer;
-        } catch (imgError) {
-          console.error('Image processing error:', imgError);
-          return NextResponse.json(
-            { error: imgError instanceof Error ? imgError.message : "Ошибка обработки изображения" },
-            { status: 400 }
-          );
-        }
+        // Сохраняем обработанный буфер для возможного сохранения как reference
+        processedImageBuffer = jpegBuffer;
+      } catch (imgError) {
+        console.error('Image processing error:', imgError);
+        return NextResponse.json(
+          { error: imgError instanceof Error ? imgError.message : "Ошибка обработки изображения" },
+          { status: 400 }
+        );
       }
-
-      requestBody = {
-        contents: [{ parts }],
-        generationConfig: {
-          candidateCount: 1,
-          responseModalities: ["image"] // обязательно для получения изображения, а не текста
-        }
-      };
-    } else {
-      // Imagen — только текст + соотношение сторон
-      let safeAspectRatio = '1:1';
-      if (aspectRatio && aspectRatio !== 'auto') {
-        if (ALLOWED_ASPECT_RATIOS.includes(aspectRatio)) {
-          safeAspectRatio = aspectRatio;
-        } else {
-          console.warn(`Неподдерживаемый aspectRatio: ${aspectRatio}, используется 1:1`);
-        }
-      }
-
-      requestBody = {
-        instances: [{ prompt }],
-        parameters: {
-          sampleCount: 1,
-          aspectRatio: safeAspectRatio,
-          outputOptions: { mimeType: "image/jpeg" }
-        }
-      };
     }
 
-    // 7. Вызов Vertex AI с таймаутом и ретраем при временных ошибках
+    const requestBody = {
+      contents: [{ parts }],
+      generationConfig: {
+        candidateCount: 1,
+        // Для моделей, поддерживающих генерацию изображений, необходимо указать responseModalities: ["image"]
+        // Но фиксированная модель gemini-1.5-flash не поддерживает генерацию изображений,
+        // поэтому этот параметр будет проигнорирован (модель вернёт текст).
+        responseModalities: ["image"]
+      }
+    };
+
+    // 6. Формируем URL для Gemini API
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${FIXED_MODEL_ID}:generateContent?key=${apiKey}`;
+
+    // 7. Вызов Gemini API с таймаутом и ретраем при временных ошибках
     let response: Response;
 
     const makeRequest = async () => {
@@ -237,11 +196,10 @@ export async function POST(req: Request) {
       const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
       try {
-        const res = await fetch(vertexUrl, {
+        const res = await fetch(url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken.token}`,
           },
           body: JSON.stringify(requestBody),
           signal: controller.signal
@@ -260,13 +218,13 @@ export async function POST(req: Request) {
 
       // 🔁 Retry если временная ошибка
       if (response.status === 429 || response.status === 503) {
-        console.warn("Vertex AI temporary error, retrying...");
+        console.warn("Gemini API temporary error, retrying...");
         await new Promise(resolve => setTimeout(resolve, 1000));
         response = await makeRequest();
       }
 
     } catch (fetchError) {
-      console.error('Network error calling Vertex AI:', fetchError);
+      console.error('Network error calling Gemini API:', fetchError);
       return NextResponse.json(
         { error: "Ошибка сети при обращении к API генерации" },
         { status: 502 }
@@ -276,30 +234,25 @@ export async function POST(req: Request) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("Vertex AI Error:", data);
+      console.error("Gemini API Error:", data);
       const errorMessage = data.error?.message || "Ошибка генерации изображения";
       return NextResponse.json({ error: errorMessage }, { status: response.status });
     }
 
     // 8. Извлечение сгенерированного изображения (base64)
-    let base64Image: string;
-
-    if (isGeminiImageModel) {
-      const candidate = data.candidates?.[0];
-      const imagePart = candidate?.content?.parts?.find((part: any) => part.inlineData);
-      if (!imagePart) {
-        // Модель могла вернуть текст (например, если промпт заблокирован)
-        const textPart = candidate?.content?.parts?.find((part: any) => part.text);
-        const errorText = textPart?.text || "Модель не вернула изображение. Возможно, промпт был заблокирован.";
-        throw new Error(errorText);
-      }
-      base64Image = imagePart.inlineData.data;
-    } else {
-      if (!data.predictions?.[0]?.bytesBase64Encoded) {
-        throw new Error("Изображение не найдено в ответе модели.");
-      }
-      base64Image = data.predictions[0].bytesBase64Encoded;
+    // Для моделей, которые генерируют изображения, ответ содержит inlineData с base64
+    // Для текстовых моделей (как наша фиксированная) будет текстовый ответ, поэтому обрабатываем ошибку
+    const candidate = data.candidates?.[0];
+    const imagePart = candidate?.content?.parts?.find((part: any) => part.inlineData);
+    
+    if (!imagePart) {
+      // Модель не вернула изображение (например, потому что используется текстовая модель)
+      const textPart = candidate?.content?.parts?.find((part: any) => part.text);
+      const errorText = textPart?.text || "Модель не вернула изображение. Возможно, используется неподдерживаемая модель или промпт был заблокирован.";
+      throw new Error(errorText);
     }
+
+    const base64Image = imagePart.inlineData.data;
 
     // 9. Сохраняем результат в Storage
     const buffer = Buffer.from(base64Image, 'base64');
@@ -358,7 +311,7 @@ export async function POST(req: Request) {
         p_reference_image_url: referencePublicUrl,
         p_reference_storage_path: referenceFileName,
         p_cost: GENERATION_COST,
-        p_generation_time_ms: generationTime // добавляем время генерации в миллисекундах
+        p_generation_time_ms: generationTime
       });
 
     if (rpcError) {
