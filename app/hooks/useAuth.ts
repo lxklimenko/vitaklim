@@ -34,16 +34,23 @@ export function useAuth() {
     }
   };
 
+  // 🔁 ЗАМЕНЁННЫЙ БЛОК: добавлено логирование
   const fetchFavorites = async (userId: string) => {
+    console.log("FETCH FAVORITES for user:", userId);
+
     setFavoritesLoading(true);
-    const { data } = await supabase
+
+    const { data, error } = await supabase
       .from('favorites')
-      .select('prompt_id')
+      .select('*')
       .eq('user_id', userId);
+
+    console.log("FAVORITES RAW RESPONSE:", data, error);
 
     if (data) {
       setFavorites(data.map((f: any) => f.prompt_id));
     }
+
     setFavoritesLoading(false);
   };
 
