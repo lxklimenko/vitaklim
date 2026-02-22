@@ -56,6 +56,9 @@ export async function POST(req: Request) {
       );
     }
 
+    // Засекаем время начала генерации
+    const startTime = Date.now();
+
     // 2. Парсинг multipart/form-data
     const formData = await req.formData();
     const prompt = formData.get('prompt')?.toString();
@@ -318,6 +321,9 @@ export async function POST(req: Request) {
       }
     }
 
+    // Вычисляем время генерации в миллисекундах
+    const generationTime = Date.now() - startTime;
+
     // 11. Атомарное списание средств и сохранение истории через RPC
     const { data: rpcResult, error: rpcError } = await supabase
       .rpc('create_generation', {
@@ -327,7 +333,8 @@ export async function POST(req: Request) {
         p_storage_path: fileName,
         p_reference_image_url: referencePublicUrl,
         p_reference_storage_path: referenceFileName,
-        p_cost: GENERATION_COST
+        p_cost: GENERATION_COST,
+        p_generation_time_ms: generationTime // добавляем время генерации в миллисекундах
       });
 
     if (rpcError) {
