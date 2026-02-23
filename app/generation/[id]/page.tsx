@@ -1,41 +1,60 @@
-import { createClient } from '@/app/lib/supabase-server'
+import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import GenerationClient from './GenerationClient'
+
+// Service role client (server only)
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 interface Props {
   params: { id: string }
 }
 
 export default async function GenerationPage({ params }: Props) {
-  const supabase = await createClient()
+  const cookieStore = await cookies()
+
+  const accessToken = cookieStore.get('sb-access-token')?.value
+
+  if (!accessToken) {
+    notFound()
+  }
+
+  // Создаём обычный клиент для проверки пользователя
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+    error,
+  } = await supabase.auth.getUser(accessToken)
 
-  if (!user) {
+  if (!user || error) {
     notFound()
   }
 
-  const { data: generation } = await supabase
+  // Берём запись через service role
+  const { data: generation } = await supabaseAdmin
     .from('generations')
     .select('*')
     .eq('id', params.id)
-    .eq('user_id', user.id) // 🔒 защита: только владелец
     .maybeSingle()
 
-  if (!generation || !generation.storage_path) {
+  if (!generation || generation.user_id !== user.id) {
     notFound()
   }
 
-  // 🔒 Генерируем signed URL
-  const { data: signedData, error: signedError } =
-    await supabase.storage
+  // Генерируем signed URL
+  const { data: signedData } =
+    await supabaseAdmin.storage
       .from('generations-private')
       .createSignedUrl(generation.storage_path, 3600)
 
-  if (signedError || !signedData?.signedUrl) {
-    console.error('Signed URL error:', signedError)
+  if (!signedData?.signedUrl) {
     notFound()
   }
 
