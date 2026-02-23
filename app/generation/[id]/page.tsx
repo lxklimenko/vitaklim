@@ -7,22 +7,28 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-interface Props {
+export default async function GenerationPage({
+  params,
+}: {
   params: { id: string }
-}
+}) {
+  const { id } = params
 
-export default async function GenerationPage({ params }: Props) {
-  const { data: generation } = await supabaseAdmin
+  console.log("PARAM ID:", id)
+
+  const { data: generation, error } = await supabaseAdmin
     .from('generations')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .maybeSingle()
+
+  console.log("GENERATION:", generation)
+  console.log("ERROR:", error)
 
   if (!generation || !generation.storage_path) {
     notFound()
   }
 
-  // Генерируем signed URL
   const { data: signedData } =
     await supabaseAdmin.storage
       .from('generations-private')
