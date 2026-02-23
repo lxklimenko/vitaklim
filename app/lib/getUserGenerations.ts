@@ -15,10 +15,32 @@ export async function getUserGenerations() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  if (error) {
+  if (error || !data) {
     console.error('Error loading generations:', error)
     return []
   }
 
-  return data ?? []
+  // 🔒 Генерируем signed URLs
+  const generationsWithSignedUrls = await Promise.all(
+    data.map(async (gen) => {
+      if (!gen.storage_path) return gen
+
+      const { data: signedData, error: signedError } =
+        await supabase.storage
+          .from('generations-private')
+          .createSignedUrl(gen.storage_path, 60) // 60 секунд
+
+      if (signedError) {
+        console.error('Signed URL error:', signedError)
+        return gen
+      }
+
+      return {
+        ...gen,
+        image_url: signedData?.signedUrl ?? gen.image_url,
+      }
+    })
+  )
+
+  return generationsWithSignedUrls
 }
