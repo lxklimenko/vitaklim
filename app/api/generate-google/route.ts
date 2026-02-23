@@ -34,6 +34,7 @@ export async function POST(req: Request) {
   const supabase = await createClient();
   // Для гарантированной очистки при ошибках
   let uploadedFiles: string[] = [];
+  let processingRecord: any = null; // Будет хранить созданную запись генерации
 
   try {
     // 1. Аутентификация
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔥 Проверка, что модель поддерживает генерацию изображений (новый список)
+    // 🔥 Проверка, что модель поддерживает генерацию изображений
     const IMAGE_MODELS = [
       "gemini-3-pro-image-preview",
       "gemini-2.5-flash-image"
@@ -125,14 +126,45 @@ export async function POST(req: Request) {
       }
     }
 
+    // 🔒 Проверка: есть ли активная генерация
+    const { data: activeGeneration } = await supabase
+      .from('generations')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('status', 'processing')
+      .maybeSingle();
+
+    if (activeGeneration) {
+      return NextResponse.json(
+        { error: "У вас уже запущена генерация. Дождитесь завершения." },
+        { status: 429 }
+      );
+    }
+
+    // 🟡 Создаём временную запись со статусом processing
+    const { data: newProcessingRecord, error: processingError } = await supabase
+      .from('generations')
+      .insert({
+        user_id: user.id,
+        prompt,
+        status: 'processing'
+      })
+      .select()
+      .single();
+
+    if (processingError || !newProcessingRecord) {
+      return NextResponse.json(
+        { error: "Не удалось создать запись генерации" },
+        { status: 500 }
+      );
+    }
+    processingRecord = newProcessingRecord; // сохраняем для дальнейшего использования
+
     // 4. Проверка наличия API-ключа
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
       console.error('Google API key not configured');
-      return NextResponse.json(
-        { error: "Сервис временно недоступен (ошибка конфигурации)" },
-        { status: 500 }
-      );
+      throw new Error("Сервис временно недоступен (ошибка конфигурации)");
     }
 
     // 5. Формируем тело запроса для Gemini API
@@ -182,19 +214,15 @@ export async function POST(req: Request) {
         processedImageBuffer = jpegBuffer;
       } catch (imgError) {
         console.error('Image processing error:', imgError);
-        return NextResponse.json(
-          { error: imgError instanceof Error ? imgError.message : "Ошибка обработки изображения" },
-          { status: 400 }
-        );
+        throw new Error(imgError instanceof Error ? imgError.message : "Ошибка обработки изображения");
       }
     }
 
-    // ИЗМЕНЕНИЕ: убрано поле generation_config
     const requestBody = {
       contents: [{ parts }]
     };
 
-    // 6. Формируем URL для Gemini API (используем v1) – динамически подставляем modelId
+    // 6. Формируем URL для Gemini API
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
 
     // 7. Вызов Gemini API с таймаутом и ретраем при временных ошибках
@@ -234,10 +262,7 @@ export async function POST(req: Request) {
 
     } catch (fetchError) {
       console.error('Network error calling Gemini API:', fetchError);
-      return NextResponse.json(
-        { error: "Ошибка сети при обращении к API генерации" },
-        { status: 502 }
-      );
+      throw new Error("Ошибка сети при обращении к API генерации");
     }
 
     const data = await response.json();
@@ -245,7 +270,7 @@ export async function POST(req: Request) {
     if (!response.ok) {
       console.error("Gemini API Error:", data);
       const errorMessage = data.error?.message || "Ошибка генерации изображения";
-      return NextResponse.json({ error: errorMessage }, { status: response.status });
+      throw new Error(errorMessage);
     }
 
     // 8. Извлечение сгенерированного изображения (base64)
@@ -253,7 +278,7 @@ export async function POST(req: Request) {
     const imagePart = candidate?.content?.parts?.find((part: any) => part.inlineData);
     
     if (!imagePart) {
-      // Модель могла вернуть текст (например, если промпт заблокирован)
+      // Модель могла вернуть текст
       const textPart = candidate?.content?.parts?.find((part: any) => part.text);
       const errorText = textPart?.text || "Модель не вернула изображение. Возможно, промпт был заблокирован.";
       throw new Error(errorText);
@@ -323,11 +348,6 @@ export async function POST(req: Request) {
 
     if (rpcError) {
       console.error('RPC error:', rpcError);
-      // Если RPC завершился ошибкой, удаляем загруженные файлы
-      await supabase.storage.from(STORAGE_BUCKET).remove([fileName]);
-      if (referenceFileName) {
-        await supabase.storage.from(STORAGE_BUCKET).remove([referenceFileName]);
-      }
       throw new Error('Не удалось выполнить операцию списания средств');
     }
 
@@ -335,14 +355,15 @@ export async function POST(req: Request) {
     const result = rpcResult as RpcResult;
     if (!result.success) {
       // Недостаточно средств или другая логическая ошибка
-      await supabase.storage.from(STORAGE_BUCKET).remove([fileName]);
-      if (referenceFileName) {
-        await supabase.storage.from(STORAGE_BUCKET).remove([referenceFileName]);
-      }
-      return NextResponse.json(
-        { error: result.error || "Не удалось списать средства" },
-        { status: 400 }
-      );
+      throw new Error(result.error || "Не удалось списать средства");
+    }
+
+    // ✅ Обновляем статус нашей записи на completed
+    if (processingRecord) {
+      await supabase
+        .from('generations')
+        .update({ status: 'completed' })
+        .eq('id', processingRecord.id);
     }
 
     // 12. Успех
@@ -359,6 +380,18 @@ export async function POST(req: Request) {
           .remove(uploadedFiles);
       } catch (cleanupError) {
         console.error("Cleanup error:", cleanupError);
+      }
+    }
+
+    // ❌ Обновляем статус записи на failed, если она была создана
+    if (processingRecord?.id) {
+      try {
+        await supabase
+          .from('generations')
+          .update({ status: 'failed' })
+          .eq('id', processingRecord.id);
+      } catch (statusError) {
+        console.error("Failed to update generation status:", statusError);
       }
     }
 
