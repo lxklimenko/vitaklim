@@ -300,10 +300,6 @@ export async function POST(req: Request) {
     }
     uploadedFiles.push(fileName);
 
-    const { data: { publicUrl } } = supabase.storage
-      .from(STORAGE_BUCKET)
-      .getPublicUrl(fileName);
-
     // 10. Если было передано reference-изображение, сохраняем его обработанную версию
     let referencePublicUrl: string | null = null;
     let referenceFileName: string | null = null;
@@ -338,7 +334,7 @@ export async function POST(req: Request) {
       .rpc('create_generation', {
         p_user_id: user.id,
         p_prompt: prompt,
-        p_image_url: publicUrl,
+        p_image_url: null,
         p_storage_path: fileName,
         p_reference_image_url: referencePublicUrl,
         p_reference_storage_path: referenceFileName,
@@ -367,7 +363,7 @@ export async function POST(req: Request) {
     }
 
     // 12. Успех
-    return NextResponse.json({ imageUrl: publicUrl });
+    return NextResponse.json({ imageUrl: null });
 
   } catch (error: unknown) {
     console.error("Server Error:", error);
