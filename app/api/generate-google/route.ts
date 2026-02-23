@@ -5,7 +5,7 @@ import crypto from 'crypto';
 
 // Константы
 const GENERATION_COST = parseInt(process.env.GENERATION_COST || "1", 10);
-const STORAGE_BUCKET = 'generations';
+const STORAGE_BUCKET = 'generations-private';
 const FETCH_TIMEOUT = 60000; // 60 секунд для генерации изображения
 const MAX_IMAGE_SIZE_MB = 10;
 
