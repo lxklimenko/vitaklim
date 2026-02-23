@@ -28,7 +28,7 @@ export async function getUserGenerations() {
       const { data: signedData, error: signedError } =
         await supabase.storage
           .from('generations-private')
-          .createSignedUrl(gen.storage_path, 60) // 60 секунд
+          .createSignedUrl(gen.storage_path, 3600) // 1 час // 60 секунд
 
       if (signedError) {
         console.error('Signed URL error:', signedError)
