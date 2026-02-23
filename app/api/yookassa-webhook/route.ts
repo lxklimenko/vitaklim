@@ -1,3 +1,5 @@
+export const runtime = 'nodejs'
+
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
@@ -57,11 +59,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true })
     }
 
-    await supabase.rpc('process_successful_payment', {
-      p_user_id: userId,
-      p_amount: amount,
-      p_yookassa_id: yookassaId
-    })
+    const { error: rpcError } = await supabase.rpc(
+      'process_successful_payment',
+      {
+        p_user_id: userId,
+        p_amount: amount,
+        p_yookassa_id: yookassaId
+      }
+    )
+
+    if (rpcError) {
+      console.error('RPC payment error:', rpcError)
+      return NextResponse.json(
+        { error: 'Payment processing failed' },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({ success: true })
 
