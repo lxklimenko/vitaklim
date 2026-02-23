@@ -1,40 +1,47 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/app/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import GenerationClient from './GenerationClient'
 
-// Initialize Supabase client with service role (server-only)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 interface Props {
-  params: Promise<{ id: string }>
+  params: { id: string }
 }
 
 export default async function GenerationPage({ params }: Props) {
-  // 1. Await the params to get the id
-  const { id } = await params
+  const supabase = await createClient()
 
-  // 2. Fetch generation data from Supabase
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    notFound()
+  }
+
   const { data: generation } = await supabase
     .from('generations')
     .select('*')
-    .eq('id', id)
+    .eq('id', params.id)
+    .eq('user_id', user.id) // 🔒 защита: только владелец
     .maybeSingle()
 
-  // 🔍 Логи для отладки
-  console.log("PARAM ID:", id)
-  console.log("DB RESULT:", generation)
+  if (!generation || !generation.storage_path) {
+    notFound()
+  }
 
-  // 3. Handle missing generation or image URL
-  if (!generation || !generation.image_url) {
+  // 🔒 Генерируем signed URL
+  const { data: signedData, error: signedError } =
+    await supabase.storage
+      .from('generations-private')
+      .createSignedUrl(generation.storage_path, 3600)
+
+  if (signedError || !signedData?.signedUrl) {
+    console.error('Signed URL error:', signedError)
     notFound()
   }
 
   return (
     <GenerationClient
-      imageUrl={generation.image_url}
+      imageUrl={signedData.signedUrl}
       prompt={generation.prompt}
     />
   )
