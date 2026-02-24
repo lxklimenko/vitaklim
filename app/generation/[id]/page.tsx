@@ -33,28 +33,20 @@ export default async function GenerationPage({
     notFound()
   }
 
-  // Безопасное получение подписанного URL
-  let imageUrl: string | null = null
+  // Временная замена блока signed URL с подробным логированием
+  const { data: signedData, error: signedError } =
+    await supabaseAdmin.storage
+      .from('generations-private')
+      .createSignedUrl(generation.storage_path, 3600)
 
-  try {
-    const { data } =
-      await supabaseAdmin.storage
-        .from('generations-private')
-        .createSignedUrl(generation.storage_path, 3600)
+  console.log("SIGNED DATA:", signedData)
+  console.log("SIGNED ERROR:", signedError)
 
-    imageUrl = data?.signedUrl ?? null
-  } catch (err) {
-    console.error("Signed URL error:", err)
+  if (!signedData?.signedUrl) {
+    throw new Error("Signed URL not created")
   }
 
-  if (!imageUrl) {
-    return (
-      <div style={{ padding: 40 }}>
-        <h2>Файл не найден</h2>
-        <p>Возможно генерация была удалена.</p>
-      </div>
-    )
-  }
+  const imageUrl = signedData.signedUrl
 
   return (
     <GenerationClient
