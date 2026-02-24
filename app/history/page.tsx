@@ -1,11 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/app/lib/supabase-server'
 import HistoryClient from './HistoryClient'
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 export default async function HistoryPage() {
   const supabase = await createServerClient()
@@ -34,7 +28,7 @@ export default async function HistoryPage() {
     generations.map(async (gen) => {
       if (!gen.storage_path) return null
 
-      const { data } = await supabaseAdmin.storage
+      const { data } = await supabase.storage
         .from('generations-private')
         .createSignedUrl(gen.storage_path, 3600)
 
