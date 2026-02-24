@@ -181,8 +181,14 @@ export async function POST(req: Request) {
     // 5. Формируем тело запроса для Gemini API
     let processedImageBuffer: Buffer | null = null;
 
+    // 🔧 Модифицируем prompt: добавляем aspect ratio в текст, если он указан и не 'auto'
+    const finalPrompt =
+      aspectRatio && aspectRatio !== 'auto'
+        ? `${prompt}. Aspect ratio: ${aspectRatio}`
+        : prompt;
+
     const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
-      { text: prompt }
+      { text: finalPrompt }
     ];
 
     if (imageFile) {
@@ -225,15 +231,10 @@ export async function POST(req: Request) {
       }
     }
 
-    // Формируем generationConfig (обязательно для получения изображения)
+    // Формируем generationConfig — убираем aspectRatio, оставляем только обязательные параметры
     const generationConfig: any = {
       responseModalities: ["image"] // ключевой параметр!
     };
-
-    // Если передан aspectRatio, добавляем его
-    if (aspectRatio) {
-      generationConfig.aspectRatio = aspectRatio;
-    }
 
     const requestBody = {
       contents: [{ parts }],
