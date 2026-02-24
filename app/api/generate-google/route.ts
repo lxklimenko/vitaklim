@@ -35,16 +35,18 @@ export async function POST(req: Request) {
   // Для гарантированной очистки при ошибках
   let uploadedFiles: string[] = [];
   let processingRecord: any = null; // Будет хранить созданную запись генерации
+  let user: any = null; // Объявляем переменную user здесь, чтобы она была доступна в catch
 
   try {
     // 1. Аутентификация
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (!user || userError) {
+    const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
+    if (!authUser || userError) {
       return NextResponse.json(
         { error: "Вы не авторизованы" },
         { status: 401 }
       );
     }
+    user = authUser; // присваиваем в переменную из внешней области
 
     // Засекаем время начала генерации
     const startTime = Date.now();
@@ -381,6 +383,19 @@ export async function POST(req: Request) {
           .eq('id', processingRecord.id);
       } catch (statusError) {
         console.error("Failed to update generation status:", statusError);
+      }
+    }
+
+    // 💸 Возврат средств при ошибке (если пользователь аутентифицирован)
+    if (user?.id) {
+      try {
+        await supabase.rpc('refund_generation', {
+          p_generation_id: processingRecord?.id, // добавлен идентификатор генерации
+          p_user_id: user.id,
+          p_amount: GENERATION_COST
+        });
+      } catch (refundError) {
+        console.error("Refund error:", refundError);
       }
     }
 
