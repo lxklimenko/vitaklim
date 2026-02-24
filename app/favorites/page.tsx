@@ -10,40 +10,22 @@ import { Navigation } from '../components/Navigation';
 import { PromptCard } from '../components/PromptCard';
 import { useAuth } from '../hooks/useAuth';
 import { useAppActions } from '../hooks/useAppActions';
-import { useImageGeneration } from '../hooks/useImageGeneration';
-import prompts from '../data/prompts.json'; // <-- Шаг 1: импорт данных
+import prompts from '../data/prompts.json';
 
 // Импорт модалок
 import dynamic from 'next/dynamic';
-const GenerateModal = dynamic(() => import('../components/GenerateModal').then(m => m.GenerateModal), { ssr: false });
 const ProfileModal = dynamic(() => import('../components/ProfileModal').then(m => m.ProfileModal), { ssr: false });
 
 export default function FavoritesPage() {
   const { user, favorites, setFavorites, fetchProfile, purchases } = useAuth();
   
   // Состояния для модалок
-  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
   // Действия
   const actions = useAppActions(user, setFavorites, fetchProfile, setIsProfileOpen);
 
-  // --- ПОДКЛЮЧАЕМ ЛОГИКУ ГЕНЕРАЦИИ ---
-  const {
-    generatePrompt,
-    setGeneratePrompt,
-    isGenerating,
-    modelId,
-    setModelId,
-    aspectRatio,
-    setAspectRatio,
-    referencePreview,
-    handleFileChange,
-    handleRemoveImage,
-    handleGenerate
-  } = useImageGeneration(user, () => setIsGenerateOpen(false));
-
-  // Шаг 2: фильтруем промпты, оставляя только избранные
+  // Фильтруем промпты, оставляя только избранные
   const favoritePrompts = prompts.filter((prompt) =>
     favorites.includes(prompt.id)
   );
@@ -96,9 +78,7 @@ export default function FavoritesPage() {
       </div>
 
       {/* Навигация */}
-      <Navigation
-        onOpenGenerator={() => setIsGenerateOpen(true)}
-      />
+      <Navigation />
 
       {/* Модалки */}
       {isProfileOpen && (
@@ -117,24 +97,6 @@ export default function FavoritesPage() {
           handleTopUp={async () => {}} 
           handleLogout={async () => {}} 
           isTopUpLoading={false} 
-        />
-      )}
-      
-      {isGenerateOpen && (
-        <GenerateModal 
-          isOpen={isGenerateOpen} 
-          onClose={() => setIsGenerateOpen(false)} 
-          generatePrompt={generatePrompt} 
-          setGeneratePrompt={setGeneratePrompt} 
-          isGenerating={isGenerating} 
-          handleGenerate={handleGenerate} 
-          modelId={modelId} 
-          setModelId={setModelId} 
-          aspectRatio={aspectRatio} 
-          setAspectRatio={setAspectRatio} 
-          referencePreview={referencePreview} 
-          handleFileChange={handleFileChange} 
-          handleRemoveImage={handleRemoveImage} 
         />
       )}
     </div>

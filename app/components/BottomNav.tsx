@@ -12,11 +12,10 @@ import {
 
 // Описываем, какие функции принимает меню
 interface BottomNavProps {
-  onOpenGenerate: () => void;
   onOpenProfile: () => void;
 }
 
-export default function BottomNav({ onOpenGenerate, onOpenProfile }: BottomNavProps) {
+export default function BottomNav({ onOpenProfile }: BottomNavProps) {
   const pathname = usePathname();
   
   // Проверяем, где мы находимся
@@ -42,12 +41,12 @@ export default function BottomNav({ onOpenGenerate, onOpenProfile }: BottomNavPr
 
         {/* 3. ЦЕНТРАЛЬНАЯ КНОПКА (Генерация) */}
         <div className="relative -mt-8">
-          <button 
-            onClick={onOpenGenerate}
+          <Link
+            href="/generate"
             className="w-16 h-16 rounded-2xl bg-white text-black flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.3)] active:scale-95 transition-transform"
           >
             <Plus size={28} />
-          </button>
+          </Link>
         </div>
 
         {/* 4. ИСТОРИЯ (Ссылка на /history) */}

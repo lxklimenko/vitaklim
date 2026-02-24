@@ -318,7 +318,7 @@ export default function ProfileClient({
         )}
       </div>
 
-      <Navigation onOpenGenerator={() => router.push('/')} />
+      <Navigation />
     </div>
   );
 }

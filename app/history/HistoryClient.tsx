@@ -5,9 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Trash2 } from 'lucide-react'
 import { Navigation } from '@/app/components/Navigation'
-import { GenerateModal } from '@/app/components/GenerateModal'
 import { useAuth } from '@/app/context/AuthContext'
-import { useImageGeneration } from '@/app/hooks/useImageGeneration'
 import { supabase } from '@/app/lib/supabase'
 import { Generation } from '@/app/types'
 
@@ -21,17 +19,7 @@ export default function HistoryClient({ initialGenerations }: Props) {
   const [generations, setLocalGenerations] =
     useState<Generation[]>(initialGenerations)
 
-  const [isModalOpen, setIsModalOpen] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-
-  const imageGen = useImageGeneration(
-    user,
-    () => {
-      setIsModalOpen(false)
-    }
-  )
-
-  console.log("CURRENT PROMPT:", imageGen.generatePrompt)
 
   const handleDelete = async (id: string) => {
     if (!user) return;
@@ -127,24 +115,8 @@ export default function HistoryClient({ initialGenerations }: Props) {
           )}
         </div>
 
-        <Navigation onOpenGenerator={() => setIsModalOpen(true)} />
+        <Navigation />
       </div>
-
-      <GenerateModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        generatePrompt={imageGen.generatePrompt}
-        setGeneratePrompt={imageGen.setGeneratePrompt}
-        isGenerating={imageGen.isGenerating}
-        handleGenerate={imageGen.handleGenerate}
-        modelId={imageGen.modelId}
-        setModelId={imageGen.setModelId}
-        aspectRatio={imageGen.aspectRatio}
-        setAspectRatio={imageGen.setAspectRatio}
-        referencePreview={imageGen.referencePreview}
-        handleFileChange={imageGen.handleFileChange}
-        handleRemoveImage={imageGen.handleRemoveImage}
-      />
     </>
   )
 }

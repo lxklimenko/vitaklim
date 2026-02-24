@@ -73,7 +73,6 @@ export default function ClientApp({ prompts }: ClientAppProps) {
   const [visibleCount, setVisibleCount] = useState(6);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
-  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
 
   // ACTIONS
   const { toggleFavorite, handleCopy } = useAppActions(
@@ -143,25 +142,7 @@ export default function ClientApp({ prompts }: ClientAppProps) {
         />
       </main>
 
-      <Navigation onOpenGenerator={() => setIsGenerateOpen(true)} />
-
-      {isGenerateOpen && (
-        <GenerateModal
-          isOpen={isGenerateOpen}
-          onClose={() => setIsGenerateOpen(false)}
-          generatePrompt={generatePrompt}
-          setGeneratePrompt={setGeneratePrompt}
-          isGenerating={isGenerating}
-          handleGenerate={handleGenerate}
-          modelId={modelId}
-          setModelId={setModelId}
-          aspectRatio={aspectRatio}
-          setAspectRatio={setAspectRatio}
-          referencePreview={referencePreview}
-          handleFileChange={handleFileChange}
-          handleRemoveImage={handleRemoveImage}
-        />
-      )}
+      <Navigation />
     </div>
   );
 }

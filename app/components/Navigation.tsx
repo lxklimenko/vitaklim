@@ -5,13 +5,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Star, Plus, Clock, User } from 'lucide-react';
 
-interface NavigationProps {
-  onOpenGenerator: () => void;
-}
+interface NavigationProps {}
 
-export const Navigation: React.FC<NavigationProps> = ({
-  onOpenGenerator,
-}) => {
+export const Navigation: React.FC = () => {
   const pathname = usePathname();
   
   const isHomePage = pathname === '/';
@@ -37,12 +33,12 @@ export const Navigation: React.FC<NavigationProps> = ({
 
         {/* 3. ГЕНЕРАТОР */}
         <div className="relative -mt-8">
-          <button 
-            onClick={onOpenGenerator}
+          <Link
+            href="/generate"
             className="w-16 h-16 rounded-2xl bg-white text-black flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.3)] active:scale-95 transition-transform"
           >
             <Plus size={28} />
-          </button>
+          </Link>
         </div>
 
         {/* 4. ИСТОРИЯ */}
