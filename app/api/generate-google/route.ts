@@ -368,8 +368,10 @@ export async function POST(req: Request) {
         .eq('id', processingRecord.id);
     }
 
-    // 12. Возвращаем ссылку на изображение клиенту
-    return NextResponse.json({ imageUrl: publicUrl });
+    // 12. Возвращаем generationId клиенту (вместо imageUrl)
+    return NextResponse.json({
+      generationId: processingRecord.id
+    });
 
   } catch (error: unknown) {
     console.error("Server Error:", error);
