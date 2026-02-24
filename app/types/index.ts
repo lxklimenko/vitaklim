@@ -26,11 +26,23 @@ export interface Model {
  * Represents a single generation created by a user.
  */
 export interface Generation {
-  id: string;
-  user_id: string;
-  prompt: string;
-  image_url: string;
-  reference_image_url: string | null;
-  created_at: string;
-  is_favorite: boolean;
+  id: string
+  user_id: string
+  prompt: string
+
+  // старое поле (оставляем для совместимости)
+  image_url: string | null
+
+  // новые реальные поля БД
+  storage_path: string | null
+  reference_image_url: string | null
+  reference_storage_path: string | null
+
+  created_at: string
+
+  is_favorite: boolean
+
+  status: 'pending' | 'completed' | 'failed'
+  generation_time_ms: number | null
+  refunded: boolean
 }

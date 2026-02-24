@@ -90,12 +90,19 @@ export default function HistoryClient({ initialGenerations }: Props) {
                     href={`/generation/${gen.id}/`}
                     className="absolute inset-0 z-0"
                   >
-                    <Image
-                      src={gen.image_url}
-                      alt="Generated"
-                      fill
-                      className="object-cover"
-                    />
+                    {gen.storage_path ? (
+                      <Image
+                        src={gen.image_url ?? ''}
+                        alt="Generated"
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center w-full h-full bg-neutral-900 text-neutral-500 text-sm">
+                        {gen.status === 'pending' && 'Генерация...'}
+                        {gen.status === 'failed' && 'Ошибка генерации'}
+                      </div>
+                    )}
                   </Link>
 
                   <button
