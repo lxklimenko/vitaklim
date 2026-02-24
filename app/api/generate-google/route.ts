@@ -34,8 +34,8 @@ export async function POST(req: Request) {
   const supabase = await createClient();
   // Для гарантированной очистки при ошибках
   let uploadedFiles: string[] = [];
-  let processingRecord: any = null; // Будет хранить созданную запись генерации
-  let user: any = null; // Объявляем переменную user здесь, чтобы она была доступна в catch
+  let processingRecord: any = null;
+  let user: any = null;
 
   try {
     // 1. Аутентификация
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
         { status: 401 }
       );
     }
-    user = authUser; // присваиваем в переменную из внешней области
+    user = authUser;
 
     // Засекаем время начала генерации
     const startTime = Date.now();
@@ -65,7 +65,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Проверка наличия modelId
     if (!modelId) {
       return NextResponse.json(
         { error: "Не указана модель" },
@@ -75,6 +74,7 @@ export async function POST(req: Request) {
 
     // 🔥 Проверка, что модель поддерживает генерацию изображений
     const IMAGE_MODELS = [
+      "gemini-2.0-flash-exp-image-generation", // актуальное название для Gemini 2.0 Flash
       "gemini-3-pro-image-preview",
       "gemini-2.5-flash-image"
     ];
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔒 Anti-spam защита: не чаще 1 генерации раз в 3 секунды
+    // 🔒 Anti-spam защита
     const { data: lastGeneration } = await supabase
       .from('generations')
       .select('created_at')
@@ -108,7 +108,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // 🔒 Проверка: есть ли активная генерация
+    // 🔒 Проверка активной генерации
     const { data: activeGeneration } = await supabase
       .from('generations')
       .select('id')
@@ -123,7 +123,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🟡 Создаём временную запись со статусом pending
+    // 🟡 Создаём запись со статусом pending
     const { data: newProcessingRecord, error: processingError } = await supabase
       .from('generations')
       .insert({
@@ -134,7 +134,6 @@ export async function POST(req: Request) {
       .select()
       .single();
 
-    // Обработка ошибки уникального pending
     if (processingError || !newProcessingRecord) {
       const isUniqueError =
         processingError &&
@@ -154,7 +153,7 @@ export async function POST(req: Request) {
       );
     }
 
-    processingRecord = newProcessingRecord; // сохраняем для дальнейшего использования
+    processingRecord = newProcessingRecord;
 
     // 💰 Списываем баланс ДО генерации
     const { data: rpcResult, error: rpcError } = await supabase
@@ -168,12 +167,11 @@ export async function POST(req: Request) {
     }
 
     const result = rpcResult as RpcResult;
-
     if (!result.success) {
       throw new Error(result.error || "Не удалось списать средства");
     }
 
-    // 4. Проверка наличия API-ключа
+    // 4. Проверка API-ключа
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
       console.error('Google API key not configured');
@@ -181,7 +179,7 @@ export async function POST(req: Request) {
     }
 
     // 5. Формируем тело запроса для Gemini API
-    let processedImageBuffer: Buffer | null = null; // для сохранения reference-изображения
+    let processedImageBuffer: Buffer | null = null;
 
     const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
       { text: prompt }
@@ -189,12 +187,10 @@ export async function POST(req: Request) {
 
     if (imageFile) {
       try {
-        // Проверка размера файла
         if (imageFile.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
           throw new Error(`Размер изображения превышает ${MAX_IMAGE_SIZE_MB} МБ`);
         }
 
-        // Проверка MIME-типа
         const allowedMimeTypes = [
           'image/jpeg',
           'image/png',
@@ -210,7 +206,6 @@ export async function POST(req: Request) {
         const arrayBuffer = await imageFile.arrayBuffer();
         const inputBuffer = Buffer.from(arrayBuffer);
 
-        // Оптимизация изображения для отправки в Gemini
         const jpegBuffer = await sharp(inputBuffer)
           .resize({ width: 2048, withoutEnlargement: true })
           .jpeg({ quality: 90 })
@@ -223,7 +218,6 @@ export async function POST(req: Request) {
           }
         });
 
-        // Сохраняем обработанный буфер для возможного сохранения как reference
         processedImageBuffer = jpegBuffer;
       } catch (imgError) {
         console.error('Image processing error:', imgError);
@@ -231,14 +225,25 @@ export async function POST(req: Request) {
       }
     }
 
-    const requestBody = {
-      contents: [{ parts }]
+    // Формируем generationConfig (обязательно для получения изображения)
+    const generationConfig: any = {
+      responseModalities: ["image"] // ключевой параметр!
     };
 
-    // 6. Формируем URL для Gemini API
+    // Если передан aspectRatio, добавляем его
+    if (aspectRatio) {
+      generationConfig.aspectRatio = aspectRatio;
+    }
+
+    const requestBody = {
+      contents: [{ parts }],
+      generationConfig
+    };
+
+    // 6. URL для Gemini API
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
 
-    // 7. Вызов Gemini API с таймаутом и ретраем при временных ошибках
+    // 7. Вызов API с таймаутом и ретраем
     let response: Response;
 
     const makeRequest = async () => {
@@ -266,13 +271,11 @@ export async function POST(req: Request) {
     try {
       response = await makeRequest();
 
-      // 🔁 Retry если временная ошибка
       if (response.status === 429 || response.status === 503) {
         console.warn("Gemini API temporary error, retrying...");
         await new Promise(resolve => setTimeout(resolve, 1000));
         response = await makeRequest();
       }
-
     } catch (fetchError) {
       console.error('Network error calling Gemini API:', fetchError);
       throw new Error("Ошибка сети при обращении к API генерации");
@@ -286,12 +289,15 @@ export async function POST(req: Request) {
       throw new Error(errorMessage);
     }
 
-    // 8. Извлечение сгенерированного изображения (base64)
-    const candidate = data.candidates?.[0];
+    // 8. Проверка наличия кандидатов
+    if (!data.candidates || data.candidates.length === 0) {
+      throw new Error("Модель не вернула результат");
+    }
+
+    const candidate = data.candidates[0];
     const imagePart = candidate?.content?.parts?.find((part: any) => part.inlineData);
-    
+
     if (!imagePart) {
-      // Модель могла вернуть текст
       const textPart = candidate?.content?.parts?.find((part: any) => part.text);
       const errorText = textPart?.text || "Модель не вернула изображение. Возможно, промпт был заблокирован.";
       throw new Error(errorText);
@@ -313,7 +319,12 @@ export async function POST(req: Request) {
     }
     uploadedFiles.push(fileName);
 
-    // 10. Если было передано reference-изображение, сохраняем его обработанную версию
+    // Получаем публичную ссылку на загруженное изображение
+    const { data: { publicUrl } } = supabase.storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(fileName);
+
+    // 10. Если было reference-изображение, сохраняем его
     let referencePublicUrl: string | null = null;
     let referenceFileName: string | null = null;
 
@@ -339,7 +350,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // Вычисляем время генерации в миллисекундах
     const generationTime = Date.now() - startTime;
 
     // ✅ Обновляем запись после успешной генерации
@@ -348,7 +358,7 @@ export async function POST(req: Request) {
         .from('generations')
         .update({
           status: 'completed',
-          image_url: null,
+          image_url: publicUrl,            // сохраняем публичную ссылку
           storage_path: fileName,
           reference_image_url: referencePublicUrl,
           reference_storage_path: referenceFileName,
@@ -357,13 +367,13 @@ export async function POST(req: Request) {
         .eq('id', processingRecord.id);
     }
 
-    // 12. Успех
-    return NextResponse.json({ imageUrl: null });
+    // 12. Возвращаем ссылку на изображение клиенту
+    return NextResponse.json({ imageUrl: publicUrl });
 
   } catch (error: unknown) {
     console.error("Server Error:", error);
 
-    // 🧹 Гарантированная очистка загруженных файлов
+    // 🧹 Очистка загруженных файлов
     if (uploadedFiles.length > 0) {
       try {
         await supabase.storage
@@ -374,7 +384,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // ❌ Обновляем статус записи на failed, если она была создана
+    // ❌ Обновляем статус записи на failed
     if (processingRecord?.id) {
       try {
         await supabase
@@ -386,11 +396,11 @@ export async function POST(req: Request) {
       }
     }
 
-    // 💸 Возврат средств при ошибке (если пользователь аутентифицирован)
+    // 💸 Возврат средств при ошибке
     if (user?.id) {
       try {
         await supabase.rpc('refund_generation', {
-          p_generation_id: processingRecord?.id, // добавлен идентификатор генерации
+          p_generation_id: processingRecord?.id,
           p_user_id: user.id,
           p_amount: GENERATION_COST
         });

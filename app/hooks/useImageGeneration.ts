@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { supabase } from '@/app/lib/supabase';
 import { MODELS } from '../constants/appConstants';
@@ -15,6 +16,7 @@ export function useImageGeneration(
   onGenerationComplete: () => void
 ) {
   const { balance, setBalance } = useBalance();
+  const router = useRouter();
   const [generatePrompt, setGeneratePrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -103,10 +105,11 @@ export function useImageGeneration(
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Ошибка API');
 
-      setImageUrl(data.imageUrl);
       toast.success('Изображение сгенерировано');
 
-      onGenerationComplete();
+      if (data.generationId) {
+        router.push(`/generation/${data.generationId}`);
+      }
     } catch (error: any) {
       // Откатываем баланс в случае ошибки
       setBalance(previousBalance);
@@ -123,7 +126,7 @@ export function useImageGeneration(
     referenceFile,
     balance,
     setBalance,
-    onGenerationComplete,
+    router,
     isGenerating,
   ]);
 
