@@ -84,26 +84,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 3. Проверка баланса пользователя
-    const { data: balanceData, error: balanceError } = await supabase
-      .rpc('get_user_balance', { p_user_id: user.id });
-
-    if (balanceError) {
-      console.error('Balance check error:', balanceError);
-      return NextResponse.json(
-        { error: "Ошибка проверки баланса" },
-        { status: 500 }
-      );
-    }
-
-    const currentBalance = balanceData || 0;
-    if (currentBalance < GENERATION_COST) {
-      return NextResponse.json(
-        { error: "Недостаточно средств на счете" },
-        { status: 402 }
-      );
-    }
-
     // 🔒 Anti-spam защита: не чаще 1 генерации раз в 3 секунды
     const { data: lastGeneration } = await supabase
       .from('generations')
