@@ -135,6 +135,7 @@ export default function FavoritesClient({ prompts }: FavoritesClientProps) {
                 toggleFavorite={(e, id) => actions.toggleFavorite(e, id, favorites)}
                 handleCopy={(id, text, price) => actions.handleCopy(id, text, price, setCopiedId)}
                 copiedId={copiedId}
+                variant="square"
               />
             ))}
           </div>

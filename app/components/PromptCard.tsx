@@ -14,19 +14,20 @@ interface PromptCardProps {
   handleCopy: (id: number, text: string, price: number) => void
   copiedId: number | null
   priority?: boolean
+  variant?: 'square' | 'portrait'  // Добавлено
 }
 
 export const PromptCard = React.memo(({
   prompt,
   favorites,
   toggleFavorite,
-  priority = false
+  priority = false,
+  variant = 'portrait'  // Значение по умолчанию
 }: PromptCardProps) => {
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
   const isFavorite = favorites.includes(prompt.id)
 
-  // Мемоизация обработчиков
   const handleImageLoad = useCallback(() => setIsLoading(false), [])
   const handleImageError = useCallback(() => {
     setIsLoading(false)
@@ -34,7 +35,6 @@ export const PromptCard = React.memo(({
   }, [])
 
   const handleLinkClick = useCallback((e: React.MouseEvent) => {
-    // Предотвращаем переход при клике на лайк
     if ((e.target as HTMLElement).closest('button')) {
       e.preventDefault()
     }
@@ -55,24 +55,21 @@ export const PromptCard = React.memo(({
     >
       <Link 
         href={`/prompt/${prompt.id}`}
-        className="relative aspect-square rounded-[1.25rem] overflow-hidden bg-[#111] group block"
+        className={`relative ${variant === 'square' ? 'aspect-square' : 'aspect-[3/4]'} rounded-[1.25rem] overflow-hidden bg-[#111] group block`}
         onClick={handleLinkClick}
       >
-        {/* Плейсхолдер во время загрузки */}
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-white/5 z-10">
             <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
           </div>
         )}
 
-        {/* Состояние ошибки */}
         {hasError && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#1a1a1a] text-white/20 p-4 z-20">
             <ImageOff size={32} strokeWidth={1.5} />
           </div>
         )}
 
-        {/* Изображение - Next.js сам сделает Lazy Load */}
         {!hasError && (
           <Image 
             src={prompt.image?.src || "/placeholder.jpg"} 
@@ -92,10 +89,8 @@ export const PromptCard = React.memo(({
           />
         )}
         
-        {/* Затемнение при наведении */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
         
-        {/* Кнопка Лайка */}
         <button 
           onClick={handleFavoriteClick}
           className="absolute top-3 right-3 p-2 rounded-full bg-black/40 backdrop-blur-md text-white/50 hover:text-white transition-all active:scale-90 z-30"

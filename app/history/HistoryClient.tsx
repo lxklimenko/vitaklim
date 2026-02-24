@@ -16,7 +16,7 @@ interface Props {
 }
 
 export default function HistoryClient({ initialGenerations }: Props) {
-  const { user } = useAuth() // fetchProfile больше не нужен
+  const { user } = useAuth()
 
   const [generations, setLocalGenerations] =
     useState<Generation[]>(initialGenerations)
@@ -29,7 +29,6 @@ export default function HistoryClient({ initialGenerations }: Props) {
     () => {
       setIsModalOpen(false)
     }
-    // третий аргумент fetchProfile удалён
   )
 
   console.log("CURRENT PROMPT:", imageGen.generatePrompt)
@@ -53,7 +52,6 @@ export default function HistoryClient({ initialGenerations }: Props) {
         return;
       }
 
-      // Обновляем UI
       const updated = generations.filter((g) => g.id !== id);
       setLocalGenerations(updated);
     } catch (error) {
@@ -100,7 +98,6 @@ export default function HistoryClient({ initialGenerations }: Props) {
                     />
                   </Link>
 
-                  {/* Кнопка удаления */}
                   <button
                     onClick={(e) => {
                       e.preventDefault()
@@ -113,64 +110,10 @@ export default function HistoryClient({ initialGenerations }: Props) {
                                rounded-2xl
                                bg-black/50
                                backdrop-blur-md
-                               border border-white/20
-                               opacity-100
-                               md:opacity-0
-                               md:group-hover:opacity-100
-                               transition-all duration-200
-                               hover:bg-red-500/20
-                               hover:scale-105"
+                               border border-white/20"
                   >
                     <Trash2 size={18} />
                   </button>
-
-                  {/* Блок подтверждения удаления */}
-                  {confirmDeleteId === gen.id && (
-                    <div className="absolute inset-0 z-20 
-                                    flex items-center justify-center
-                                    bg-black/70 backdrop-blur-md">
-                      <div className="bg-[#141414]
-                                      border border-white/10
-                                      rounded-2xl
-                                      p-4
-                                      text-center
-                                      space-y-4">
-                        <p className="text-sm text-white/80">
-                          Удалить генерацию?
-                        </p>
-                        <div className="flex gap-3 justify-center">
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              setConfirmDeleteId(null)
-                            }}
-                            className="px-4 py-2 rounded-xl 
-                                       bg-white/5 
-                                       hover:bg-white/10 
-                                       transition text-sm"
-                          >
-                            Отмена
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              handleDelete(gen.id)
-                              setConfirmDeleteId(null)
-                            }}
-                            className="px-4 py-2 rounded-xl 
-                                       bg-red-500/20 
-                                       text-red-400
-                                       hover:bg-red-500/30
-                                       transition text-sm"
-                          >
-                            Удалить
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
