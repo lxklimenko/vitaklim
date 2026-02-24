@@ -43,7 +43,7 @@ export default async function GenerationPage({
   console.log("SIGNED ERROR:", signedError)
 
   if (!signedData?.signedUrl) {
-    throw new Error("Signed URL not created")
+    notFound()
   }
 
   const imageUrl = signedData.signedUrl
