@@ -11,6 +11,7 @@ import { PromptCard } from '../components/PromptCard';
 import { useAuth } from '../hooks/useAuth';
 import { useAppActions } from '../hooks/useAppActions';
 import { useImageGeneration } from '../hooks/useImageGeneration';
+import prompts from '../data/prompts.json'; // <-- Шаг 1: импорт данных
 
 // Импорт модалок
 import dynamic from 'next/dynamic';
@@ -42,8 +43,10 @@ export default function FavoritesPage() {
     handleGenerate
   } = useImageGeneration(user, () => setIsGenerateOpen(false));
 
-  // Фильтруем промпты: оставляем только избранные
-  const favoritePrompts: any[] = []; // Временное решение - пустой массив
+  // Шаг 2: фильтруем промпты, оставляя только избранные
+  const favoritePrompts = prompts.filter((prompt) =>
+    favorites.includes(prompt.id)
+  );
 
   // Обертка для копирования
   const [copiedId, setCopiedId] = useState<number | null>(null);
