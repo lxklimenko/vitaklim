@@ -55,7 +55,7 @@ export const PromptCard = React.memo(({
     >
       <Link 
         href={`/prompt/${prompt.id}`}
-        className="relative aspect-[3/4] rounded-[1.25rem] overflow-hidden bg-[#111] group block"
+        className="relative aspect-square rounded-[1.25rem] overflow-hidden bg-[#111] group block"
         onClick={handleLinkClick}
       >
         {/* Плейсхолдер во время загрузки */}
