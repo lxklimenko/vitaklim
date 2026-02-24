@@ -152,12 +152,26 @@ export async function POST(req: Request) {
       .select()
       .single();
 
+    // Обработка ошибки уникального pending
     if (processingError || !newProcessingRecord) {
+      const isUniqueError =
+        processingError &&
+        (processingError.code === '23505' ||
+          /duplicate key|unique constraint/i.test(processingError.message || ''));
+
+      if (isUniqueError) {
+        return NextResponse.json(
+          { error: "У вас уже запущена генерация. Дождитесь завершения." },
+          { status: 429 }
+        );
+      }
+
       return NextResponse.json(
         { error: "Не удалось создать запись генерации" },
         { status: 500 }
       );
     }
+
     processingRecord = newProcessingRecord; // сохраняем для дальнейшего использования
 
     // 4. Проверка наличия API-ключа
