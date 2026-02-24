@@ -131,7 +131,7 @@ export async function POST(req: Request) {
       .from('generations')
       .select('id')
       .eq('user_id', user.id)
-      .eq('status', 'processing')
+      .eq('status', 'pending') // ИСПРАВЛЕНО: 'processing' → 'pending'
       .maybeSingle();
 
     if (activeGeneration) {
@@ -141,13 +141,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🟡 Создаём временную запись со статусом processing
+    // 🟡 Создаём временную запись со статусом pending
     const { data: newProcessingRecord, error: processingError } = await supabase
       .from('generations')
       .insert({
         user_id: user.id,
         prompt,
-        status: 'processing'
+        status: 'pending' // ИСПРАВЛЕНО: 'processing' → 'pending'
       })
       .select()
       .single();
