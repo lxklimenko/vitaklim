@@ -154,6 +154,23 @@ export async function POST(req: Request) {
 
     processingRecord = newProcessingRecord; // сохраняем для дальнейшего использования
 
+    // 💰 Списываем баланс ДО генерации
+    const { data: rpcResult, error: rpcError } = await supabase
+      .rpc('create_generation', {
+        p_user_id: user.id,
+        p_cost: GENERATION_COST
+      });
+
+    if (rpcError) {
+      throw new Error('Не удалось выполнить операцию списания средств');
+    }
+
+    const result = rpcResult as RpcResult;
+
+    if (!result.success) {
+      throw new Error(result.error || "Не удалось списать средства");
+    }
+
     // 4. Проверка наличия API-ключа
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
@@ -322,25 +339,6 @@ export async function POST(req: Request) {
 
     // Вычисляем время генерации в миллисекундах
     const generationTime = Date.now() - startTime;
-
-    // 11. Атомарное списание средств и сохранение истории через RPC
-    const { data: rpcResult, error: rpcError } = await supabase
-      .rpc('create_generation', {
-        p_user_id: user.id,
-        p_cost: GENERATION_COST
-      });
-
-    if (rpcError) {
-      console.error('RPC error:', rpcError);
-      throw new Error('Не удалось выполнить операцию списания средств');
-    }
-
-    // Проверяем результат, возвращённый функцией
-    const result = rpcResult as RpcResult;
-    if (!result.success) {
-      // Недостаточно средств или другая логическая ошибка
-      throw new Error(result.error || "Не удалось списать средства");
-    }
 
     // ✅ Обновляем запись после успешной генерации
     if (processingRecord) {
