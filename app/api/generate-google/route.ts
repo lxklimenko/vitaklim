@@ -131,7 +131,7 @@ export async function POST(req: Request) {
       .from('generations')
       .select('id')
       .eq('user_id', user.id)
-      .eq('status', 'pending') // ИСПРАВЛЕНО: 'processing' → 'pending'
+      .eq('status', 'pending')
       .maybeSingle();
 
     if (activeGeneration) {
@@ -147,7 +147,7 @@ export async function POST(req: Request) {
       .insert({
         user_id: user.id,
         prompt,
-        status: 'pending' // ИСПРАВЛЕНО: 'processing' → 'pending'
+        status: 'pending'
       })
       .select()
       .single();
@@ -333,13 +333,7 @@ export async function POST(req: Request) {
     const { data: rpcResult, error: rpcError } = await supabase
       .rpc('create_generation', {
         p_user_id: user.id,
-        p_prompt: prompt,
-        p_image_url: null,
-        p_storage_path: fileName,
-        p_reference_image_url: referencePublicUrl,
-        p_reference_storage_path: referenceFileName,
-        p_cost: GENERATION_COST,
-        p_generation_time_ms: generationTime
+        p_cost: GENERATION_COST
       });
 
     if (rpcError) {
@@ -354,11 +348,18 @@ export async function POST(req: Request) {
       throw new Error(result.error || "Не удалось списать средства");
     }
 
-    // ✅ Обновляем статус нашей записи на completed
+    // ✅ Обновляем запись после успешной генерации
     if (processingRecord) {
       await supabase
         .from('generations')
-        .update({ status: 'completed' })
+        .update({
+          status: 'completed',
+          image_url: null,
+          storage_path: fileName,
+          reference_image_url: referencePublicUrl,
+          reference_storage_path: referenceFileName,
+          generation_time_ms: generationTime
+        })
         .eq('id', processingRecord.id);
     }
 
