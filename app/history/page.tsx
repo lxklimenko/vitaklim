@@ -23,25 +23,31 @@ export default async function HistoryPage() {
     return <HistoryClient initialGenerations={[]} />
   }
 
-  // 🔥 создаём signed URLs
-  const generationsWithUrls = await Promise.all(
-    generations.map(async (gen) => {
-      if (!gen.storage_path) return null
+  // Собираем пути файлов
+  const generationsWithPath = generations.filter((gen) => gen.storage_path)
+  const paths = generationsWithPath.map((gen) => gen.storage_path)
 
-      const { data } = await supabase.storage
-        .from('generations-private')
-        .createSignedUrl(gen.storage_path, 3600)
+  if (paths.length === 0) {
+    return <HistoryClient initialGenerations={[]} />
+  }
 
-      if (!data?.signedUrl) return null
+  // Запрашиваем signed URLs одним запросом
+  const { data: signedData, error } = await supabase.storage
+    .from('generations-private')
+    .createSignedUrls(paths, 3600)
 
-      return {
-        ...gen,
-        image_url: data.signedUrl,
-      }
-    })
-  )
+  if (error || !signedData) {
+    console.error('Error creating signed URLs:', error)
+    return <HistoryClient initialGenerations={[]} />
+  }
 
-  const filtered = generationsWithUrls.filter(Boolean)
+  // Объединяем данные, сохраняя только те, для которых удалось получить URL
+  const generationsWithUrls = generationsWithPath
+    .map((gen, index) => ({
+      ...gen,
+      image_url: signedData[index]?.signedUrl || null,
+    }))
+    .filter((gen) => gen.image_url !== null)
 
-  return <HistoryClient initialGenerations={filtered} />
+  return <HistoryClient initialGenerations={generationsWithUrls} />
 }
