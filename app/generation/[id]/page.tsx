@@ -10,11 +10,15 @@ const supabaseAdmin = createClient(
 export default async function GenerationPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  const { id } = params
+  const { id } = await params
 
   console.log("PARAM ID:", id)
+
+  if (!id) {
+    notFound()
+  }
 
   const { data: generation, error } = await supabaseAdmin
     .from('generations')
