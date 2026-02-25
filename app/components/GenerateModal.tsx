@@ -57,7 +57,7 @@ export function GenerateModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[300] bg-black flex flex-col"
+          className="fixed inset-0 z-300 bg-black flex flex-col"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-4 border-b border-white/5 bg-[#111]">
@@ -96,7 +96,7 @@ export function GenerateModal({
                   className="w-full bg-[#1c1c1e] border border-white/10 rounded-xl p-3 flex items-center justify-between cursor-pointer active:border-white/30 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${currentModel.color} flex items-center justify-center text-[10px] font-bold shadow-lg`}>
+                    <div className={`w-8 h-8 rounded-full bg-linear-to-tr ${currentModel.color} flex items-center justify-center text-[10px] font-bold shadow-lg`}>
                       {currentModel.badge}
                     </div>
                     <div className="flex flex-col items-start">
@@ -120,7 +120,7 @@ export function GenerateModal({
                       initial={{ opacity: 0, y: -10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      className="absolute top-full mt-2 left-0 right-0 bg-[#1c1c1e] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-[60]"
+                      className="absolute top-full mt-2 left-0 right-0 bg-[#1c1c1e] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-60"
                     >
                       {MODELS.map((m) => (
                         <button
@@ -129,7 +129,7 @@ export function GenerateModal({
                           className="w-full text-left px-3 py-3 hover:bg-white/5 flex items-center justify-between border-b border-white/5 last:border-0 transition-colors"
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full bg-gradient-to-tr ${m.color} flex items-center justify-center text-[10px] font-bold shadow-inner`}>
+                            <div className={`w-10 h-10 rounded-full bg-linear-to-tr ${m.color} flex items-center justify-center text-[10px] font-bold shadow-inner`}>
                               {m.badge}
                             </div>
                             <div className="flex flex-col">
@@ -262,7 +262,7 @@ export function GenerateModal({
             <button
               onClick={handleGenerate}
               disabled={isGenerating || isPromptEmpty}
-              className="w-full py-4 rounded-xl bg-gradient-to-r from-[#FFD700] to-[#FFC000] text-black font-bold text-[16px] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,215,0,0.2)] disabled:pointer-events-none"
+              className="w-full py-4 rounded-xl bg-linear-to-r from-[#FFD700] to-[#FFC000] text-black font-bold text-[16px] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,215,0,0.2)] disabled:pointer-events-none"
             >
               {isGenerating ? (
                 <>

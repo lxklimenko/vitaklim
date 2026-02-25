@@ -17,10 +17,7 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  /* 3. Добавляем слеш в конце URL (помогает с роутингом на Beget) */
-  trailingSlash: true,
-
-  /* 4. Настройки TypeScript */
+  /* 3. Настройки TypeScript */
   typescript: {
     ignoreBuildErrors: false,
   },

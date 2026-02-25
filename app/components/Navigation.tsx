@@ -22,12 +22,12 @@ export const Navigation: React.FC = () => {
       <div className="relative h-20 px-6 flex items-center justify-between">
         
         {/* 1. ГЛАВНАЯ */}
-        <Link href="/" className="min-w-[50px] flex justify-center">
+        <Link href="/" className="min-w-12.5 flex justify-center">
           <NavItem icon={<Home size={22} />} label="Главная" active={isHomePage} />
         </Link>
 
         {/* 2. ИЗБРАННОЕ */}
-        <Link href="/favorites" className="min-w-[50px] flex justify-center">
+        <Link href="/favorites" className="min-w-12.5 flex justify-center">
            <NavItem icon={<Star size={22} />} label="Избранное" active={isFavoritesPage} />
         </Link>
 
@@ -42,12 +42,12 @@ export const Navigation: React.FC = () => {
         </div>
 
         {/* 4. ИСТОРИЯ */}
-        <Link href="/history" className="min-w-[50px] flex justify-center">
+        <Link href="/history" className="min-w-12.5 flex justify-center">
            <NavItem icon={<Clock size={22} />} label="История" active={isHistoryPage} />
         </Link>
 
         {/* 5. ПРОФИЛЬ */}
-        <Link href="/profile" className="min-w-[50px] flex justify-center">
+        <Link href="/profile" className="min-w-12.5 flex justify-center">
            <NavItem icon={<User size={22} />} label="Профиль" active={isProfilePage} />
         </Link>
 

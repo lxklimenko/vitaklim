@@ -30,12 +30,12 @@ export default function BottomNav({ onOpenProfile }: BottomNavProps) {
       <div className="relative h-20 px-6 flex items-center justify-between">
         
         {/* 1. ГЛАВНАЯ (Ссылка) */}
-        <Link href="/" className="min-w-[50px] flex justify-center">
+        <Link href="/" className="min-w-12.5 flex justify-center">
            <NavItem icon={<Home size={22} />} label="Главная" active={isHome} />
         </Link>
 
         {/* 2. ИЗБРАННОЕ (Пока оставим ссылкой на фильтр главной или заглушкой) */}
-        <div className="min-w-[50px] flex justify-center opacity-50">
+        <div className="min-w-12.5 flex justify-center opacity-50">
            <NavItem icon={<Star size={22} />} label="Избранное" active={false} />
         </div>
 
@@ -50,12 +50,12 @@ export default function BottomNav({ onOpenProfile }: BottomNavProps) {
         </div>
 
         {/* 4. ИСТОРИЯ (Ссылка на /history) */}
-        <Link href="/history" className="min-w-[50px] flex justify-center">
+        <Link href="/history" className="min-w-12.5 flex justify-center">
            <NavItem icon={<Clock size={22} />} label="История" active={isHistory} />
         </Link>
 
         {/* 5. ПРОФИЛЬ (Кнопка открытия модалки) */}
-        <button onClick={onOpenProfile} className="min-w-[50px] flex justify-center">
+        <button onClick={onOpenProfile} className="min-w-12.5 flex justify-center">
            <NavItem icon={<User size={22} />} label="Профиль" active={false} />
         </button>
 
