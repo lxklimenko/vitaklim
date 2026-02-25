@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   let uploadedFiles: string[] = [];
   let processingRecord: any = null;
   let user: any = null;
-  let usedCost = GENERATION_COST; // 👈 ДОБАВЛЕНО
+  let usedCost = GENERATION_COST;
 
   try {
     // 1. Аутентификация
@@ -75,10 +75,10 @@ export async function POST(req: Request) {
 
     // 🔥 Проверка, что модель поддерживает генерацию изображений
     const IMAGE_MODELS = [
-      "gemini-2.0-flash-exp-image-generation", // актуальное название для Gemini 2.0 Flash
+      "gemini-2.0-flash-exp-image-generation",
       "gemini-3-pro-image-preview",
       "gemini-2.5-flash-image",
-      "imagen-4-ultra"                         // новая модель Imagen
+      "imagen-4-ultra"
     ];
 
     if (!IMAGE_MODELS.includes(modelId)) {
@@ -159,7 +159,7 @@ export async function POST(req: Request) {
 
     // 💰 Определяем стоимость в зависимости от модели
     const cost = modelId === 'imagen-4-ultra' ? 5 : GENERATION_COST;
-    usedCost = cost; // 👈 ДОБАВЛЕНО
+    usedCost = cost;
 
     // 💰 Списываем баланс ДО генерации
     const { data: rpcResult, error: rpcError } = await supabase
@@ -181,11 +181,12 @@ export async function POST(req: Request) {
     if (modelId === 'imagen-4-ultra') {
       return await generateImagenUltra({
         prompt,
-        imageFile,         // пока не используется, но можно добавить поддержку позже
+        aspectRatio,       // 👈 передаём соотношение сторон
+        imageFile,
         user,
         processingRecord,
         supabase,
-        uploadedFiles,     // передаём для возможной очистки
+        uploadedFiles,
         startTime
       });
     }
@@ -200,11 +201,8 @@ export async function POST(req: Request) {
     // 5. Формируем тело запроса для Gemini API
     let processedImageBuffer: Buffer | null = null;
 
-    // 🔧 Модифицируем prompt: добавляем aspect ratio в текст, если он указан и не 'auto'
-    const finalPrompt =
-      aspectRatio && aspectRatio !== 'auto'
-        ? `${prompt}. Aspect ratio: ${aspectRatio}`
-        : prompt;
+    // ⚠️ Больше не добавляем aspect ratio в текст — управляем через imageConfig
+    const finalPrompt = prompt;
 
     const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
       { text: finalPrompt }
@@ -253,9 +251,10 @@ export async function POST(req: Request) {
       }
     }
 
-    // Формируем generationConfig
+    // Формируем generationConfig с поддержкой aspectRatio
     const generationConfig: any = {
-      responseModalities: ["image"]
+      responseModalities: ["image"],
+      ...(aspectRatio && aspectRatio !== 'auto' && { imageConfig: { aspectRatio } })
     };
 
     const requestBody = {
@@ -427,7 +426,7 @@ export async function POST(req: Request) {
         await supabase.rpc('refund_generation', {
           p_generation_id: processingRecord?.id,
           p_user_id: user.id,
-          p_amount: usedCost // 👈 ИСПРАВЛЕНО (было GENERATION_COST)
+          p_amount: usedCost
         });
       } catch (refundError) {
         console.error("Refund error:", refundError);
@@ -442,10 +441,11 @@ export async function POST(req: Request) {
 }
 
 /**
- * Генерация изображения через Imagen 4 Ultra
+ * Генерация изображения через Imagen 4 Ultra с поддержкой соотношения сторон
  */
 async function generateImagenUltra({
   prompt,
+  aspectRatio,
   imageFile,
   user,
   processingRecord,
@@ -457,6 +457,24 @@ async function generateImagenUltra({
   if (!apiKey) {
     throw new Error("Сервис временно недоступен (ошибка конфигурации)");
   }
+
+  // Определяем размеры в зависимости от aspectRatio
+  function getImagenSize(aspectRatio?: string) {
+    switch (aspectRatio) {
+      case "9:16":
+        return { width: 1024, height: 1792 };
+      case "16:9":
+        return { width: 1792, height: 1024 };
+      case "4:5":
+        return { width: 1024, height: 1280 };
+      case "3:4":
+        return { width: 1024, height: 1365 };
+      default:
+        return { width: 1024, height: 1024 };
+    }
+  }
+
+  const { width, height } = getImagenSize(aspectRatio);
 
   // Вызов Imagen API
   const response = await fetch(
@@ -471,7 +489,12 @@ async function generateImagenUltra({
           {
             prompt: prompt
           }
-        ]
+        ],
+        parameters: {
+          sampleCount: 1,
+          width,
+          height
+        }
       })
     }
   );
