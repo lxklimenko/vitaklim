@@ -36,6 +36,7 @@ export async function POST(req: Request) {
   let uploadedFiles: string[] = [];
   let processingRecord: any = null;
   let user: any = null;
+  let usedCost = GENERATION_COST; // 👈 ДОБАВЛЕНО
 
   try {
     // 1. Аутентификация
@@ -76,7 +77,8 @@ export async function POST(req: Request) {
     const IMAGE_MODELS = [
       "gemini-2.0-flash-exp-image-generation", // актуальное название для Gemini 2.0 Flash
       "gemini-3-pro-image-preview",
-      "gemini-2.5-flash-image"
+      "gemini-2.5-flash-image",
+      "imagen-4-ultra"                         // новая модель Imagen
     ];
 
     if (!IMAGE_MODELS.includes(modelId)) {
@@ -155,11 +157,15 @@ export async function POST(req: Request) {
 
     processingRecord = newProcessingRecord;
 
+    // 💰 Определяем стоимость в зависимости от модели
+    const cost = modelId === 'imagen-4-ultra' ? 5 : GENERATION_COST;
+    usedCost = cost; // 👈 ДОБАВЛЕНО
+
     // 💰 Списываем баланс ДО генерации
     const { data: rpcResult, error: rpcError } = await supabase
       .rpc('create_generation', {
         p_user_id: user.id,
-        p_cost: GENERATION_COST
+        p_cost: cost
       });
 
     if (rpcError) {
@@ -171,7 +177,20 @@ export async function POST(req: Request) {
       throw new Error(result.error || "Не удалось списать средства");
     }
 
-    // 4. Проверка API-ключа
+    // 🧠 Если выбрана модель Imagen Ultra, обрабатываем отдельно
+    if (modelId === 'imagen-4-ultra') {
+      return await generateImagenUltra({
+        prompt,
+        imageFile,         // пока не используется, но можно добавить поддержку позже
+        user,
+        processingRecord,
+        supabase,
+        uploadedFiles,     // передаём для возможной очистки
+        startTime
+      });
+    }
+
+    // 4. Проверка API-ключа (для Gemini)
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
       console.error('Google API key not configured');
@@ -212,12 +231,11 @@ export async function POST(req: Request) {
         const arrayBuffer = await imageFile.arrayBuffer();
         const inputBuffer = Buffer.from(arrayBuffer);
 
-        // ✅ Заменённый блок: максимальное качество и отключение цветовой субдискретизации
         const jpegBuffer = await sharp(inputBuffer)
           .resize({ width: 2048, withoutEnlargement: true })
           .jpeg({
-            quality: 100,        // максимум качества
-            chromaSubsampling: '4:4:4' // отключаем доп. сжатие цвета
+            quality: 100,
+            chromaSubsampling: '4:4:4'
           })
           .toBuffer();
 
@@ -235,9 +253,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // Формируем generationConfig — убираем aspectRatio, оставляем только обязательные параметры
+    // Формируем generationConfig
     const generationConfig: any = {
-      responseModalities: ["image"] // ключевой параметр!
+      responseModalities: ["image"]
     };
 
     const requestBody = {
@@ -363,7 +381,7 @@ export async function POST(req: Request) {
         .from('generations')
         .update({
           status: 'completed',
-          image_url: publicUrl,            // сохраняем публичную ссылку
+          image_url: publicUrl,
           storage_path: fileName,
           reference_image_url: referencePublicUrl,
           reference_storage_path: referenceFileName,
@@ -372,7 +390,7 @@ export async function POST(req: Request) {
         .eq('id', processingRecord.id);
     }
 
-    // 12. Возвращаем generationId клиенту (вместо imageUrl)
+    // 12. Возвращаем generationId клиенту
     return NextResponse.json({
       generationId: processingRecord.id
     });
@@ -409,7 +427,7 @@ export async function POST(req: Request) {
         await supabase.rpc('refund_generation', {
           p_generation_id: processingRecord?.id,
           p_user_id: user.id,
-          p_amount: GENERATION_COST
+          p_amount: usedCost // 👈 ИСПРАВЛЕНО (было GENERATION_COST)
         });
       } catch (refundError) {
         console.error("Refund error:", refundError);
@@ -421,4 +439,89 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+/**
+ * Генерация изображения через Imagen 4 Ultra
+ */
+async function generateImagenUltra({
+  prompt,
+  imageFile,
+  user,
+  processingRecord,
+  supabase,
+  uploadedFiles,
+  startTime
+}: any) {
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    throw new Error("Сервис временно недоступен (ошибка конфигурации)");
+  }
+
+  // Вызов Imagen API
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-ultra-generate-001:predict?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        instances: [
+          {
+            prompt: prompt
+          }
+        ]
+      })
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error("Imagen API Error:", data);
+    throw new Error(data.error?.message || "Ошибка генерации изображения Imagen");
+  }
+
+  const base64Image = data.predictions?.[0]?.bytesBase64Encoded;
+
+  if (!base64Image) {
+    throw new Error("Imagen не вернул изображение");
+  }
+
+  // Сохраняем результат
+  const buffer = Buffer.from(base64Image, 'base64');
+  const fileName = `${user.id}/${Date.now()}-ultra.jpg`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(fileName, buffer, { contentType: 'image/jpeg' });
+
+  if (uploadError) {
+    console.error('Storage upload error:', uploadError);
+    throw new Error('Не удалось сохранить сгенерированное изображение');
+  }
+  uploadedFiles.push(fileName);
+
+  // Публичная ссылка
+  const { data: { publicUrl } } = supabase.storage
+    .from(STORAGE_BUCKET)
+    .getPublicUrl(fileName);
+
+  const generationTime = Date.now() - startTime;
+
+  // Обновляем запись
+  await supabase
+    .from('generations')
+    .update({
+      status: 'completed',
+      image_url: publicUrl,
+      storage_path: fileName,
+      generation_time_ms: generationTime
+    })
+    .eq('id', processingRecord.id);
+
+  return NextResponse.json({
+    generationId: processingRecord.id
+  });
 }

@@ -22,6 +22,14 @@ export const MODELS: Model[] = [
     color: 'from-blue-400 to-cyan-500',
     desc: 'Быстро и качественно',
     price: 3
+  },
+  {
+    id: 'imagen-4-ultra',
+    name: 'Imagen 4 Ultra',
+    badge: 'ULTRA',                // добавлено
+    color: 'from-purple-500 to-pink-500', // добавлено
+    desc: 'Максимальное качество + лучший фотореализм',
+    price: 5
   }
 ];
 

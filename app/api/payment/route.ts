@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { YooCheckout } from '@a2seven/yoo-checkout';
 import { randomUUID } from 'crypto';
-import { createClient } from '@/app/lib/supabase-server'; // Шаг 1: импорт серверного клиента
+import { createClient } from '@/app/lib/supabase-server';
 
 export async function POST(req: Request) {
   // Allow only POST method
@@ -30,10 +30,9 @@ export async function POST(req: Request) {
     const checkout = new YooCheckout({ shopId, secretKey });
 
     const body = await req.json();
-    // Шаг 2: убираем userId из тела запроса
     const { amount } = body;
 
-    // Шаг 3: получаем авторизованного пользователя через Supabase
+    // Получаем авторизованного пользователя через Supabase
     const supabase = await createClient();
     const {
       data: { user },
@@ -46,9 +45,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const userId = user.id; // теперь userId берётся из сессии
+    const userId = user.id;
 
-    // Шаг 4: удаляем проверку userId (проверяем только amount)
     if (!amount) {
       return NextResponse.json(
         { error: 'Missing amount' },
@@ -61,6 +59,14 @@ export async function POST(req: Request) {
     if (isNaN(numericAmount) || numericAmount <= 0) {
       return NextResponse.json(
         { error: 'Amount must be a positive number' },
+        { status: 400 }
+      );
+    }
+
+    // 🔒 Ограничение суммы пополнения
+    if (numericAmount < 50 || numericAmount > 10000) {
+      return NextResponse.json(
+        { error: 'Сумма должна быть от 50 до 10000 ₽' },
         { status: 400 }
       );
     }
@@ -86,7 +92,7 @@ export async function POST(req: Request) {
         // Чек согласно 54-ФЗ с обязательными полями payment_subject и payment_mode
         receipt: {
           customer: {
-            email: 'klim93@bk.ru', // можно заменить на реальный email пользователя (например, user.email)
+            email: user.email ?? undefined, // теперь email берётся из профиля пользователя
           },
           items: [
             {
