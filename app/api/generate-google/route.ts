@@ -212,9 +212,13 @@ export async function POST(req: Request) {
         const arrayBuffer = await imageFile.arrayBuffer();
         const inputBuffer = Buffer.from(arrayBuffer);
 
+        // ✅ Заменённый блок: максимальное качество и отключение цветовой субдискретизации
         const jpegBuffer = await sharp(inputBuffer)
           .resize({ width: 2048, withoutEnlargement: true })
-          .jpeg({ quality: 90 })
+          .jpeg({
+            quality: 100,        // максимум качества
+            chromaSubsampling: '4:4:4' // отключаем доп. сжатие цвета
+          })
           .toBuffer();
 
         parts.push({
