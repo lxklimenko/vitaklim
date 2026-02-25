@@ -1,11 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
+import { createClient } from '@/app/lib/supabase-server'
 import GenerationClient from './GenerationClient'
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 export default async function GenerationPage({
   params,
@@ -14,43 +9,45 @@ export default async function GenerationPage({
 }) {
   const { id } = await params
 
-  console.log("PARAM ID:", id)
-
   if (!id) {
     notFound()
   }
 
-  const { data: generation, error } = await supabaseAdmin
+  const supabase = await createClient()
+
+  // 🔐 Получаем текущего пользователя
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    notFound()
+  }
+
+  // 🔐 Получаем только СВОЮ генерацию (RLS + проверка user_id)
+  const { data: generation, error } = await supabase
     .from('generations')
     .select('*')
     .eq('id', id)
+    .eq('user_id', user.id)
     .maybeSingle()
-
-  console.log("GENERATION:", generation)
-  console.log("ERROR:", error)
 
   if (!generation || !generation.storage_path) {
     notFound()
   }
 
-  // Временная замена блока signed URL с подробным логированием
-  const { data: signedData, error: signedError } =
-    await supabaseAdmin.storage
-      .from('generations-private')
-      .createSignedUrl(generation.storage_path, 3600)
-
-  console.log("SIGNED DATA:", signedData)
-  console.log("SIGNED ERROR:", signedError)
+  // 🔐 Генерируем signed URL
+  const { data: signedData } = await supabase.storage
+    .from('generations-private')
+    .createSignedUrl(generation.storage_path, 3600)
 
   if (!signedData?.signedUrl) {
     notFound()
   }
 
-  const imageUrl = signedData.signedUrl
-
   return (
     <GenerationClient
-      imageUrl={imageUrl}
+      imageUrl={signedData.signedUrl}
       prompt={generation.prompt}
     />
   )

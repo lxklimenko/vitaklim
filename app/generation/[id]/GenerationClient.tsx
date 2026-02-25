@@ -97,7 +97,7 @@ export default function GenerationClient({ imageUrl, prompt }: Props) {
       {/* Премиальный блок */}
       {prompt && (
         <div className="max-w-4xl mx-auto px-6 mt-6">
-          <div className="bg-gradient-to-b from-[#141414] to-[#0f0f0f]
+          <div className="bg-linear-to-b from-[#141414] to-[#0f0f0f]
                           border border-white/10
                           rounded-3xl
                           p-6
@@ -121,9 +121,9 @@ export default function GenerationClient({ imageUrl, prompt }: Props) {
                 </div>
 
                 <div className="pointer-events-none absolute top-0 left-0 right-0 h-6 
-                                bg-gradient-to-b from-[#141414] to-transparent" />
+                                bg-linear-to-t from-[#141414] to-transparent" />
                 <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 
-                                bg-gradient-to-t from-[#0f0f0f] to-transparent" />
+                                bg-linear-to-t from-[#0f0f0f] to-transparent" />
               </div>
 
               <div className="flex flex-col gap-3">
