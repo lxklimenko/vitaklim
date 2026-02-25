@@ -181,7 +181,7 @@ export async function POST(req: Request) {
     if (modelId === 'imagen-4-ultra') {
       return await generateImagenUltra({
         prompt,
-        aspectRatio,       // 👈 передаём соотношение сторон
+        aspectRatio,
         imageFile,
         user,
         processingRecord,
@@ -458,25 +458,7 @@ async function generateImagenUltra({
     throw new Error("Сервис временно недоступен (ошибка конфигурации)");
   }
 
-  // Определяем размеры в зависимости от aspectRatio
-  function getImagenSize(aspectRatio?: string) {
-    switch (aspectRatio) {
-      case "9:16":
-        return { width: 1024, height: 1792 };
-      case "16:9":
-        return { width: 1792, height: 1024 };
-      case "4:5":
-        return { width: 1024, height: 1280 };
-      case "3:4":
-        return { width: 1024, height: 1365 };
-      default:
-        return { width: 1024, height: 1024 };
-    }
-  }
-
-  const { width, height } = getImagenSize(aspectRatio);
-
-  // Вызов Imagen API
+  // Вызов Imagen API с параметром aspectRatio
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-ultra-generate-001:predict?key=${apiKey}`,
     {
@@ -492,8 +474,9 @@ async function generateImagenUltra({
         ],
         parameters: {
           sampleCount: 1,
-          width,
-          height
+          aspectRatio: aspectRatio && aspectRatio !== "auto"
+            ? aspectRatio
+            : "1:1"
         }
       })
     }
