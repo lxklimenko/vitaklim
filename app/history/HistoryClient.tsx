@@ -97,7 +97,7 @@ export default function HistoryClient({ initialGenerations }: Props) {
                     onClick={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
-                      setConfirmDeleteId(gen.id)
+                      handleDelete(gen.id)
                     }}
                     className="absolute top-3 left-3 z-10
                                w-10 h-10
