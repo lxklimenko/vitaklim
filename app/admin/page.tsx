@@ -1,5 +1,6 @@
 import { createClient } from '@/app/lib/supabase-server'
 import { notFound } from 'next/navigation'
+import Chart from './Chart'
 
 export default async function AdminPage() {
   const supabase = await createClient()
@@ -21,12 +22,15 @@ export default async function AdminPage() {
     return <div className="p-10 text-white">Нет данных за сегодня</div>
   }
 
+  const { data: chartData } = await supabase
+    .from('last_7_days_stats')
+    .select('*')
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-10">
       <h1 className="text-3xl font-bold mb-10">Admin Dashboard</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
         <Card title="Генерации" value={stats.total_generations} />
         <Card title="Успешные" value={stats.completed} />
         <Card title="Ошибки" value={stats.failed} />
@@ -46,8 +50,14 @@ export default async function AdminPage() {
         />
         <Card title="ARPU" value={Number(stats.arpu).toFixed(2)} />
         <Card title="Refunds" value={stats.refund_count} />
-
       </div>
+
+      {chartData && (
+        <div className="mt-16">
+          <h2 className="text-2xl font-bold mb-6">Последние 7 дней</h2>
+          <Chart data={chartData} />
+        </div>
+      )}
     </div>
   )
 }
