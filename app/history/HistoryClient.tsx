@@ -93,11 +93,12 @@ export default function HistoryClient({ initialGenerations }: Props) {
                     )}
                   </Link>
 
+                  {/* Кнопка удаления — открывает подтверждение */}
                   <button
                     onClick={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
-                      handleDelete(gen.id)
+                      setConfirmDeleteId(gen.id)
                     }}
                     className="absolute top-3 left-3 z-10
                                w-10 h-10
@@ -117,6 +118,36 @@ export default function HistoryClient({ initialGenerations }: Props) {
 
         <Navigation />
       </div>
+
+      {/* Модальное окно подтверждения удаления */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-[#141414] border border-white/10 rounded-2xl p-6 w-80">
+            <h3 className="text-lg font-semibold mb-4">
+              Удалить генерацию?
+            </h3>
+
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition"
+              >
+                Отмена
+              </button>
+
+              <button
+                onClick={() => {
+                  handleDelete(confirmDeleteId)
+                  setConfirmDeleteId(null)
+                }}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 transition"
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
