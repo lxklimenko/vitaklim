@@ -107,10 +107,7 @@ export default function ClientApp({ prompts }: ClientAppProps) {
   });
 
   return (
-    <div
-      className={`${inter.className} bg-black text-white antialiased overflow-x-hidden`}
-      style={{ paddingTop: 'var(--tg-top, 0px)' }}
-    >
+    <div className={`${inter.className} bg-black text-white antialiased overflow-x-hidden`}>
       <Toaster position="bottom-center" theme="dark" />
 
       <Header

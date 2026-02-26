@@ -31,7 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
   authReady,
 }) => {
   return (
-    <header className="sticky top-0 z-[100] glass border-b border-white/[0.05] pt-[env(safe-area-inset-top)]">
+    <header className="relative z-10 glass border-b border-white/[0.05]">
       <div className="max-w-7xl mx-auto px-6 h-[64px] flex items-center justify-between gap-4">
         <div 
           className={`flex items-center gap-2 cursor-pointer transition-all duration-500 active:scale-95 ${

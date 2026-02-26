@@ -26,7 +26,7 @@ export default function RootLayout({
 
         <ClientProviders>
           <div className="relative min-h-screen flex flex-col overflow-x-hidden">
-            <div className="flex-1 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+            <div className="flex-1 pb-[env(safe-area-inset-bottom)]">
               {children}
             </div>
           </div>

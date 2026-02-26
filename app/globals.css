@@ -26,11 +26,6 @@ body {
   min-height: 100dvh; /* dynamic viewport height для Telegram и мобильных браузеров */
 }
 
-html, body {
-  height: 100%;          /* fallback для старых браузеров */
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
 /* Скрыть scrollbar, но оставить скролл */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
