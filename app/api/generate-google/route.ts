@@ -421,6 +421,19 @@ export async function POST(req: Request) {
       }
     }
 
+    // 🧾 Логируем ошибку в БД
+    try {
+      await supabase.from('app_errors').insert({
+        user_id: user?.id ?? null,
+        generation_id: processingRecord?.id ?? null,
+        error_message: error instanceof Error ? error.message : 'Unknown error',
+        error_stack: error instanceof Error ? error.stack ?? null : null,
+        context: 'generate-google'
+      });
+    } catch (logError) {
+      console.error('Error logging failed:', logError);
+    }
+
     const message =
       error instanceof Error ? error.message : "Внутренняя ошибка сервера";
 
