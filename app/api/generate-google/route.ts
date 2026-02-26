@@ -486,14 +486,15 @@ async function generateImagenUltra({
             prompt: prompt,
             ...(referenceBase64 && {
               image: {
-                bytesBase64Encoded: referenceBase64
+                bytesBase64Encoded: referenceBase64,
+                mimeType: "image/jpeg"
               }
             })
           }
         ],
         parameters: {
           sampleCount: 1,
-          strength: referenceBase64 ? 0.6 : undefined,
+          ...(referenceBase64 && { strength: 0.6 }),
           aspectRatio: aspectRatio && aspectRatio !== "auto"
             ? aspectRatio
             : "1:1"
