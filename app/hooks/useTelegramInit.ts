@@ -28,6 +28,10 @@ export function useTelegramInit() {
     // Убираем bounce-эффект на iOS
     document.body.style.overscrollBehaviorY = 'none'
 
+    // Фиксим высоту для корректного отображения в Telegram WebView
+    document.documentElement.style.height = '100%'
+    document.body.style.height = '100%'
+
     // Добавляем класс в body для темы
     document.body.dataset.theme = isDark ? 'dark' : 'light'
 
