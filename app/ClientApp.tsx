@@ -126,7 +126,7 @@ export default function ClientApp({ prompts }: ClientAppProps) {
         onResetView={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       />
 
-      <main className="pb-28 pt-8">
+      <main className="pb-28 pt-2">
         <MainFeed
           isLoading={isLoading && filteredPrompts.length === 0}
           activeCategory={activeCategory}
