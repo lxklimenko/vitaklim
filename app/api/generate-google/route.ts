@@ -152,6 +152,7 @@ export async function POST(req: Request) {
     // 💰 Списываем баланс ДО генерации
     const { data: rpcResult, error: rpcError } = await supabase
       .rpc('create_generation', {
+        p_generation_id: processingRecord.id,  // ✅ Добавлен идентификатор генерации
         p_user_id: user.id,
         p_cost: cost
       });
@@ -395,7 +396,6 @@ export async function POST(req: Request) {
         console.error("Cleanup error:", cleanupError);
       }
     }
-
     // ❌ Обновляем статус записи на failed
     if (processingRecord?.id) {
       try {
