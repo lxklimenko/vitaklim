@@ -6,10 +6,8 @@ declare global {
       WebApp: {
         ready: () => void
         expand: () => void
-        setHeaderColor: (color: string) => void
-        setBackgroundColor: (color: string) => void
         disableVerticalSwipes?: () => void
-        colorScheme?: 'light' | 'dark'
+
         BackButton: {
           show: () => void
           hide: () => void
