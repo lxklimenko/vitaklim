@@ -486,8 +486,7 @@ async function generateImagenUltra({
             prompt: prompt,
             ...(referenceBase64 && {
               image: {
-                bytesBase64Encoded: referenceBase64,
-                mimeType: "image/jpeg"
+                imageBytes: referenceBase64
               }
             })
           }
