@@ -125,6 +125,9 @@ export async function POST(req: Request) {
       );
     }
 
+    // 🧹 Очистка зависших pending через RPC
+    await supabase.rpc('cleanup_stale_generations');
+
     // 🟡 Создаём запись со статусом pending
     const { data: newProcessingRecord, error: processingError } = await supabase
       .from('generations')
