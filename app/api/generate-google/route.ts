@@ -441,7 +441,7 @@ export async function POST(req: Request) {
 }
 
 /**
- * Генерация изображения через Imagen 4 Ultra с поддержкой соотношения сторон
+ * Генерация изображения через Imagen 4 Ultra с поддержкой соотношения сторон и референс-изображения
  */
 async function generateImagenUltra({
   prompt,
@@ -458,7 +458,21 @@ async function generateImagenUltra({
     throw new Error("Сервис временно недоступен (ошибка конфигурации)");
   }
 
-  // Вызов Imagen API с параметром aspectRatio
+  // Обработка референса
+  let referenceBase64: string | undefined;
+
+  if (imageFile) {
+    const arrayBuffer = await imageFile.arrayBuffer();
+    const inputBuffer = Buffer.from(arrayBuffer);
+
+    const jpegBuffer = await sharp(inputBuffer)
+      .resize({ width: 2048, withoutEnlargement: true })
+      .jpeg({ quality: 95 })
+      .toBuffer();
+
+    referenceBase64 = jpegBuffer.toString("base64");
+  }
+
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-ultra-generate-001:predict?key=${apiKey}`,
     {
@@ -469,11 +483,17 @@ async function generateImagenUltra({
       body: JSON.stringify({
         instances: [
           {
-            prompt: prompt
+            prompt: prompt,
+            ...(referenceBase64 && {
+              image: {
+                bytesBase64Encoded: referenceBase64
+              }
+            })
           }
         ],
         parameters: {
           sampleCount: 1,
+          strength: referenceBase64 ? 0.6 : undefined,
           aspectRatio: aspectRatio && aspectRatio !== "auto"
             ? aspectRatio
             : "1:1"
