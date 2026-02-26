@@ -20,9 +20,12 @@ export default function HistoryClient({ initialGenerations }: Props) {
     useState<Generation[]>(initialGenerations)
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const handleDelete = async (id: string) => {
     if (!user) return;
+
+    setDeletingId(id);
 
     try {
       const response = await fetch("/api/delete-generation", {
@@ -40,10 +43,11 @@ export default function HistoryClient({ initialGenerations }: Props) {
         return;
       }
 
-      const updated = generations.filter((g) => g.id !== id);
-      setLocalGenerations(updated);
+      setLocalGenerations(prev => prev.filter(g => g.id !== id));
     } catch (error) {
       console.error("Delete error:", error);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -136,13 +140,18 @@ export default function HistoryClient({ initialGenerations }: Props) {
               </button>
 
               <button
+                disabled={deletingId === confirmDeleteId}
                 onClick={() => {
                   handleDelete(confirmDeleteId)
                   setConfirmDeleteId(null)
                 }}
-                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 transition"
+                className={`px-4 py-2 rounded-xl transition ${
+                  deletingId === confirmDeleteId
+                    ? 'bg-red-400 cursor-not-allowed'
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
               >
-                Удалить
+                {deletingId === confirmDeleteId ? 'Удаление...' : 'Удалить'}
               </button>
             </div>
           </div>
