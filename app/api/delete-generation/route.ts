@@ -53,14 +53,14 @@ export async function POST(req: Request) {
     // 4. Удаляем основной файл
     if (generation.storage_path) {
       await supabaseAdmin.storage
-        .from("generations")
+        .from("generations-private")
         .remove([generation.storage_path]);
     }
 
     // 5. Удаляем reference-файл
     if (generation.reference_storage_path) {
       await supabaseAdmin.storage
-        .from("generations")
+        .from("generations-private")
         .remove([generation.reference_storage_path]);
     }
 

@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { createClient } from '@/app/lib/supabase-server';
 import sharp from "sharp";
 import crypto from 'crypto';
+import { STORAGE_BUCKET } from '@/app/constants/storage';
 
 // Константы
 const GENERATION_COST = parseInt(process.env.GENERATION_COST || "1", 10);
-const STORAGE_BUCKET = 'generations-private';
 const FETCH_TIMEOUT = 60000; // 60 секунд для генерации изображения
 const MAX_IMAGE_SIZE_MB = 10;
 
@@ -152,7 +152,7 @@ export async function POST(req: Request) {
     // 💰 Списываем баланс ДО генерации
     const { data: rpcResult, error: rpcError } = await supabase
       .rpc('create_generation', {
-        p_generation_id: processingRecord.id,  // ✅ Добавлен идентификатор генерации
+        p_generation_id: processingRecord.id,
         p_user_id: user.id,
         p_cost: cost
       });

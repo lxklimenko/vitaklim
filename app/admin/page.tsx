@@ -1,6 +1,7 @@
 import { createClient } from '@/app/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import Chart from './Chart'
+import UsersChart from './UsersChart' // <-- добавлен импорт
 
 export default async function AdminPage() {
   const supabase = await createClient()
@@ -22,8 +23,17 @@ export default async function AdminPage() {
     return <div className="p-10 text-white">Нет данных за сегодня</div>
   }
 
-  const { data: chartData } = await supabase
+  const { data: chart7 } = await supabase
     .from('last_7_days_stats')
+    .select('*')
+
+  const { data: chart30 } = await supabase
+    .from('last_30_days_stats')
+    .select('*')
+
+  // Запрос данных ежедневно активных пользователей
+  const { data: dau } = await supabase
+    .from('daily_active_users')
     .select('*')
 
   return (
@@ -52,10 +62,18 @@ export default async function AdminPage() {
         <Card title="Refunds" value={stats.refund_count} />
       </div>
 
-      {chartData && (
+      {(chart7 || chart30) && (
         <div className="mt-16">
-          <h2 className="text-2xl font-bold mb-6">Последние 7 дней</h2>
-          <Chart data={chartData} />
+          <h2 className="text-2xl font-bold mb-6">Статистика за периоды</h2>
+          <Chart chart7={chart7} chart30={chart30} />
+        </div>
+      )}
+
+      {/* Блок с активными пользователями */}
+      {dau && (
+        <div className="mt-16">
+          <h2 className="text-2xl font-bold mb-6">Активные пользователи</h2>
+          <UsersChart data={dau} />
         </div>
       )}
     </div>
