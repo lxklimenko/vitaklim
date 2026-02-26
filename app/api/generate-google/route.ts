@@ -191,7 +191,18 @@ export async function POST(req: Request) {
     let processedImageBuffer: Buffer | null = null;
 
     // ⚠️ Больше не добавляем aspect ratio в текст — управляем через imageConfig
-    const finalPrompt = prompt;
+    const finalPrompt = `
+${prompt}
+
+ultra detailed
+professional photography
+sharp focus
+natural skin texture
+high dynamic range
+cinematic lighting
+photorealistic
+high resolution
+`;
 
     const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
       { text: finalPrompt }
@@ -494,7 +505,7 @@ async function generateImagenUltra({
         ],
         parameters: {
           sampleCount: 1,
-          ...(referenceBase64 && { strength: 0.6 }),
+          ...(referenceBase64 && { strength: 0.8 }),
           aspectRatio: aspectRatio && aspectRatio !== "auto"
             ? aspectRatio
             : "1:1"
