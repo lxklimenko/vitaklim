@@ -1,6 +1,29 @@
 'use client'
 import { useEffect } from 'react'
 
+// Расширяем глобальный интерфейс Window для поддержки Telegram WebApp
+declare global {
+  interface Window {
+    Telegram?: {
+      WebApp: {
+        ready: () => void
+        expand: () => void
+        setHeaderColor: (color: string) => void
+        setBackgroundColor: (color: string) => void
+        disableVerticalSwipes?: () => void
+        colorScheme?: 'light' | 'dark'
+        viewportHeight?: number
+        viewportStableHeight?: number
+        BackButton: {
+          show: () => void
+          hide: () => void
+          onClick: (cb: () => void) => void
+        }
+      }
+    }
+  }
+}
+
 export function useTelegramInit() {
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -18,7 +41,6 @@ export function useTelegramInit() {
 
     // Определяем тему Telegram
     const isDark = tg.colorScheme === 'dark'
-
     const bgColor = isDark ? '#000000' : '#ffffff'
 
     // Красим системные зоны Telegram
@@ -35,5 +57,13 @@ export function useTelegramInit() {
     // Добавляем класс в body для темы
     document.body.dataset.theme = isDark ? 'dark' : 'light'
 
+    // Устанавливаем CSS-переменную для корректировки отступов
+    // (например, для избегания наложения панели навигации)
+    if (tg.viewportHeight && tg.viewportStableHeight) {
+      document.documentElement.style.setProperty(
+        '--tg-top',
+        `${tg.viewportStableHeight - tg.viewportHeight}px`
+      )
+    }
   }, [])
 }
