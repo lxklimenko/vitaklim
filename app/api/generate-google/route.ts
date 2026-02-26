@@ -110,21 +110,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // 🔒 Проверка активной генерации
-    const { data: activeGeneration } = await supabase
-      .from('generations')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('status', 'pending')
-      .maybeSingle();
-
-    if (activeGeneration) {
-      return NextResponse.json(
-        { error: "У вас уже запущена генерация. Дождитесь завершения." },
-        { status: 429 }
-      );
-    }
-
     // 🧹 Очистка зависших pending через RPC
     await supabase.rpc('cleanup_stale_generations');
 
