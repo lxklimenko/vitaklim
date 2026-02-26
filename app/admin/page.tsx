@@ -8,7 +8,7 @@ export default async function AdminPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user || user.email !== 'lxklimenko@gmail.com') {
+  if (!user || user.email !== 'klim93@bk.ru') {
     notFound()
   }
 
