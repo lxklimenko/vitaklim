@@ -41,9 +41,25 @@ export async function POST(req: Request) {
 
   // 👤 Если нет — создаём
   if (!profile) {
+    // 1️⃣ Создаём пользователя в auth.users
+    const { data: authUser, error: authError } =
+      await supabase.auth.admin.createUser({
+        email: `telegram_${telegramId}@klex.pro`,
+        email_confirm: true,
+      });
+
+    if (authError) {
+      console.error("AUTH CREATE ERROR:", authError);
+      return NextResponse.json({ ok: true });
+    }
+
+    const userId = authUser.user.id;
+
+    // 2️⃣ Создаём профиль с тем же id
     const { data: newProfile, error } = await supabase
       .from("profiles")
       .insert({
+        id: userId,
         telegram_id: telegramId,
         username,
         balance: 0,
@@ -52,7 +68,8 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
-      console.error("INSERT ERROR:", error);
+      console.error("PROFILE INSERT ERROR:", error);
+      return NextResponse.json({ ok: true });
     }
 
     profile = newProfile;
