@@ -22,15 +22,32 @@ async function sendMessage(chatId: number, text: string) {
   });
 }
 
-async function sendPhoto(chatId: number, photoUrl: string) {
-  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      photo: photoUrl,
-    }),
-  });
+/**
+ * Отправляет фото в Telegram, загружая его по URL и передавая как бинарные данные (multipart/form-data)
+ */
+async function sendPhotoBuffer(chatId: number, imageUrl: string) {
+  // скачиваем файл с signed URL
+  const imageResponse = await fetch(imageUrl);
+  const buffer = await imageResponse.arrayBuffer();
+
+  const formData = new FormData();
+  formData.append("chat_id", chatId.toString());
+  formData.append(
+    "photo",
+    new Blob([buffer], { type: "image/jpeg" }),
+    "image.jpg"
+  );
+
+  const res = await fetch(
+    `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,
+    {
+      method: "POST",
+      body: formData
+    }
+  );
+
+  const data = await res.json();
+  console.log("SEND PHOTO RESPONSE:", data);
 }
 
 export async function POST(req: Request) {
@@ -128,7 +145,7 @@ export async function POST(req: Request) {
         });
 
         console.log("SENDING PHOTO:", result.imageUrl);
-        await sendPhoto(chatId, result.imageUrl);
+        await sendPhotoBuffer(chatId, result.imageUrl);
         console.log("PHOTO SENT");
 
       } catch (error: any) {
