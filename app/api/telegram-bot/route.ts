@@ -127,7 +127,9 @@ export async function POST(req: Request) {
           supabase
         });
 
+        console.log("SENDING PHOTO:", result.imageUrl);
         await sendPhoto(chatId, result.imageUrl);
+        console.log("PHOTO SENT");
 
       } catch (error: any) {
         console.error("GENERATION ERROR:", error);
