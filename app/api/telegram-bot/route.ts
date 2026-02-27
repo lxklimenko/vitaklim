@@ -61,7 +61,7 @@ export async function POST(req: Request) {
       .insert({
         id: userId,
         telegram_id: telegramId,
-        username,
+        telegram_username: username,
         balance: 0,
       })
       .select()
@@ -81,10 +81,20 @@ export async function POST(req: Request) {
       `Привет 👋\n\nТвой баланс: ${profile.balance}\n\nНапиши описание — и я сгенерирую изображение 🎨`
     );
   } else {
+    if (profile.balance <= 0) {
+      await sendMessage(
+        chatId,
+        "❌ Недостаточно средств.\n\nПополни баланс в Mini App."
+      );
+      return NextResponse.json({ ok: true });
+    }
+
     await sendMessage(
       chatId,
-      `Баланс: ${profile.balance}\n\nЗапрос получен:\n"${text}"\n\nГенерацию подключим следующим шагом 🚀`
+      "🎨 Генерация запущена...\n\nПодожди несколько секунд."
     );
+
+    // Реальную генерацию подключим следующим шагом
   }
 
   return NextResponse.json({ ok: true });
