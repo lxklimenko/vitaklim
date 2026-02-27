@@ -49,18 +49,27 @@ export async function POST(req: Request) {
     if (!profile) {
       console.log("Creating new Telegram user...");
 
-      const { data: authUser, error: authError } =
-        await supabase.auth.admin.createUser({
-          email: `telegram_${telegramId}@klex.pro`,
+      const email = `telegram_${telegramId}@klex.pro`;
+      let userId: string;
+
+      const { data: existingUsers } = await supabase.auth.admin.listUsers();
+      const existingUser = existingUsers.users.find((u) => u.email === email);
+
+      if (existingUser) {
+        userId = existingUser.id;
+      } else {
+        const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+          email,
           email_confirm: true,
         });
 
-      if (authError) {
-        console.error("AUTH CREATE ERROR:", authError);
-        return NextResponse.json({ ok: true });
-      }
+        if (authError) {
+          console.error("AUTH CREATE ERROR:", authError);
+          return NextResponse.json({ ok: true });
+        }
 
-      const userId = authUser.user.id;
+        userId = authUser.user.id;
+      }
 
       const { data: newProfile, error } = await supabase
         .from("profiles")
