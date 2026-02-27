@@ -11,6 +11,11 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 console.log("SUPABASE URL:", SUPABASE_URL);
 console.log("SERVICE ROLE EXISTS:", !!SUPABASE_SERVICE_ROLE_KEY);
 
+// 🔁 Новые состояния пользователя
+type UserState = "idle" | "choosing_model" | "awaiting_prompt";
+const userStates: Record<number, UserState> = {};
+const userSelectedModel: Record<number, string> = {};
+
 async function sendMessage(chatId: number, text: string) {
   await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: "POST",
@@ -31,18 +36,12 @@ async function sendMainMenu(chatId: number) {
       text: "Выберите действие:",
       reply_markup: {
         keyboard: [
-          [
-            { text: "🎨 Сгенерировать" },
-            { text: "🖼 По фото" }
-          ],
-          [
-            { text: "💰 Баланс" },
-            { text: "🚀 Открыть приложение" }
-          ]
+          [{ text: "🎨 Сгенерировать" }, { text: "🖼 По фото" }],
+          [{ text: "💰 Баланс" }, { text: "🚀 Открыть приложение" }],
         ],
-        resize_keyboard: true
-      }
-    })
+        resize_keyboard: true,
+      },
+    }),
   });
 }
 
@@ -66,7 +65,7 @@ async function sendPhotoBuffer(chatId: number, imageUrl: string) {
     `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,
     {
       method: "POST",
-      body: formData
+      body: formData,
     }
   );
 
@@ -111,10 +110,11 @@ export async function POST(req: Request) {
       if (existingUser) {
         userId = existingUser.id;
       } else {
-        const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-          email,
-          email_confirm: true,
-        });
+        const { data: authUser, error: authError } =
+          await supabase.auth.admin.createUser({
+            email,
+            email_confirm: true,
+          });
 
         if (authError) {
           console.error("AUTH CREATE ERROR:", authError);
@@ -143,48 +143,144 @@ export async function POST(req: Request) {
       profile = newProfile;
     }
 
+    // ================== ОБРАБОТКА КОМАНД ==================
+
+    // /start
     if (text === "/start") {
+      userStates[telegramId] = "idle"; // сбрасываем состояние
       await sendMessage(
         chatId,
         "Привет! ИИ-бот KLEX.PRO открывает вам доступ к лучшим нейросетям для создания изображений."
       );
-
       await sendMainMenu(chatId);
+      return NextResponse.json({ ok: true });
+    }
+
+    // 🎨 Сгенерировать
+    if (text === "🎨 Сгенерировать") {
+      userStates[telegramId] = "choosing_model";
+
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: "Выберите модель:",
+          reply_markup: {
+            keyboard: [
+              [{ text: "⚡ Быстрая (1 кредит)" }],
+              [{ text: "💎 Ultra (5 кредитов)" }],
+              [{ text: "⬅️ Назад" }],
+            ],
+            resize_keyboard: true,
+          },
+        }),
+      });
 
       return NextResponse.json({ ok: true });
-    } else {
+    }
+
+    // 🖼 По фото
+    if (text === "🖼 По фото") {
+      userStates[telegramId] = "idle";
+      await sendMessage(chatId, "Функция в разработке.");
+      return NextResponse.json({ ok: true });
+    }
+
+    // 💰 Баланс
+    if (text === "💰 Баланс") {
+      userStates[telegramId] = "idle";
+      await sendMessage(chatId, `💰 Ваш баланс: ${profile.balance} кредитов.`);
+      return NextResponse.json({ ok: true });
+    }
+
+    // 🚀 Открыть приложение
+    if (text === "🚀 Открыть приложение") {
+      userStates[telegramId] = "idle";
+      await sendMessage(
+        chatId,
+        "Откройте Mini App: https://t.me/YourBotName/app" // замените на реальную ссылку
+      );
+      return NextResponse.json({ ok: true });
+    }
+
+    // ================== МАШИНА СОСТОЯНИЙ ==================
+    const currentState = userStates[telegramId] ?? "idle";
+
+    // Состояние: выбор модели
+    if (currentState === "choosing_model") {
+      // ⚡ Быстрая модель
+      if (text === "⚡ Быстрая (1 кредит)") {
+        userSelectedModel[telegramId] = "gemini-2.5-flash-image";
+        userStates[telegramId] = "awaiting_prompt";
+        await sendMessage(chatId, "Опишите изображение 🎨");
+        return NextResponse.json({ ok: true });
+      }
+
+      // 💎 Ultra модель
+      if (text === "💎 Ultra (5 кредитов)") {
+        userSelectedModel[telegramId] = "imagen-4-ultra";
+        userStates[telegramId] = "awaiting_prompt";
+        await sendMessage(chatId, "Опишите изображение для Ultra 💎");
+        return NextResponse.json({ ok: true });
+      }
+
+      // ⬅️ Назад
+      if (text === "⬅️ Назад") {
+        userStates[telegramId] = "idle";
+        await sendMainMenu(chatId);
+        return NextResponse.json({ ok: true });
+      }
+
+      // Неизвестный ввод в состоянии выбора модели
+      await sendMessage(chatId, "Пожалуйста, выберите модель из списка.");
+      return NextResponse.json({ ok: true });
+    }
+
+    // Состояние: ожидание промпта
+    if (currentState === "awaiting_prompt") {
+      // Проверка баланса
       if (profile.balance <= 0) {
         await sendMessage(
           chatId,
           "❌ Недостаточно средств.\n\nПополни баланс в Mini App."
         );
+        userStates[telegramId] = "idle";
         return NextResponse.json({ ok: true });
       }
 
       await sendMessage(chatId, "🎨 Генерация запущена...");
 
+      const modelId =
+        userSelectedModel[telegramId] || "gemini-2.5-flash-image";
+
       try {
         const result = await generateImageCore({
           userId: profile.id,
           prompt: text,
-          modelId: "gemini-2.5-flash-image",
+          modelId: modelId,
           aspectRatio: "1:1",
-          supabase
+          supabase,
         });
 
         console.log("SENDING PHOTO:", result.imageUrl);
         await sendPhotoBuffer(chatId, result.imageUrl);
         console.log("PHOTO SENT");
 
+        // Сбрасываем состояние после успешной генерации
+        userStates[telegramId] = "idle";
       } catch (error: any) {
         console.error("GENERATION ERROR:", error);
-
-        await sendMessage(
-          chatId,
-          `❌ Ошибка генерации:\n${error.message}`
-        );
+        await sendMessage(chatId, `❌ Ошибка генерации:\n${error.message}`);
+        userStates[telegramId] = "idle"; // сбрасываем даже при ошибке
       }
+
+      return NextResponse.json({ ok: true });
     }
+
+    // Состояние idle – неизвестная команда
+    await sendMessage(chatId, "Неизвестная команда. Используйте меню.");
+    await sendMainMenu(chatId);
 
     return NextResponse.json({ ok: true });
   } catch (err) {
