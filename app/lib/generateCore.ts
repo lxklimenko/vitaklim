@@ -26,6 +26,8 @@ export async function generateImageCore({
   supabase: any;
 }) {
 
+  console.log("START GENERATION:", { userId, prompt });
+
   const startTime = Date.now();
 
   // 1️⃣ Anti-spam
@@ -59,6 +61,8 @@ export async function generateImageCore({
     throw new Error("Не удалось создать запись генерации");
   }
 
+  console.log("PENDING CREATED:", processingRecord.id);
+
   const cost = modelId === "imagen-4-ultra" ? 5 : GENERATION_COST;
 
   // 3️⃣ списание
@@ -71,6 +75,8 @@ export async function generateImageCore({
   if (!rpcResult?.success) {
     throw new Error(rpcResult?.error || "Не удалось списать средства");
   }
+
+  console.log("BALANCE CHARGED");
 
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) {
@@ -100,6 +106,8 @@ export async function generateImageCore({
     throw new Error(data.error?.message || "Ошибка генерации");
   }
 
+  console.log("GOOGLE RESPONSE RECEIVED");
+
   const base64Image =
     data?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData)?.inlineData?.data;
 
@@ -118,6 +126,8 @@ export async function generateImageCore({
     throw new Error("Ошибка сохранения изображения");
   }
 
+  console.log("UPLOADED TO STORAGE:", fileName);
+
   const { data: { publicUrl } } = supabase.storage
     .from(STORAGE_BUCKET)
     .getPublicUrl(fileName);
@@ -133,6 +143,8 @@ export async function generateImageCore({
       generation_time_ms: generationTime
     })
     .eq("id", processingRecord.id);
+
+  console.log("GENERATION COMPLETED");
 
   return {
     imageUrl: publicUrl,
