@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { generateImageCore } from "@/app/lib/generateCore";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -107,11 +108,35 @@ export async function POST(req: Request) {
         `Привет 👋\n\nТвой баланс: ${profile.balance}`
       );
     } else {
-      await sendMessage(chatId, "Тестирую отправку картинки...");
-      await sendPhoto(
-        chatId,
-        "https://picsum.photos/800/800"
-      );
+      if (profile.balance <= 0) {
+        await sendMessage(
+          chatId,
+          "❌ Недостаточно средств.\n\nПополни баланс в Mini App."
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      await sendMessage(chatId, "🎨 Генерация запущена...");
+
+      try {
+        const result = await generateImageCore({
+          userId: profile.id,
+          prompt: text,
+          modelId: "gemini-2.5-flash-image",
+          aspectRatio: "1:1",
+          supabase
+        });
+
+        await sendPhoto(chatId, result.imageUrl);
+
+      } catch (error: any) {
+        console.error("GENERATION ERROR:", error);
+
+        await sendMessage(
+          chatId,
+          `❌ Ошибка генерации:\n${error.message}`
+        );
+      }
     }
 
     return NextResponse.json({ ok: true });
