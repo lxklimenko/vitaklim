@@ -32,12 +32,18 @@ export async function POST(req: Request) {
   const username = message.from.username || `telegram_${telegramId}`;
   const text = message.text;
 
-  // 🔎 Проверяем есть ли пользователь
-  let { data: profile } = await supabase
+  // 🔎 Проверяем есть ли пользователь (используем maybeSingle)
+  const { data: profileData, error: profileError } = await supabase
     .from("profiles")
     .select("*")
     .eq("telegram_id", telegramId)
-    .single();
+    .maybeSingle();
+
+  if (profileError) {
+    console.error("PROFILE SELECT ERROR:", profileError);
+  }
+
+  let profile = profileData;
 
   // 👤 Если нет — создаём
   if (!profile) {
