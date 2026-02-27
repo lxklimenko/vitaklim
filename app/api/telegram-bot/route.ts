@@ -21,6 +21,17 @@ async function sendMessage(chatId: number, text: string) {
   });
 }
 
+async function sendPhoto(chatId: number, photoUrl: string) {
+  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      photo: photoUrl,
+    }),
+  });
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -96,7 +107,11 @@ export async function POST(req: Request) {
         `Привет 👋\n\nТвой баланс: ${profile.balance}`
       );
     } else {
-      await sendMessage(chatId, "Сообщение получено ✅");
+      await sendMessage(chatId, "Тестирую отправку картинки...");
+      await sendPhoto(
+        chatId,
+        "https://images.unsplash.com/photo-1506744038136-46273834b3fb"
+      );
     }
 
     return NextResponse.json({ ok: true });
