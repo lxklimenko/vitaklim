@@ -22,86 +22,77 @@ async function sendMessage(chatId: number, text: string) {
 }
 
 export async function POST(req: Request) {
-  const body = await req.json();
-  const message = body.message;
+  try {
+    const body = await req.json();
+    console.log("UPDATE:", body);
 
-  if (!message) return NextResponse.json({ ok: true });
+    const message = body.message;
+    if (!message) return NextResponse.json({ ok: true });
 
-  const chatId = message.chat.id;
-  const telegramId = message.from.id;
-  const username = message.from.username || `telegram_${telegramId}`;
-  const text = message.text;
+    const chatId = message.chat.id;
+    const telegramId = message.from.id;
+    const username = message.from.username || `telegram_${telegramId}`;
+    const text = message.text;
 
-  // 🔎 Проверяем есть ли пользователь (используем maybeSingle)
-  const { data: profileData, error: profileError } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("telegram_id", telegramId)
-    .maybeSingle();
-
-  if (profileError) {
-    console.error("PROFILE SELECT ERROR:", profileError);
-  }
-
-  let profile = profileData;
-
-  // 👤 Если нет — создаём
-  if (!profile) {
-    // 1️⃣ Создаём пользователя в auth.users
-    const { data: authUser, error: authError } =
-      await supabase.auth.admin.createUser({
-        email: `telegram_${telegramId}@klex.pro`,
-        email_confirm: true,
-      });
-
-    if (authError) {
-      console.error("AUTH CREATE ERROR:", authError);
-      return NextResponse.json({ ok: true });
-    }
-
-    const userId = authUser.user.id;
-
-    // 2️⃣ Создаём профиль с тем же id
-    const { data: newProfile, error } = await supabase
+    const { data: profileData, error: profileError } = await supabase
       .from("profiles")
-      .insert({
-        id: userId,
-        telegram_id: telegramId,
-        telegram_username: username,
-        balance: 0,
-      })
-      .select()
-      .single();
+      .select("*")
+      .eq("telegram_id", telegramId)
+      .maybeSingle();
 
-    if (error) {
-      console.error("PROFILE INSERT ERROR:", error);
-      return NextResponse.json({ ok: true });
+    if (profileError) {
+      console.error("PROFILE SELECT ERROR:", profileError);
     }
 
-    profile = newProfile;
-  }
+    let profile = profileData;
 
-  if (text === "/start") {
-    await sendMessage(
-      chatId,
-      `Привет 👋\n\nТвой баланс: ${profile.balance}\n\nНапиши описание — и я сгенерирую изображение 🎨`
-    );
-  } else {
-    if (profile.balance <= 0) {
+    if (!profile) {
+      console.log("Creating new Telegram user...");
+
+      const { data: authUser, error: authError } =
+        await supabase.auth.admin.createUser({
+          email: `telegram_${telegramId}@klex.pro`,
+          email_confirm: true,
+        });
+
+      if (authError) {
+        console.error("AUTH CREATE ERROR:", authError);
+        return NextResponse.json({ ok: true });
+      }
+
+      const userId = authUser.user.id;
+
+      const { data: newProfile, error } = await supabase
+        .from("profiles")
+        .insert({
+          id: userId,
+          telegram_id: telegramId,
+          telegram_username: username,
+          balance: 0,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("PROFILE INSERT ERROR:", error);
+        return NextResponse.json({ ok: true });
+      }
+
+      profile = newProfile;
+    }
+
+    if (text === "/start") {
       await sendMessage(
         chatId,
-        "❌ Недостаточно средств.\n\nПополни баланс в Mini App."
+        `Привет 👋\n\nТвой баланс: ${profile.balance}`
       );
-      return NextResponse.json({ ok: true });
+    } else {
+      await sendMessage(chatId, "Сообщение получено ✅");
     }
 
-    await sendMessage(
-      chatId,
-      "🎨 Генерация запущена...\n\nПодожди несколько секунд."
-    );
-
-    // Реальную генерацию подключим следующим шагом
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("GLOBAL ERROR:", err);
+    return NextResponse.json({ ok: true });
   }
-
-  return NextResponse.json({ ok: true });
 }
