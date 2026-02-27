@@ -128,9 +128,17 @@ export async function generateImageCore({
 
   console.log("UPLOADED TO STORAGE:", fileName);
 
-  const { data: { publicUrl } } = supabase.storage
-    .from(STORAGE_BUCKET)
-    .getPublicUrl(fileName);
+  // 🔁 Заменяем public URL на signed URL (действителен 1 час)
+  const { data: signedUrlData, error: signedError } =
+    await supabase.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUrl(fileName, 60 * 60); // 1 час
+
+  if (signedError || !signedUrlData?.signedUrl) {
+    throw new Error("Не удалось создать signed URL");
+  }
+
+  const publicUrl = signedUrlData.signedUrl;
 
   const generationTime = Date.now() - startTime;
 
