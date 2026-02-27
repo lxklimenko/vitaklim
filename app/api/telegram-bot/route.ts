@@ -22,6 +22,30 @@ async function sendMessage(chatId: number, text: string) {
   });
 }
 
+async function sendMainMenu(chatId: number) {
+  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: "Выберите действие:",
+      reply_markup: {
+        keyboard: [
+          [
+            { text: "🎨 Сгенерировать" },
+            { text: "🖼 По фото" }
+          ],
+          [
+            { text: "💰 Баланс" },
+            { text: "🚀 Открыть приложение" }
+          ]
+        ],
+        resize_keyboard: true
+      }
+    })
+  });
+}
+
 /**
  * Отправляет фото в Telegram, загружая его по URL и передавая как бинарные данные (multipart/form-data)
  */
@@ -122,8 +146,12 @@ export async function POST(req: Request) {
     if (text === "/start") {
       await sendMessage(
         chatId,
-        `Привет 👋\n\nТвой баланс: ${profile.balance}`
+        "Привет! ИИ-бот KLEX.PRO открывает вам доступ к лучшим нейросетям для создания изображений."
       );
+
+      await sendMainMenu(chatId);
+
+      return NextResponse.json({ ok: true });
     } else {
       if (profile.balance <= 0) {
         await sendMessage(
