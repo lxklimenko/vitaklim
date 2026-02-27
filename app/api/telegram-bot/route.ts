@@ -110,7 +110,7 @@ export async function POST(req: Request) {
       await sendMessage(chatId, "Тестирую отправку картинки...");
       await sendPhoto(
         chatId,
-        "https://images.unsplash.com/photo-1506744038136-46273834b3fb"
+        "https://picsum.photos/800/800"
       );
     }
 
