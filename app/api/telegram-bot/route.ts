@@ -15,6 +15,7 @@ console.log("SERVICE ROLE EXISTS:", !!SUPABASE_SERVICE_ROLE_KEY);
 type UserState =
   | "idle"
   | "choosing_model"
+  | "choosing_photo_model"   // ← ДОБАВЛЕНО
   | "awaiting_prompt"
   | "awaiting_photo"
   | "awaiting_photo_prompt";
@@ -203,21 +204,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // 🖼 По фото
+    // НОВЫЙ ОБРАБОТЧИК: 🖼 По фото → выбор модели для фото
     if (text === "🖼 По фото") {
       await supabase
         .from("profiles")
         .update({
-          bot_state: "awaiting_photo",
-          bot_selected_model: "imagen-4-ultra", // по фото сразу Ultra
+          bot_state: "choosing_photo_model",
+          bot_selected_model: null,
           bot_reference_url: null,
         })
         .eq("id", profile.id);
 
-      await sendMessage(
-        chatId,
-        "Отправьте фотографию, на основе которой нужно создать изображение 📷"
-      );
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: "Выберите модель для генерации по фото:",
+          reply_markup: {
+            keyboard: [
+              [{ text: "⚡ Быстрая (1 кредит)" }],
+              [{ text: "💎 Ultra (5 кредитов)" }],
+              [{ text: "⬅️ Назад" }],
+            ],
+            resize_keyboard: true,
+          },
+        }),
+      });
 
       return NextResponse.json({ ok: true });
     }
@@ -248,6 +261,53 @@ export async function POST(req: Request) {
     }
 
     // ================== МАШИНА СОСТОЯНИЙ ==================
+
+    // ====== ВЫБОР МОДЕЛИ ДЛЯ ФОТО (НОВОЕ СОСТОЯНИЕ) ======
+    if (currentState === "choosing_photo_model") {
+
+      if (text === "⚡ Быстрая (1 кредит)") {
+        await supabase
+          .from("profiles")
+          .update({
+            bot_state: "awaiting_photo",
+            bot_selected_model: "gemini-2.5-flash-image",
+          })
+          .eq("id", profile.id);
+
+        await sendMessage(chatId, "Отправьте фотографию 📷");
+        return NextResponse.json({ ok: true });
+      }
+
+      if (text === "💎 Ultra (5 кредитов)") {
+        await supabase
+          .from("profiles")
+          .update({
+            bot_state: "awaiting_photo",
+            bot_selected_model: "imagen-4-ultra",
+          })
+          .eq("id", profile.id);
+
+        await sendMessage(chatId, "Отправьте фотографию 📷");
+        return NextResponse.json({ ok: true });
+      }
+
+      if (text === "⬅️ Назад") {
+        await supabase
+          .from("profiles")
+          .update({
+            bot_state: "idle",
+            bot_selected_model: null,
+            bot_reference_url: null,
+          })
+          .eq("id", profile.id);
+
+        await sendMainMenu(chatId);
+        return NextResponse.json({ ok: true });
+      }
+
+      await sendMessage(chatId, "Пожалуйста, выберите модель из списка.");
+      return NextResponse.json({ ok: true });
+    }
 
     // ====== ОЖИДАЕМ ФОТО ======
     if (currentState === "awaiting_photo") {
@@ -284,7 +344,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // Состояние: выбор модели
+    // Состояние: выбор модели (для обычной генерации)
     if (currentState === "choosing_model") {
       // ⚡ Быстрая модель
       if (text === "⚡ Быстрая (1 кредит)") {
