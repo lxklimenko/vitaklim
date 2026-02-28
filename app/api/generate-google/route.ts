@@ -270,15 +270,22 @@ high resolution
       }
     }
 
-    // Формируем generationConfig с поддержкой aspectRatio (без лишних ограничений)
-    const generationConfig: any = {
-      responseModalities: ["image"],
-      ...(aspectRatio && aspectRatio !== 'auto' && { imageConfig: { aspectRatio } })
-    };
+    // Определяем "премиальность" модели для сайта
+    const isHighResModel = modelId === "gemini-3-pro-image-preview" || modelId === "imagen-4-ultra";
 
+    // Формируем generationConfig с поддержкой aspectRatio и интеллектуальной температурой
     const requestBody = {
       contents: [{ parts }],
-      generationConfig
+      generationConfig: {
+        responseModalities: ["image"],
+        ...(aspectRatio && aspectRatio !== 'auto' && {
+          imageConfig: {
+            aspectRatio: aspectRatio
+          }
+        }),
+        // Для Pro-модели снижаем температуру для точности деталей
+        temperature: isHighResModel ? 0.4 : 0.7,
+      }
     };
 
     // 6. URL для Gemini API
@@ -346,13 +353,23 @@ high resolution
 
     const base64Image = imagePart.inlineData.data;
 
-    // 9. Сохраняем результат в Storage **без каких-либо изменений** (как есть)
-    const buffer = Buffer.from(base64Image, 'base64');
+    // 9. Сохраняем результат в Storage с максимальным качеством для Pro
+    const rawBuffer = Buffer.from(base64Image, 'base64');
+
+    // Прогоняем через Sharp для финальной упаковки
+    const optimizedBuffer = await sharp(rawBuffer)
+      .jpeg({
+        quality: isHighResModel ? 100 : 85, // 100% качество для Pro и Ultra
+        chromaSubsampling: isHighResModel ? '4:4:4' : '4:2:0', // Полный цветовой спектр
+        force: true
+      })
+      .toBuffer();
+
     const fileName = generateFileName(user.id);
 
     const { error: uploadError } = await supabase.storage
       .from(STORAGE_BUCKET)
-      .upload(fileName, buffer, { contentType: 'image/jpeg' });
+      .upload(fileName, optimizedBuffer, { contentType: 'image/jpeg' });
 
     if (uploadError) {
       console.error('Storage upload error:', uploadError);

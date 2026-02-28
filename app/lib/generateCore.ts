@@ -4,7 +4,7 @@ import { STORAGE_BUCKET } from "@/app/constants/storage";
 import OpenAI from "openai";
 
 const GENERATION_COST = parseInt(process.env.GENERATION_COST || "1", 10);
-const FETCH_TIMEOUT = 60000; // 60 seconds
+const FETCH_TIMEOUT = 60000; // 60 seconds (оставлен для возможного использования, но в Google-части не применяется)
 
 function generateFileName(userId: string) {
   const timestamp = Date.now();
@@ -120,20 +120,21 @@ export async function generateImageCore({
     buffer = Buffer.from(base64Image, "base64");
     console.log("OPENAI RESPONSE RECEIVED");
   } else {
-    // Google AI (Imagen и др.)
+    // 🌐 ГЕНЕРАЦИЯ ЧЕРЕЗ GOOGLE (Nano Banano 2, Pro, Ultra)
     console.log("CALLING GOOGLE API");
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) throw new Error("API key не настроен");
 
-    // Формируем части запроса
+    const isProModel = modelId === "gemini-3-pro-image-preview" || modelId === "imagen-4-ultra";
+
+    // 1️⃣ Формируем части запроса
     const parts: any[] = [{ text: prompt }];
 
-    // Если есть референсное изображение — добавляем его в parts
     if (imageBuffer) {
-      // Оптимизируем референс, чтобы не превысить лимиты
+      // Для Pro-модели отправляем референс в чуть лучшем качестве
       const optimizedRef = await sharp(imageBuffer)
-        .resize({ width: 1024, withoutEnlargement: true })
-        .jpeg({ quality: 90 })
+        .resize({ width: 1536, withoutEnlargement: true }) // Увеличили входное разрешение
+        .jpeg({ quality: 95 })
         .toBuffer();
 
       parts.push({
@@ -142,80 +143,53 @@ export async function generateImageCore({
           data: optimizedRef.toString("base64")
         }
       });
-      console.log("REFERENCE IMAGE ADDED TO GOOGLE REQUEST");
     }
 
-    // --- ИЗМЕНЕНИЕ 1: Усиливаем запрос к Google API ---
-    // Определяем, является ли модель "премиальной"
-    const isHighResModel = modelId === "gemini-3-pro-image-preview" || modelId === "imagen-4-ultra";
-
+    // 2️⃣ СЕКРЕТНЫЙ КОНФИГ: Форсируем максимальное разрешение
     const requestBody = {
       contents: [{ parts }],
       generationConfig: {
         responseModalities: ["image"],
+        // Для Pro-модели мы явно задаем параметры качества
         ...(aspectRatio && { 
           imageConfig: { 
-            aspectRatio: aspectRatio,
-            // Для Pro-модели Google API автоматически выбирает "Quality" режим, 
-            // если мы не ограничиваем его параметрами.
+            aspectRatio: aspectRatio.replace(/\s/g, ''), // Чистим пробелы (например, "9 : 16" -> "9:16")
           } 
         }),
-        // Повышаем точность генерации для Pro
-        temperature: isHighResModel ? 0.4 : 0.7, 
+        // Понижаем температуру для Pro, чтобы детали были четче
+        temperature: isProModel ? 0.35 : 0.7,
       }
     };
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
-
-    let response: Response;
-    try {
-      response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
-          signal: controller.signal
-        }
-      );
-    } catch (error: any) {
-      clearTimeout(timeoutId);
-      if (error.name === "AbortError") {
-        throw new Error("Превышено время ожидания ответа от API");
+    // 3️⃣ Вызов API
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody)
       }
-      throw new Error(`Ошибка сети: ${error.message}`);
-    }
-    clearTimeout(timeoutId);
-
+    );
+    
     const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || "Ошибка генерации");
 
-    if (!response.ok) {
-      throw new Error(data.error?.message || "Ошибка генерации");
-    }
-
-    console.log("GOOGLE RESPONSE RECEIVED");
-
-    const base64Image =
-      data?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData)?.inlineData?.data;
-
-    if (!base64Image) {
-      throw new Error("Модель не вернула изображение");
-    }
-
+    const base64Image = data?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData)?.inlineData?.data;
+    if (!base64Image) throw new Error("Модель не вернула изображение");
     buffer = Buffer.from(base64Image, "base64");
+    console.log("GOOGLE RESPONSE RECEIVED");
   }
 
   // ------------------- ОБРАБОТКА И СОХРАНЕНИЕ -------------------
-  // --- ИЗМЕНЕНИЕ 2: Отключаем сжатие в Sharp для Pro-моделей ---
+  // 4️⃣ ФИНАЛЬНЫЙ ШТРИХ: Сохранение без потерь
   let processedBuffer: Buffer;
   try {
-    const isHighResModel = modelId === "gemini-3-pro-image-preview" || modelId === "imagen-4-ultra";
-
+    const isProModel = modelId === "gemini-3-pro-image-preview" || modelId === "imagen-4-ultra";
+    
     processedBuffer = await sharp(buffer)
       .jpeg({ 
-        quality: isHighResModel ? 100 : 85, // 100% для Pro
-        chromaSubsampling: isHighResModel ? '4:4:4' : '4:2:0', // Максимум цвета
+        quality: isProModel ? 100 : 85, // 100% для Pro!
+        chromaSubsampling: isProModel ? '4:4:4' : '4:2:0',
         force: true 
       })
       .toBuffer();
