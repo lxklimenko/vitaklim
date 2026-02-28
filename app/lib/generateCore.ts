@@ -125,7 +125,7 @@ export async function generateImageCore({
     buffer = Buffer.from(base64Image, "base64");
     console.log("OPENAI RESPONSE RECEIVED");
   } else {
-    // 🌐 ГЕНЕРАЦИЯ ЧЕРЕЗ GOOGLE (Nano Banano 2, Pro, Ultra)
+    // 🌐 ГЕНЕРАЦИЯ ЧЕРЕЗ GOOGLE (Nano, Pro, Ultra)
     console.log("CALLING GOOGLE API");
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) throw new Error("API key не настроен");
@@ -138,7 +138,7 @@ export async function generateImageCore({
     if (imageBuffer) {
       // Для Pro-модели отправляем референс в чуть лучшем качестве
       const optimizedRef = await sharp(imageBuffer)
-        .resize({ width: 1536, withoutEnlargement: true }) // Увеличили входное разрешение
+        .resize({ width: 1536, withoutEnlargement: true })
         .jpeg({ quality: 95 })
         .toBuffer();
 
@@ -150,20 +150,25 @@ export async function generateImageCore({
       });
     }
 
-    // 2️⃣ СЕКРЕТНЫЙ КОНФИГ: Форсируем максимальное разрешение
+    // 2️⃣ СЕКРЕТНЫЙ КОНФИГ: Форсируем максимальное разрешение и ослабляем фильтры безопасности
     const requestBody = {
       contents: [{ parts }],
       generationConfig: {
         responseModalities: ["image"],
-        // Для Pro-модели мы явно задаем параметры качества
         ...(aspectRatio && { 
           imageConfig: { 
-            aspectRatio: aspectRatio.replace(/\s/g, ''), // Чистим пробелы (например, "9 : 16" -> "9:16")
+            aspectRatio: aspectRatio.replace(/\s/g, ''), 
           } 
         }),
-        // Понижаем температуру для Pro, чтобы детали были четче
         temperature: isProModel ? 0.35 : 0.7,
-      }
+      },
+      // 🚨 Ослабляем фильтры, чтобы модель выдавала 4MP без цензурных тормозов
+      safetySettings: [
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" }
+      ]
     };
 
     // 3️⃣ Вызов API
@@ -199,23 +204,29 @@ export async function generateImageCore({
     if (isProModel && metadata.width && metadata.width < 1500) {
       console.log(`[UPSCALING] Нативное разрешение ${metadata.width}x${metadata.height}. Формат: ${aspectRatio}`);
       
-      // 1. Парсим пропорции (из "21:9" -> w:21, h:9)
-      const ratioParts = (aspectRatio || "1:1").split(':').map(Number);
+      // Пытаемся найти формат в промпте, если aspectRatio не передан или равен "1:1"
+      let effectiveRatio = aspectRatio || "1:1";
+      if (!aspectRatio || aspectRatio === "1:1") {
+        const found = prompt.match(/(\d+):(\d+)/);
+        if (found) effectiveRatio = `${found[1]}:${found[2]}`;
+      }
+
+      const ratioParts = effectiveRatio.split(':').map(Number);
       const wPart = ratioParts[0] || 1;
       const hPart = ratioParts[1] || 1;
       const ratio = wPart / hPart;
 
-      // 2. Целевая площадь для Pro-качества (4.2 миллиона пикселей)
+      // Целевая площадь для Pro-качества (4.2 миллиона пикселей)
       const targetArea = 4194304; 
 
-      // 3. Вычисляем идеальную ширину: sqrt(Площадь * Пропорция)
+      // Вычисляем идеальную ширину: sqrt(Площадь * Пропорция)
       let targetWidth = Math.round(Math.sqrt(targetArea * ratio));
       
-      // 4. Ограничиваем максимальную сторону (для стабильности Telegram и Vercel)
+      // Ограничиваем максимальную сторону (для стабильности Telegram и Vercel)
       const MAX_SIDE = 2560;
       if (targetWidth > MAX_SIDE) targetWidth = MAX_SIDE;
 
-      console.log(`[UPSCALE] Рассчитанная целевая ширина: ${targetWidth}px`);
+      console.log(`[UPSCALE] Рассчитанная целевая ширина: ${targetWidth}px (формат ${effectiveRatio})`);
 
       sharpInstance = sharpInstance
         .resize({ 
@@ -236,7 +247,7 @@ export async function generateImageCore({
       })
       .toBuffer();
 
-    console.log("GENERATION & UPSCALE COMPLETED SUCCESSFULY");
+    console.log("GENERATION & UPSCALE COMPLETED SUCCESSFULLY");
   } catch (err) {
     console.error("Sharp Processing Error:", err);
     throw new Error("Ошибка улучшения изображения");
