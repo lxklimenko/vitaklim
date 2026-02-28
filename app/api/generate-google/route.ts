@@ -76,6 +76,7 @@ export async function POST(req: Request) {
 
     // 🔥 Проверка, что модель поддерживает генерацию изображений
     const IMAGE_MODELS = [
+      "gemini-3.1-flash-image-preview", // 👈 Добавлен новый ID (Nano Banano 2)
       "gemini-2.0-flash-exp-image-generation",
       "gemini-3-pro-image-preview",
       "gemini-2.5-flash-image",
