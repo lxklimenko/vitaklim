@@ -232,6 +232,7 @@ export async function POST(req: Request) {
           reply_markup: {
             keyboard: [
               [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
+              [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }], // 👈 Новая кнопка
               [{ text: "💎 Ultra (5 кредитов)" }],
               [{ text: "🪄 GPT Image - ИИ фотошоп от OpenAI" }],
               [{ text: "⬅️ Назад" }],
@@ -264,6 +265,7 @@ export async function POST(req: Request) {
           reply_markup: {
             keyboard: [
               [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
+              [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }], // 👈 Новая кнопка
               [{ text: "💎 Ultra (5 кредитов)" }],
               [{ text: "⬅️ Назад" }],
             ],
@@ -316,6 +318,25 @@ export async function POST(req: Request) {
         await sendMessage(
           chatId,
           "Создавайте и редактируйте изображения прямо в чате.\nГотовы начать?\nОтправьте фотографию 📷"
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      // 👇 Новая обработка для Pro-модели
+      if (text === "🍌 Nano Banana Pro (Gemini 3 Pro)") {
+        await supabase
+          .from("profiles")
+          .update({
+            bot_state: "awaiting_photo",
+            bot_selected_model: "gemini-3-pro-image-preview",
+          })
+          .eq("id", profile.id);
+
+        await sendMessage(
+          chatId,
+          "Выбрана Nano Banana Pro 🚀\n" +
+          "Это профессиональная модель для сложных задач.\n\n" +
+          "Отправьте фотографию 📷"
         );
         return NextResponse.json({ ok: true });
       }
@@ -397,6 +418,26 @@ export async function POST(req: Request) {
         await sendMessage(
           chatId,
           "Создавайте и редактируйте изображения прямо в чате.\nГотовы начать?\nНапишите в чат, что нужно создать"
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      // 👇 Новая обработка для Pro-модели
+      if (text === "🍌 Nano Banana Pro (Gemini 3 Pro)") {
+        await supabase
+          .from("profiles")
+          .update({
+            bot_state: "awaiting_prompt",
+            bot_selected_model: "gemini-3-pro-image-preview",
+            bot_reference_url: null,
+          })
+          .eq("id", profile.id);
+
+        await sendMessage(
+          chatId,
+          "Выбрана Nano Banana Pro 🚀\n" +
+          "Это профессиональная модель для сложных задач.\n\n" +
+          "Напишите, что нужно создать ✍️"
         );
         return NextResponse.json({ ok: true });
       }
