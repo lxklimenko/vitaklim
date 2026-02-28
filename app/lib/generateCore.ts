@@ -65,24 +65,20 @@ export async function generateImageCore({
 
   console.log("PENDING CREATED:", processingRecord.id);
 
-  // Determine cost based on model or if imageBuffer provided (skip charge)
-  const cost = imageBuffer ? 0 : (modelId === "imagen-4-ultra" ? 5 : GENERATION_COST);
+  // Determine cost based on model only (always charge)
+  const cost = modelId === "imagen-4-ultra" ? 5 : GENERATION_COST;
 
-  // 3️⃣ списание (skip if imageBuffer provided)
-  if (!imageBuffer) {
-    const { data: rpcResult } = await supabase.rpc("create_generation", {
-      p_generation_id: processingRecord.id,
-      p_user_id: userId,
-      p_cost: cost
-    });
+  // 3️⃣ Always charge balance
+  const { data: rpcResult } = await supabase.rpc("create_generation", {
+    p_generation_id: processingRecord.id,
+    p_user_id: userId,
+    p_cost: cost
+  });
 
-    if (!rpcResult?.success) {
-      throw new Error(rpcResult?.error || "Не удалось списать средства");
-    }
-    console.log("BALANCE CHARGED");
-  } else {
-    console.log("SKIP BALANCE CHARGE (image buffer provided)");
+  if (!rpcResult?.success) {
+    throw new Error(rpcResult?.error || "Не удалось списать средства");
   }
+  console.log("BALANCE CHARGED");
 
   let buffer: Buffer;
 

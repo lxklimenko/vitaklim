@@ -1,7 +1,6 @@
 'use client';
 import { useFilteredPrompts } from './hooks/useFilteredPrompts';
 import { useTelegramInit } from './hooks/useTelegramInit';
-import dynamic from 'next/dynamic';
 import React, { useState, useCallback, useDeferredValue } from 'react';
 import { Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
@@ -9,7 +8,6 @@ import { Header } from './components/Header';
 import { Navigation } from './components/Navigation';
 import { MainFeed } from './components/MainFeed';
 import { useAuth } from '@/app/context/AuthContext';
-import { useImageGeneration } from './hooks/useImageGeneration';
 import { useAppActions } from './hooks/useAppActions';
 import type { Prompt } from './types/prompt';
 import { useRouter } from 'next/navigation';
@@ -18,11 +16,6 @@ const inter = Inter({
   subsets: ['latin', 'cyrillic'],
   display: 'swap',
 });
-
-const GenerateModal = dynamic(
-  () => import('./components/GenerateModal').then(m => m.GenerateModal),
-  { ssr: false }
-);
 
 interface ClientAppProps {
   prompts: Prompt[];
@@ -41,30 +34,11 @@ export default function ClientApp({ prompts }: ClientAppProps) {
     profileReady,
     favoritesLoading,
     favorites,
-    purchases,
     setFavorites,
     fetchProfile,
     telegramUsername,
     telegramFirstName,
   } = useAuth();
-
-  // GENERATION
-  const {
-    generatePrompt,
-    setGeneratePrompt,
-    isGenerating,
-    modelId,
-    setModelId,
-    aspectRatio,
-    setAspectRatio,
-    referencePreview,
-    handleFileChange,
-    handleRemoveImage,
-    handleGenerate,
-  } = useImageGeneration(
-    user,
-    () => {}
-  );
 
   // UI STATE
   const [activeCategory, setActiveCategory] = useState('Все');
@@ -103,7 +77,7 @@ export default function ClientApp({ prompts }: ClientAppProps) {
   const filteredPrompts = useFilteredPrompts({
     prompts,
     activeCategory,
-    searchQuery: deferredSearch, // используем отложенное значение
+    searchQuery: deferredSearch,
   });
 
   return (
