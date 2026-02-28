@@ -181,20 +181,52 @@ export async function generateImageCore({
   }
 
   // ------------------- ОБРАБОТКА И СОХРАНЕНИЕ -------------------
-  // 4️⃣ ФИНАЛЬНЫЙ ШТРИХ: Сохранение без потерь
+  // 🚀 ШАГ 4: СУПЕР-ОБРАБОТКА (Smart Upscale для Pro-качества)
   let processedBuffer: Buffer;
   try {
     const isProModel = modelId === "gemini-3-pro-image-preview" || modelId === "imagen-4-ultra";
     
-    processedBuffer = await sharp(buffer)
+    // Создаем экземпляр sharp для анализа
+    let sharpInstance = sharp(buffer);
+    const metadata = await sharpInstance.metadata();
+
+    // Проверяем: если модель Pro, а разрешение пришло обрезанное (768px или меньше)
+    if (isProModel && metadata.width && metadata.width < 1000) {
+      console.log(`[UPSCALING] Нативное разрешение ${metadata.width}x${metadata.height} слишком низкое. Исправляем...`);
+      
+      // Определяем целевую ширину для 4MP в зависимости от формата
+      let targetWidth = 2048; // По умолчанию для 1:1
+      if (aspectRatio === "9:16") targetWidth = 1152;
+      else if (aspectRatio === "16:9") targetWidth = 2048;
+
+      sharpInstance = sharpInstance
+        .resize({ 
+          width: targetWidth, 
+          kernel: sharp.kernel.lanczos3, // Самый четкий математический алгоритм
+          withoutEnlargement: false 
+        })
+        // Добавляем микро-детализацию, чтобы убрать эффект "мыла" после увеличения
+        .sharpen({
+          sigma: 1.0,  // Радиус четкости
+          m1: 0.5,     // Усиление на плоских участках
+          j1: 0.2      // Усиление на гранях
+        });
+    }
+
+    // Финальная упаковка без потерь качества
+    processedBuffer = await sharpInstance
       .jpeg({ 
-        quality: isProModel ? 100 : 85, // 100% для Pro!
+        quality: isProModel ? 100 : 85, 
         chromaSubsampling: isProModel ? '4:4:4' : '4:2:0',
+        mozjpeg: true,
         force: true 
       })
       .toBuffer();
+
+    console.log("GENERATION & UPSCALE COMPLETED SUCCESSFULY");
   } catch (err) {
-    throw new Error("Ошибка обработки изображения");
+    console.error("Sharp Processing Error:", err);
+    throw new Error("Ошибка улучшения изображения");
   }
 
   const fileName = generateFileName(userId);
