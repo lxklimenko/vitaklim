@@ -192,9 +192,9 @@ export async function POST(req: Request) {
           text: "Выберите модель:",
           reply_markup: {
             keyboard: [
-              [{ text: "⚡ Быстрая (1 кредит)" }],
+              [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }], // 👈 Изменено
               [{ text: "💎 Ultra (5 кредитов)" }],
-              [{ text: "🪄 GPT Image - ИИ фотошоп от OpenAI" }], // Новая кнопка
+              [{ text: "🪄 GPT Image - ИИ фотошоп от OpenAI" }],
               [{ text: "⬅️ Назад" }],
             ],
             resize_keyboard: true,
@@ -224,7 +224,7 @@ export async function POST(req: Request) {
           text: "Выберите модель для генерации по фото:",
           reply_markup: {
             keyboard: [
-              [{ text: "⚡ Быстрая (1 кредит)" }],
+              [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }], // 👈 Изменено
               [{ text: "💎 Ultra (5 кредитов)" }],
               [{ text: "⬅️ Назад" }],
             ],
@@ -265,16 +265,19 @@ export async function POST(req: Request) {
 
     // ====== ВЫБОР МОДЕЛИ ДЛЯ ФОТО ======
     if (currentState === "choosing_photo_model") {
-      if (text === "⚡ Быстрая (1 кредит)") {
+      if (text === "🍌 Nano Banano 2 (Gemini 3.1 Flash)") { // 👈 Изменено
         await supabase
           .from("profiles")
           .update({
             bot_state: "awaiting_photo",
-            bot_selected_model: "gemini-2.5-flash-image",
+            bot_selected_model: "gemini-3.1-flash-image-preview",
           })
           .eq("id", profile.id);
 
-        await sendMessage(chatId, "Отправьте фотографию 📷");
+        await sendMessage(
+          chatId,
+          "Создавайте и редактируйте изображения прямо в чате.\nГотовы начать?\nОтправьте фотографию 📷"
+        );
         return NextResponse.json({ ok: true });
       }
 
@@ -342,18 +345,21 @@ export async function POST(req: Request) {
 
     // Состояние: выбор модели (для обычной генерации)
     if (currentState === "choosing_model") {
-      // ⚡ Быстрая модель
-      if (text === "⚡ Быстрая (1 кредит)") {
+      // 🍌 Nano Banano 2 (Gemini 3.1 Flash) — обновлено
+      if (text === "🍌 Nano Banano 2 (Gemini 3.1 Flash)") { // 👈 Изменено
         await supabase
           .from("profiles")
           .update({
             bot_state: "awaiting_prompt",
-            bot_selected_model: "gemini-2.5-flash-image",
+            bot_selected_model: "gemini-3.1-flash-image-preview",
             bot_reference_url: null,
           })
           .eq("id", profile.id);
 
-        await sendMessage(chatId, "Опишите изображение 🎨");
+        await sendMessage(
+          chatId,
+          "Создавайте и редактируйте изображения прямо в чате.\nГотовы начать?\nНапишите в чат, что нужно создать"
+        );
         return NextResponse.json({ ok: true });
       }
 
@@ -372,13 +378,13 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // 🪄 GPT Image модель (НОВАЯ)
+      // 🪄 GPT Image модель
       if (text === "🪄 GPT Image - ИИ фотошоп от OpenAI") {
         await supabase
           .from("profiles")
           .update({
             bot_state: "awaiting_prompt",
-            bot_selected_model: "dall-e-3", // идентификатор для OpenAI DALL-E
+            bot_selected_model: "dall-e-3",
             bot_reference_url: null,
           })
           .eq("id", profile.id);
@@ -432,7 +438,7 @@ export async function POST(req: Request) {
 
       await sendMessage(chatId, "🎨 Генерация запущена...");
 
-      const modelId = selectedModel || "gemini-2.5-flash-image";
+      const modelId = selectedModel || "gemini-3.1-flash-image-preview";
 
       try {
         const result = await generateImageCore({

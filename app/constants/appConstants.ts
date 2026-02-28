@@ -16,12 +16,12 @@ export const MODELS: Model[] = [
     price: 5
   },
   {
-    id: 'gemini-2.5-flash-image',
-    name: 'Gemini 2.5 Flash Image',
-    badge: 'FAST',
+    id: 'gemini-3.1-flash-image-preview',
+    name: 'Nano Banano 2 (Gemini 3.1 Flash)',
+    badge: 'NEW',
     color: 'from-blue-400 to-cyan-500',
-    desc: 'Быстро и качественно',
-    price: 3
+    desc: 'Мгновенная генерация нового поколения',
+    price: 1
   },
   {
     id: 'imagen-4-ultra',
@@ -31,7 +31,6 @@ export const MODELS: Model[] = [
     desc: 'Максимальное качество + лучший фотореализм',
     price: 5
   },
-  // 👇 НОВАЯ МОДЕЛЬ 👇
   {
     id: 'dall-e-3',
     name: 'GPT Image',
