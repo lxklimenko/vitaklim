@@ -91,16 +91,10 @@ export function useImageGeneration(
       return;
     }
 
-    // 3. Запрет на использование фото с моделью DALL-E 3
-    if (modelId === 'dall-e-3' && referenceFile) {
-      toast.error('Модель GPT Image не поддерживает генерацию по фото. Удалите фото, чтобы продолжить.');
-      return;
-    }
-
     // Сохраняем предыдущий баланс для возможного отката
     const previousBalance = balance;
 
-    // 4. Оптимистичное списание (не 1, а реальная стоимость)
+    // 3. Оптимистичное списание (не 1, а реальная стоимость)
     setBalance(prev => Math.max(prev - cost, 0));
 
     setIsGenerating(true);

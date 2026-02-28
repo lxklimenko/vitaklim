@@ -3,7 +3,7 @@ import { createClient } from '@/app/lib/supabase-server';
 import sharp from "sharp";
 import crypto from 'crypto';
 import { STORAGE_BUCKET } from '@/app/constants/storage';
-import OpenAI from "openai"; // 👈 ИЗМЕНЕНИЕ 1: подключили библиотеку OpenAI
+import OpenAI from "openai";
 
 // Константы
 const GENERATION_COST = parseInt(process.env.GENERATION_COST || "1", 10);
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
       "gemini-3-pro-image-preview",
       "gemini-2.5-flash-image",
       "imagen-4-ultra",
-      "dall-e-3" // 👈 ИЗМЕНЕНИЕ 2: добавили нашу модель
+      "dall-e-3"
     ];
 
     if (!IMAGE_MODELS.includes(modelId)) {
@@ -148,7 +148,7 @@ export async function POST(req: Request) {
     processingRecord = newProcessingRecord;
 
     // 💰 Определяем стоимость в зависимости от модели
-    const cost = (modelId === 'imagen-4-ultra' || modelId === 'dall-e-3') ? 5 : GENERATION_COST; // 👈 ИЗМЕНЕНИЕ 3
+    const cost = (modelId === 'imagen-4-ultra' || modelId === 'dall-e-3') ? 5 : GENERATION_COST;
     usedCost = cost;
 
     // 💰 Списываем баланс ДО генерации
@@ -182,11 +182,12 @@ export async function POST(req: Request) {
       });
     }
 
-    // 👇 ИЗМЕНЕНИЕ 4: направляем запрос в OpenAI для DALL-E 3
+    // 👇 Направляем запрос в OpenAI для DALL-E 3 (с поддержкой референса)
     if (modelId === 'dall-e-3') {
       return await generateOpenAI({
         prompt,
         aspectRatio,
+        imageFile, // теперь передаём референс
         user,
         processingRecord,
         supabase,
@@ -579,21 +580,74 @@ async function generateImagenUltra({
   });
 }
 
-// 🌟 ИЗМЕНЕНИЕ 5: НОВАЯ ФУНКЦИЯ ДЛЯ OPENAI
-async function generateOpenAI({ prompt, aspectRatio, user, processingRecord, supabase, uploadedFiles, startTime }: any) {
+/**
+ * Генерация изображения через DALL-E 3 с поддержкой референс-изображения (через GPT-4 Vision)
+ */
+async function generateOpenAI({
+  prompt,
+  aspectRatio,
+  imageFile,
+  user,
+  processingRecord,
+  supabase,
+  uploadedFiles,
+  startTime
+}: any) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("API ключ OpenAI не настроен");
 
   const openai = new OpenAI({ apiKey });
 
-  // DALL-E 3 принимает только конкретные размеры. Подстраиваем под выбранный ratio
-  let size: "1024x1024" | "1024x1792" | "1792x1024" = "1024x1024";
-  if (aspectRatio === "9:16" || aspectRatio === "3:4" || aspectRatio === "4:5") size = "1024x1792";
-  if (aspectRatio === "16:9" || aspectRatio === "4:3" || aspectRatio === "21:9") size = "1792x1024";
+  // Формируем финальный промпт: если есть референс, добавляем описание изображения через Vision
+  let finalPrompt = prompt;
 
+  if (imageFile) {
+    // Конвертируем файл в base64
+    const arrayBuffer = await imageFile.arrayBuffer();
+    const base64Image = Buffer.from(arrayBuffer).toString('base64');
+
+    // Запрашиваем описание через GPT-4o
+    const visionResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Опиши это изображение во всех деталях (стиль, композиция, цвета, объекты), чтобы на его основе создать похожее. Верни только описание."
+            },
+            {
+              type: "image_url",
+              image_url: { url: `data:image/jpeg;base64,${base64Image}` }
+            }
+          ]
+        }
+      ],
+      max_tokens: 500
+    });
+
+    const visualDescription = visionResponse.choices[0]?.message?.content;
+    if (!visualDescription) {
+      throw new Error("Не удалось получить описание изображения от Vision API");
+    }
+
+    // Комбинируем описание с пользовательским промптом
+    finalPrompt = `На основе этого описания: ${visualDescription}. Добавь следующие изменения от пользователя: ${prompt}`;
+  }
+
+  // Определяем размер в зависимости от соотношения сторон
+  let size: "1024x1024" | "1024x1792" | "1792x1024" = "1024x1024";
+  if (aspectRatio === "9:16" || aspectRatio === "3:4" || aspectRatio === "4:5") {
+    size = "1024x1792";
+  } else if (aspectRatio === "16:9" || aspectRatio === "4:3" || aspectRatio === "21:9") {
+    size = "1792x1024";
+  }
+
+  // Генерируем изображение через DALL-E 3
   const response = await openai.images.generate({
     model: "dall-e-3",
-    prompt: prompt,
+    prompt: finalPrompt,
     n: 1,
     size: size,
     response_format: "b64_json",
@@ -602,14 +656,37 @@ async function generateOpenAI({ prompt, aspectRatio, user, processingRecord, sup
   const base64Image = response?.data?.[0]?.b64_json;
   if (!base64Image) throw new Error("OpenAI не вернул изображение");
 
-  const fileName = `${user.id}/${Date.now()}-dalle.jpg`;
-  const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(fileName, Buffer.from(base64Image, 'base64'), { contentType: 'image/jpeg' });
-  
-  if (uploadError) throw new Error('Не удалось сохранить изображение');
+  // Сохраняем в Supabase Storage
+  const fileName = generateFileName(user.id, 'dalle-');
+  const { error: uploadError } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(fileName, Buffer.from(base64Image, 'base64'), { contentType: 'image/jpeg' });
+
+  if (uploadError) {
+    console.error('Storage upload error:', uploadError);
+    throw new Error('Не удалось сохранить изображение');
+  }
   uploadedFiles.push(fileName);
 
-  const { data: { publicUrl } } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(fileName);
-  
-  await supabase.from('generations').update({ status: 'completed', image_url: publicUrl, storage_path: fileName, generation_time_ms: Date.now() - startTime }).eq('id', processingRecord.id);
-  return NextResponse.json({ generationId: processingRecord.id });
+  // Получаем публичную ссылку
+  const { data: { publicUrl } } = supabase.storage
+    .from(STORAGE_BUCKET)
+    .getPublicUrl(fileName);
+
+  const generationTime = Date.now() - startTime;
+
+  // Обновляем запись в БД
+  await supabase
+    .from('generations')
+    .update({
+      status: 'completed',
+      image_url: publicUrl,
+      storage_path: fileName,
+      generation_time_ms: generationTime
+    })
+    .eq('id', processingRecord.id);
+
+  return NextResponse.json({
+    generationId: processingRecord.id
+  });
 }
