@@ -20,6 +20,24 @@ type UserState =
   | "awaiting_photo"
   | "awaiting_photo_prompt";
 
+/**
+ * Ищет в тексте формат (например, 9:16 или 16:9).
+ * Если не находит, возвращает 1:1 по умолчанию.
+ */
+function extractAspectRatio(text: string): string {
+  const ratioRegex = /\b(\d{1,2}:\d{1,2})\b/;
+  const match = text.match(ratioRegex);
+  
+  // Список форматов, которые точно поддерживает Nano Banano 2 (Gemini 3.1)
+  const supportedRatios = ['1:1', '9:16', '16:9', '4:3', '3:4', '2:3', '3:2'];
+  
+  if (match && supportedRatios.includes(match[1])) {
+    return match[1];
+  }
+  
+  return "1:1"; // Автоматический выбор, если формат не указан или не поддерживается
+}
+
 async function sendMessage(chatId: number, text: string) {
   await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: "POST",
@@ -462,11 +480,14 @@ export async function POST(req: Request) {
       const modelId = selectedModel || "gemini-3.1-flash-image-preview";
 
       try {
+        // Определяем формат из текста промпта
+        const detectedRatio = extractAspectRatio(text);
+
         const result = await generateImageCore({
           userId: profile.id,
           prompt: text,
           modelId,
-          aspectRatio: "1:1",
+          aspectRatio: detectedRatio, // 👈 Теперь здесь переменная вместо "1:1"
           supabase,
         });
 
@@ -534,11 +555,14 @@ export async function POST(req: Request) {
         const imageArrayBuffer = await imageResponse.arrayBuffer();
         const imageBuffer = Buffer.from(imageArrayBuffer);
 
+        // Также определяем формат для работы по фото
+        const detectedRatio = extractAspectRatio(text);
+
         const result = await generateImageCore({
           userId: profile.id,
           prompt: text,
           modelId: profile.bot_selected_model || "imagen-4-ultra",
-          aspectRatio: "1:1",
+          aspectRatio: detectedRatio, // 👈 Передаем определенный формат
           supabase,
           imageBuffer // 👈 КЛЮЧЕВОЕ
         });
