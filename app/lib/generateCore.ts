@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import crypto from "crypto";
 import { STORAGE_BUCKET } from "@/app/constants/storage";
-import { createClient } from "@supabase/supabase-js";
+import OpenAI from "openai"; // 👈 Добавили библиотеку OpenAI
 
 const GENERATION_COST = parseInt(process.env.GENERATION_COST || "1", 10);
 const FETCH_TIMEOUT = 60000; // 60 seconds
@@ -28,7 +28,7 @@ export async function generateImageCore({
   imageBuffer?: Buffer;
 }) {
 
-  console.log("START GENERATION:", { userId, prompt, hasImageBuffer: !!imageBuffer });
+  console.log("START GENERATION:", { userId, prompt, modelId, hasImageBuffer: !!imageBuffer });
 
   const startTime = Date.now();
 
@@ -65,8 +65,9 @@ export async function generateImageCore({
 
   console.log("PENDING CREATED:", processingRecord.id);
 
-  // Determine cost based on model only (always charge)
-  const cost = modelId === "imagen-4-ultra" ? 5 : GENERATION_COST;
+  // Determine cost based on model
+  // 👈 DALL-E 3 тоже стоит 5 кредитов
+  const cost = (modelId === "imagen-4-ultra" || modelId === "dall-e-3") ? 5 : GENERATION_COST;
 
   // 3️⃣ Always charge balance
   const { data: rpcResult } = await supabase.rpc("create_generation", {
@@ -85,8 +86,38 @@ export async function generateImageCore({
   if (imageBuffer) {
     buffer = imageBuffer;
     console.log("USING PROVIDED IMAGE BUFFER");
+  } else if (modelId === "dall-e-3") {
+    // 🌟 НОВЫЙ БЛОК: Отправка запроса в OpenAI
+    console.log("CALLING OPENAI API");
+    const apiKey = process.env.OPENAI_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error("API ключ OpenAI не настроен");
+    }
+
+    const openai = new OpenAI({ apiKey });
+
+    try {
+      const response = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: prompt,
+        n: 1,
+        size: "1024x1024", // DALL-E 3 работает с квадратами по умолчанию
+        response_format: "b64_json",
+      });
+
+      const base64Image = response.data[0].b64_json;
+      if (!base64Image) {
+        throw new Error("OpenAI не вернул изображение");
+      }
+      buffer = Buffer.from(base64Image, "base64");
+      console.log("OPENAI RESPONSE RECEIVED");
+    } catch (error: any) {
+      throw new Error(`Ошибка OpenAI: ${error.message}`);
+    }
   } else {
-    // Call Google API
+    // 🌐 СТАРЫЙ БЛОК: Отправка запроса в Google API
+    console.log("CALLING GOOGLE API");
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
       throw new Error("API key не настроен");

@@ -15,7 +15,7 @@ console.log("SERVICE ROLE EXISTS:", !!SUPABASE_SERVICE_ROLE_KEY);
 type UserState =
   | "idle"
   | "choosing_model"
-  | "choosing_photo_model"   // ← ДОБАВЛЕНО
+  | "choosing_photo_model"
   | "awaiting_prompt"
   | "awaiting_photo"
   | "awaiting_photo_prompt";
@@ -138,7 +138,7 @@ export async function POST(req: Request) {
           balance: 0,
           bot_state: "idle",
           bot_selected_model: null,
-          bot_reference_url: null, // новое поле для хранения ссылки на фото
+          bot_reference_url: null,
         })
         .select()
         .single();
@@ -177,7 +177,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // 🎨 Сгенерировать
+    // 🎨 Сгенерировать (обновлённое меню с новой кнопкой)
     if (text === "🎨 Сгенерировать") {
       await supabase
         .from("profiles")
@@ -194,6 +194,7 @@ export async function POST(req: Request) {
             keyboard: [
               [{ text: "⚡ Быстрая (1 кредит)" }],
               [{ text: "💎 Ultra (5 кредитов)" }],
+              [{ text: "🪄 GPT Image - ИИ фотошоп от OpenAI" }], // Новая кнопка
               [{ text: "⬅️ Назад" }],
             ],
             resize_keyboard: true,
@@ -204,7 +205,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // НОВЫЙ ОБРАБОТЧИК: 🖼 По фото → выбор модели для фото
+    // 🖼 По фото
     if (text === "🖼 По фото") {
       await supabase
         .from("profiles")
@@ -262,9 +263,8 @@ export async function POST(req: Request) {
 
     // ================== МАШИНА СОСТОЯНИЙ ==================
 
-    // ====== ВЫБОР МОДЕЛИ ДЛЯ ФОТО (НОВОЕ СОСТОЯНИЕ) ======
+    // ====== ВЫБОР МОДЕЛИ ДЛЯ ФОТО ======
     if (currentState === "choosing_photo_model") {
-
       if (text === "⚡ Быстрая (1 кредит)") {
         await supabase
           .from("profiles")
@@ -316,11 +316,9 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // Берём самое большое фото
       const largestPhoto = photo[photo.length - 1];
       const fileId = largestPhoto.file_id;
 
-      // Получаем file_path
       const fileRes = await fetch(
         `https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`
       );
@@ -329,7 +327,6 @@ export async function POST(req: Request) {
       const filePath = fileData.result.file_path;
       const fileUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`;
 
-      // Сохраняем ссылку временно в profiles
       await supabase
         .from("profiles")
         .update({
@@ -340,7 +337,6 @@ export async function POST(req: Request) {
         .eq("id", profile.id);
 
       await sendMessage(chatId, "Теперь напишите описание 🎨");
-
       return NextResponse.json({ ok: true });
     }
 
@@ -376,6 +372,21 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
+      // 🪄 GPT Image модель (НОВАЯ)
+      if (text === "🪄 GPT Image - ИИ фотошоп от OpenAI") {
+        await supabase
+          .from("profiles")
+          .update({
+            bot_state: "awaiting_prompt",
+            bot_selected_model: "dall-e-3", // идентификатор для OpenAI DALL-E
+            bot_reference_url: null,
+          })
+          .eq("id", profile.id);
+
+        await sendMessage(chatId, "Опишите изображение для GPT Image 🪄");
+        return NextResponse.json({ ok: true });
+      }
+
       // ⬅️ Назад
       if (text === "⬅️ Назад") {
         await supabase
@@ -398,6 +409,12 @@ export async function POST(req: Request) {
 
     // Состояние: ожидание промпта (для обычной генерации)
     if (currentState === "awaiting_prompt") {
+      // 🛡 ЗАЩИТА: проверяем, что пользователь прислал именно текст
+      if (!text) {
+        await sendMessage(chatId, "Пожалуйста, отправьте текстовое описание ✍️");
+        return NextResponse.json({ ok: true });
+      }
+
       // Проверка баланса
       if (profile.balance <= 0) {
         await sendMessage(
@@ -451,6 +468,12 @@ export async function POST(req: Request) {
 
     // Состояние: ожидание промпта после получения фото
     if (currentState === "awaiting_photo_prompt") {
+      // 🛡 ЗАЩИТА: проверяем, что пользователь прислал именно текст
+      if (!text) {
+        await sendMessage(chatId, "Пожалуйста, отправьте текстовое описание для фото ✍️");
+        return NextResponse.json({ ok: true });
+      }
+
       if (!profile.bot_reference_url) {
         await sendMessage(chatId, "Ошибка: фото не найдено.");
         return NextResponse.json({ ok: true });
