@@ -56,7 +56,11 @@ export async function POST(req: Request) {
     // 2. Парсинг multipart/form-data
     const formData = await req.formData();
     const prompt = formData.get('prompt')?.toString();
-    const aspectRatio = formData.get('aspectRatio')?.toString();
+    let aspectRatio = formData.get('aspectRatio')?.toString();
+    // Очищаем: убираем пробелы и заменяем " / " на ":"
+    if (aspectRatio) {
+      aspectRatio = aspectRatio.replace(/\s+/g, '').replace('/', ':');
+    }
     const modelId = formData.get('modelId')?.toString();
     const imageFile = formData.get('image') as File | null;
 
@@ -273,9 +277,6 @@ high resolution
     // Определяем "премиальность" модели для сайта
     const isHighResModel = modelId === "gemini-3-pro-image-preview" || modelId === "imagen-4-ultra";
 
-    // --- ИЗМЕНЁННЫЙ БЛОК ---
-    const isPro = modelId === "gemini-3-pro-image-preview";
-
     const requestBody = {
       contents: [{ parts }],
       generationConfig: {
@@ -283,11 +284,9 @@ high resolution
         ...(aspectRatio && aspectRatio !== 'auto' && { 
           imageConfig: { 
             aspectRatio: aspectRatio,
-            // Для Pro-модели мы не ограничиваем фантазию
           } 
         }),
       },
-      // 🚨 ДОБАВЛЯЕМ ЭТО: Ослабляем фильтры, чтобы модель не "сжималась" от страха
       safetySettings: [
         { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
         { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
@@ -295,7 +294,6 @@ high resolution
         { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" }
       ]
     };
-    // --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
     // 6. URL для Gemini API
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
@@ -362,14 +360,41 @@ high resolution
 
     const base64Image = imagePart.inlineData.data;
 
-    // 9. Сохраняем результат в Storage с максимальным качеством для Pro
+    // 9. СМАРТ-ОБРАБОТКА (Smart Upscale для Pro-качества)
     const rawBuffer = Buffer.from(base64Image, 'base64');
+    let sharpInstance = sharp(rawBuffer);
+    const metadata = await sharpInstance.metadata();
 
-    // Прогоняем через Sharp для финальной упаковки
-    const optimizedBuffer = await sharp(rawBuffer)
+    // Проверяем: если модель Pro/Ultra, а разрешение низкое — увеличиваем до 4MP
+    if (isHighResModel && metadata.width && metadata.width < 1500) {
+      console.log(`[UPSCALE SITE] Нативное: ${metadata.width}. Формат: ${aspectRatio}`);
+      
+      // Парсим пропорции (из "21:9" -> w:21, h:9)
+      const ratioParts = (aspectRatio || "1:1").split(':').map(Number);
+      const wPart = ratioParts[0] || 1;
+      const hPart = ratioParts[1] || 1;
+      const ratio = wPart / hPart;
+
+      // Целевая площадь — 4.2 миллиона пикселей
+      const targetArea = 4194304; 
+      let targetWidth = Math.round(Math.sqrt(targetArea * ratio));
+      
+      // Лимит по ширине для стабильности браузера
+      if (targetWidth > 2560) targetWidth = 2560;
+
+      sharpInstance = sharpInstance
+        .resize({ 
+          width: targetWidth, 
+          kernel: sharp.kernel.lanczos3,
+          withoutEnlargement: false 
+        })
+        .sharpen(1.0, 0.5, 0.2); // Тот самый фикс для билда
+    }
+
+    const optimizedBuffer = await sharpInstance
       .jpeg({
-        quality: isHighResModel ? 100 : 85, // 100% качество для Pro и Ultra
-        chromaSubsampling: isHighResModel ? '4:4:4' : '4:2:0', // Полный цветовой спектр
+        quality: isHighResModel ? 100 : 85,
+        chromaSubsampling: isHighResModel ? '4:4:4' : '4:2:0',
         force: true
       })
       .toBuffer();
@@ -573,13 +598,17 @@ async function generateImagenUltra({
     throw new Error("Imagen не вернул изображение");
   }
 
-  // Сохраняем результат без изменений
+  // Сохраняем результат с максимальным качеством через Sharp
   const buffer = Buffer.from(base64Image, 'base64');
+  const finalBuffer = await sharp(buffer)
+    .jpeg({ quality: 100, chromaSubsampling: '4:4:4' })
+    .toBuffer();
+
   const fileName = `${user.id}/${Date.now()}-ultra.jpg`;
 
   const { error: uploadError } = await supabase.storage
     .from(STORAGE_BUCKET)
-    .upload(fileName, buffer, { contentType: 'image/jpeg' });
+    .upload(fileName, finalBuffer, { contentType: 'image/jpeg' });
 
   if (uploadError) {
     console.error('Storage upload error:', uploadError);
@@ -667,11 +696,15 @@ async function generateOpenAI({
     finalPrompt = `На основе этого описания: ${visualDescription}. Добавь следующие изменения от пользователя: ${prompt}`;
   }
 
-  // Определяем размер в зависимости от соотношения сторон
+  // Определяем размер для DALL-E 3 (поддерживает только 1024x1024, 1024x1792, 1792x1024)
   let size: "1024x1024" | "1024x1792" | "1792x1024" = "1024x1024";
-  if (aspectRatio === "9:16" || aspectRatio === "3:4" || aspectRatio === "4:5") {
+  
+  // Все вертикальные форматы
+  if (["9:16", "3:4", "4:5", "2:3"].includes(aspectRatio || "")) {
     size = "1024x1792";
-  } else if (aspectRatio === "16:9" || aspectRatio === "4:3" || aspectRatio === "21:9") {
+  } 
+  // Все широкие форматы
+  else if (["16:9", "4:3", "21:9", "3:2"].includes(aspectRatio || "")) {
     size = "1792x1024";
   }
 

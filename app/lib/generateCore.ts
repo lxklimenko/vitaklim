@@ -107,11 +107,16 @@ export async function generateImageCore({
       finalPrompt = `На основе описания: ${visualDescription}. Изменения: ${prompt}`;
     }
 
+    // Динамический выбор размера для DALL-E 3 на основе aspectRatio
+    let dallESize: "1024x1024" | "1792x1024" | "1024x1792" = "1024x1024";
+    if (aspectRatio === "16:9" || aspectRatio === "21:9") dallESize = "1792x1024";
+    else if (aspectRatio === "9:16") dallESize = "1024x1792";
+
     const response = await openai.images.generate({
       model: "dall-e-3",
       prompt: finalPrompt,
       n: 1,
-      size: "1024x1024",
+      size: dallESize,
       response_format: "b64_json",
     });
 
@@ -190,23 +195,34 @@ export async function generateImageCore({
     let sharpInstance = sharp(buffer);
     const metadata = await sharpInstance.metadata();
 
-    // Проверяем: если модель Pro, а разрешение пришло обрезанное (768px или меньше)
-    if (isProModel && metadata.width && metadata.width < 1000) {
-      console.log(`[UPSCALING] Нативное разрешение ${metadata.width}x${metadata.height} слишком низкое. Исправляем...`);
+    // Проверяем: если модель Pro, а разрешение пришло маленькое (менее 1500px по ширине)
+    if (isProModel && metadata.width && metadata.width < 1500) {
+      console.log(`[UPSCALING] Нативное разрешение ${metadata.width}x${metadata.height}. Формат: ${aspectRatio}`);
       
-      // Определяем целевую ширину для 4MP в зависимости от формата
-      let targetWidth = 2048; // По умолчанию для 1:1
-      if (aspectRatio === "9:16") targetWidth = 1152;
-      else if (aspectRatio === "16:9") targetWidth = 2048;
+      // 1. Парсим пропорции (из "21:9" -> w:21, h:9)
+      const ratioParts = (aspectRatio || "1:1").split(':').map(Number);
+      const wPart = ratioParts[0] || 1;
+      const hPart = ratioParts[1] || 1;
+      const ratio = wPart / hPart;
+
+      // 2. Целевая площадь для Pro-качества (4.2 миллиона пикселей)
+      const targetArea = 4194304; 
+
+      // 3. Вычисляем идеальную ширину: sqrt(Площадь * Пропорция)
+      let targetWidth = Math.round(Math.sqrt(targetArea * ratio));
+      
+      // 4. Ограничиваем максимальную сторону (для стабильности Telegram и Vercel)
+      const MAX_SIDE = 2560;
+      if (targetWidth > MAX_SIDE) targetWidth = MAX_SIDE;
+
+      console.log(`[UPSCALE] Рассчитанная целевая ширина: ${targetWidth}px`);
 
       sharpInstance = sharpInstance
         .resize({ 
           width: targetWidth, 
-          kernel: sharp.kernel.lanczos3, // Самый четкий математический алгоритм
+          kernel: sharp.kernel.lanczos3,
           withoutEnlargement: false 
         })
-        // Теперь используем стандартный синтаксис, понятный TypeScript:
-        // 1.0 - радиус (sigma), 0.5 - резкость на плоских участках, 0.2 - на гранях
         .sharpen(1.0, 0.5, 0.2);
     }
 
