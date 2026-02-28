@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import crypto from "crypto";
 import { STORAGE_BUCKET } from "@/app/constants/storage";
-import OpenAI from "openai"; // 👈 Добавили библиотеку OpenAI
+import OpenAI from "openai";
 
 const GENERATION_COST = parseInt(process.env.GENERATION_COST || "1", 10);
 const FETCH_TIMEOUT = 60000; // 60 seconds
@@ -27,7 +27,6 @@ export async function generateImageCore({
   supabase: any;
   imageBuffer?: Buffer;
 }) {
-
   console.log("START GENERATION:", { userId, prompt, modelId, hasImageBuffer: !!imageBuffer });
 
   const startTime = Date.now();
@@ -48,7 +47,7 @@ export async function generateImageCore({
     }
   }
 
-  // 2️⃣ pending
+  // 2️⃣ Создаём запись со статусом pending
   const { data: processingRecord, error: processingError } = await supabase
     .from("generations")
     .insert({
@@ -65,11 +64,10 @@ export async function generateImageCore({
 
   console.log("PENDING CREATED:", processingRecord.id);
 
-  // Determine cost based on model
-  // 👈 DALL-E 3 тоже стоит 5 кредитов
+  // Определяем стоимость в зависимости от модели
   const cost = (modelId === "imagen-4-ultra" || modelId === "dall-e-3") ? 5 : GENERATION_COST;
 
-  // 3️⃣ Always charge balance
+  // 3️⃣ Всегда списываем баланс через RPC
   const { data: rpcResult } = await supabase.rpc("create_generation", {
     p_generation_id: processingRecord.id,
     p_user_id: userId,
@@ -81,52 +79,74 @@ export async function generateImageCore({
   }
   console.log("BALANCE CHARGED");
 
+  // ------------------- ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ -------------------
   let buffer: Buffer;
 
-  if (imageBuffer) {
-    buffer = imageBuffer;
-    console.log("USING PROVIDED IMAGE BUFFER");
-  } else if (modelId === "dall-e-3") {
-    // 🌟 НОВЫЙ БЛОК: Отправка запроса в OpenAI
+  if (modelId === "dall-e-3") {
+    // OpenAI DALL-E 3
     console.log("CALLING OPENAI API");
     const apiKey = process.env.OPENAI_API_KEY;
-    
-    if (!apiKey) {
-      throw new Error("API ключ OpenAI не настроен");
-    }
+    if (!apiKey) throw new Error("API ключ OpenAI не настроен");
 
     const openai = new OpenAI({ apiKey });
+    let finalPrompt = prompt;
 
-    try {
-      const response = await openai.images.generate({
-        model: "dall-e-3",
-        prompt: prompt,
-        n: 1,
-        size: "1024x1024", // DALL-E 3 работает с квадратами по умолчанию
-        response_format: "b64_json",
+    // Если есть референсное изображение, используем GPT-4o для его описания
+    if (imageBuffer) {
+      const visionResponse = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: "Опиши это изображение во всех деталях для создания похожего. Верни только описание." },
+            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBuffer.toString("base64")}` } },
+          ],
+        }],
       });
-
-      // Добавили знаки вопроса для безопасной проверки
-      const base64Image = response?.data?.[0]?.b64_json;
-      
-      if (!base64Image) {
-        throw new Error("OpenAI не вернул изображение");
-      }
-      buffer = Buffer.from(base64Image, "base64");
-      console.log("OPENAI RESPONSE RECEIVED");
-    } catch (error: any) {
-      throw new Error(`Ошибка OpenAI: ${error.message}`);
+      const visualDescription = visionResponse.choices[0]?.message?.content;
+      finalPrompt = `На основе описания: ${visualDescription}. Изменения: ${prompt}`;
     }
+
+    const response = await openai.images.generate({
+      model: "dall-e-3",
+      prompt: finalPrompt,
+      n: 1,
+      size: "1024x1024",
+      response_format: "b64_json",
+    });
+
+    const base64Image = response?.data?.[0]?.b64_json;
+    if (!base64Image) throw new Error("OpenAI не вернул изображение");
+    buffer = Buffer.from(base64Image, "base64");
+    console.log("OPENAI RESPONSE RECEIVED");
   } else {
-    // 🌐 СТАРЫЙ БЛОК: Отправка запроса в Google API
+    // Google AI (Imagen и др.)
     console.log("CALLING GOOGLE API");
     const apiKey = process.env.GOOGLE_API_KEY;
-    if (!apiKey) {
-      throw new Error("API key не настроен");
+    if (!apiKey) throw new Error("API key не настроен");
+
+    // Формируем части запроса
+    const parts: any[] = [{ text: prompt }];
+
+    // Если есть референсное изображение — добавляем его в parts
+    if (imageBuffer) {
+      // Оптимизируем референс, чтобы не превысить лимиты
+      const optimizedRef = await sharp(imageBuffer)
+        .resize({ width: 1024, withoutEnlargement: true })
+        .jpeg({ quality: 90 })
+        .toBuffer();
+
+      parts.push({
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: optimizedRef.toString("base64")
+        }
+      });
+      console.log("REFERENCE IMAGE ADDED TO GOOGLE REQUEST");
     }
 
     const requestBody = {
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: [{ parts }],
       generationConfig: {
         responseModalities: ["image"],
         ...(aspectRatio && { imageConfig: { aspectRatio } })
@@ -174,7 +194,8 @@ export async function generateImageCore({
     buffer = Buffer.from(base64Image, "base64");
   }
 
-  // Process image with sharp: ensure JPEG format, optimize quality
+  // ------------------- ОБРАБОТКА И СОХРАНЕНИЕ -------------------
+  // Конвертируем в JPEG с оптимизацией
   let processedBuffer: Buffer;
   try {
     processedBuffer = await sharp(buffer)
@@ -199,11 +220,11 @@ export async function generateImageCore({
 
   console.log("UPLOADED TO STORAGE:", fileName);
 
-  // Create signed URL (valid 1 hour)
+  // Создаём временную ссылку (1 час)
   const { data: signedUrlData, error: signedError } =
     await supabase.storage
       .from(STORAGE_BUCKET)
-      .createSignedUrl(fileName, 60 * 60); // 1 hour
+      .createSignedUrl(fileName, 60 * 60);
 
   if (signedError || !signedUrlData?.signedUrl) {
     throw new Error("Не удалось создать signed URL");
