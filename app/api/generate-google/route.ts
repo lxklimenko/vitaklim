@@ -273,20 +273,29 @@ high resolution
     // Определяем "премиальность" модели для сайта
     const isHighResModel = modelId === "gemini-3-pro-image-preview" || modelId === "imagen-4-ultra";
 
-    // Формируем generationConfig с поддержкой aspectRatio и интеллектуальной температурой
+    // --- ИЗМЕНЁННЫЙ БЛОК ---
+    const isPro = modelId === "gemini-3-pro-image-preview";
+
     const requestBody = {
       contents: [{ parts }],
       generationConfig: {
         responseModalities: ["image"],
-        ...(aspectRatio && aspectRatio !== 'auto' && {
-          imageConfig: {
-            aspectRatio: aspectRatio
-          }
+        ...(aspectRatio && aspectRatio !== 'auto' && { 
+          imageConfig: { 
+            aspectRatio: aspectRatio,
+            // Для Pro-модели мы не ограничиваем фантазию
+          } 
         }),
-        // Для Pro-модели снижаем температуру для точности деталей
-        temperature: isHighResModel ? 0.4 : 0.7,
-      }
+      },
+      // 🚨 ДОБАВЛЯЕМ ЭТО: Ослабляем фильтры, чтобы модель не "сжималась" от страха
+      safetySettings: [
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" }
+      ]
     };
+    // --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
     // 6. URL для Gemini API
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
