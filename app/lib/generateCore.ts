@@ -145,11 +145,18 @@ export async function generateImageCore({
       console.log("REFERENCE IMAGE ADDED TO GOOGLE REQUEST");
     }
 
+    // 1. Формируем конфиг. Для Pro-модели Google автоматически выдает 
+    // более высокое разрешение при указании aspectRatio.
     const requestBody = {
       contents: [{ parts }],
       generationConfig: {
         responseModalities: ["image"],
-        ...(aspectRatio && { imageConfig: { aspectRatio } })
+        ...(aspectRatio && { 
+          imageConfig: { 
+            aspectRatio,
+            // Для Pro-модели можно добавить доп. параметры, если API их поддерживает
+          } 
+        })
       }
     };
 
@@ -198,8 +205,15 @@ export async function generateImageCore({
   // Конвертируем в JPEG с оптимизацией
   let processedBuffer: Buffer;
   try {
+    // 🚀 Настройка качества в зависимости от модели
+    const isPro = modelId === "gemini-3-pro-image-preview" || modelId === "imagen-4-ultra";
+    
     processedBuffer = await sharp(buffer)
-      .jpeg({ quality: 85, mozjpeg: true })
+      .jpeg({ 
+        quality: isPro ? 100 : 85, // Для Pro ставим 100% качество
+        mozjpeg: true,
+        chromaSubsampling: isPro ? '4:4:4' : '4:2:0' // Максимальная цветопередача для Pro
+      })
       .toBuffer();
   } catch (err) {
     throw new Error("Ошибка обработки изображения");

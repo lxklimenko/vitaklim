@@ -74,9 +74,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔥 Проверка, что модель поддерживает генерацию изображений
+    // Модели, поддерживающие генерацию изображений
     const IMAGE_MODELS = [
-      "gemini-3.1-flash-image-preview", // 👈 Добавлен новый ID (Nano Banano 2)
+      "gemini-3.1-flash-image-preview",
       "gemini-2.0-flash-exp-image-generation",
       "gemini-3-pro-image-preview",
       "gemini-2.5-flash-image",
@@ -188,7 +188,7 @@ export async function POST(req: Request) {
       return await generateOpenAI({
         prompt,
         aspectRatio,
-        imageFile, // теперь передаём референс
+        imageFile,
         user,
         processingRecord,
         supabase,
@@ -207,7 +207,7 @@ export async function POST(req: Request) {
     // 5. Формируем тело запроса для Gemini API
     let processedImageBuffer: Buffer | null = null;
 
-    // ⚠️ Больше не добавляем aspect ratio в текст — управляем через imageConfig
+    // Усиленный промпт для повышения качества (без добавления aspect ratio в текст)
     const finalPrompt = `
 ${prompt}
 
@@ -246,6 +246,8 @@ high resolution
         const arrayBuffer = await imageFile.arrayBuffer();
         const inputBuffer = Buffer.from(arrayBuffer);
 
+        // Референс-изображение обрабатываем (ресайз и конвертация в JPEG)
+        // Это необходимо для отправки в API, но не влияет на итоговый результат генерации.
         const jpegBuffer = await sharp(inputBuffer)
           .resize({ width: 2048, withoutEnlargement: true })
           .jpeg({
@@ -268,7 +270,7 @@ high resolution
       }
     }
 
-    // Формируем generationConfig с поддержкой aspectRatio
+    // Формируем generationConfig с поддержкой aspectRatio (без лишних ограничений)
     const generationConfig: any = {
       responseModalities: ["image"],
       ...(aspectRatio && aspectRatio !== 'auto' && { imageConfig: { aspectRatio } })
@@ -344,7 +346,7 @@ high resolution
 
     const base64Image = imagePart.inlineData.data;
 
-    // 9. Сохраняем результат в Storage
+    // 9. Сохраняем результат в Storage **без каких-либо изменений** (как есть)
     const buffer = Buffer.from(base64Image, 'base64');
     const fileName = generateFileName(user.id);
 
@@ -363,7 +365,7 @@ high resolution
       .from(STORAGE_BUCKET)
       .getPublicUrl(fileName);
 
-    // 10. Если было reference-изображение, сохраняем его
+    // 10. Если было reference-изображение, сохраняем его (опционально)
     let referencePublicUrl: string | null = null;
     let referenceFileName: string | null = null;
 
@@ -470,7 +472,8 @@ high resolution
 }
 
 /**
- * Генерация изображения через Imagen 4 Ultra с поддержкой соотношения сторон и референс-изображения
+ * Генерация изображения через Imagen 4 Ultra с поддержкой соотношения сторон и референс-изображения.
+ * Полученное изображение сохраняется без изменений.
  */
 async function generateImagenUltra({
   prompt,
@@ -487,7 +490,7 @@ async function generateImagenUltra({
     throw new Error("Сервис временно недоступен (ошибка конфигурации)");
   }
 
-  // Обработка референса
+  // Обработка референса (при необходимости конвертируем в JPEG с ресайзом)
   let referenceBase64: string | undefined;
 
   if (imageFile) {
@@ -544,7 +547,7 @@ async function generateImagenUltra({
     throw new Error("Imagen не вернул изображение");
   }
 
-  // Сохраняем результат
+  // Сохраняем результат без изменений
   const buffer = Buffer.from(base64Image, 'base64');
   const fileName = `${user.id}/${Date.now()}-ultra.jpg`;
 
@@ -582,7 +585,8 @@ async function generateImagenUltra({
 }
 
 /**
- * Генерация изображения через DALL-E 3 с поддержкой референс-изображения (через GPT-4 Vision)
+ * Генерация изображения через DALL-E 3 с поддержкой референс-изображения (через GPT-4 Vision).
+ * Полученное изображение сохраняется без изменений.
  */
 async function generateOpenAI({
   prompt,
@@ -603,7 +607,7 @@ async function generateOpenAI({
   let finalPrompt = prompt;
 
   if (imageFile) {
-    // Конвертируем файл в base64
+    // Конвертируем файл в base64 (без ресайза, так как Vision API может принять любой размер)
     const arrayBuffer = await imageFile.arrayBuffer();
     const base64Image = Buffer.from(arrayBuffer).toString('base64');
 
@@ -657,7 +661,7 @@ async function generateOpenAI({
   const base64Image = response?.data?.[0]?.b64_json;
   if (!base64Image) throw new Error("OpenAI не вернул изображение");
 
-  // Сохраняем в Supabase Storage
+  // Сохраняем в Supabase Storage без изменений
   const fileName = generateFileName(user.id, 'dalle-');
   const { error: uploadError } = await supabase.storage
     .from(STORAGE_BUCKET)
