@@ -145,18 +145,23 @@ export async function generateImageCore({
       console.log("REFERENCE IMAGE ADDED TO GOOGLE REQUEST");
     }
 
-    // 1. Формируем конфиг. Для Pro-модели Google автоматически выдает 
-    // более высокое разрешение при указании aspectRatio.
+    // --- ИЗМЕНЕНИЕ 1: Усиливаем запрос к Google API ---
+    // Определяем, является ли модель "премиальной"
+    const isHighResModel = modelId === "gemini-3-pro-image-preview" || modelId === "imagen-4-ultra";
+
     const requestBody = {
       contents: [{ parts }],
       generationConfig: {
         responseModalities: ["image"],
         ...(aspectRatio && { 
           imageConfig: { 
-            aspectRatio,
-            // Для Pro-модели можно добавить доп. параметры, если API их поддерживает
+            aspectRatio: aspectRatio,
+            // Для Pro-модели Google API автоматически выбирает "Quality" режим, 
+            // если мы не ограничиваем его параметрами.
           } 
-        })
+        }),
+        // Повышаем точность генерации для Pro
+        temperature: isHighResModel ? 0.4 : 0.7, 
       }
     };
 
@@ -202,17 +207,16 @@ export async function generateImageCore({
   }
 
   // ------------------- ОБРАБОТКА И СОХРАНЕНИЕ -------------------
-  // Конвертируем в JPEG с оптимизацией
+  // --- ИЗМЕНЕНИЕ 2: Отключаем сжатие в Sharp для Pro-моделей ---
   let processedBuffer: Buffer;
   try {
-    // 🚀 Настройка качества в зависимости от модели
-    const isPro = modelId === "gemini-3-pro-image-preview" || modelId === "imagen-4-ultra";
-    
+    const isHighResModel = modelId === "gemini-3-pro-image-preview" || modelId === "imagen-4-ultra";
+
     processedBuffer = await sharp(buffer)
       .jpeg({ 
-        quality: isPro ? 100 : 85, // Для Pro ставим 100% качество
-        mozjpeg: true,
-        chromaSubsampling: isPro ? '4:4:4' : '4:2:0' // Максимальная цветопередача для Pro
+        quality: isHighResModel ? 100 : 85, // 100% для Pro
+        chromaSubsampling: isHighResModel ? '4:4:4' : '4:2:0', // Максимум цвета
+        force: true 
       })
       .toBuffer();
   } catch (err) {
