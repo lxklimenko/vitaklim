@@ -231,7 +231,7 @@ export async function POST(req: Request) {
           text: "Выберите модель:",
           reply_markup: {
             keyboard: [
-              [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }], // 👈 Изменено
+              [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
               [{ text: "💎 Ultra (5 кредитов)" }],
               [{ text: "🪄 GPT Image - ИИ фотошоп от OpenAI" }],
               [{ text: "⬅️ Назад" }],
@@ -263,7 +263,7 @@ export async function POST(req: Request) {
           text: "Выберите модель для генерации по фото:",
           reply_markup: {
             keyboard: [
-              [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }], // 👈 Изменено
+              [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
               [{ text: "💎 Ultra (5 кредитов)" }],
               [{ text: "⬅️ Назад" }],
             ],
@@ -304,7 +304,7 @@ export async function POST(req: Request) {
 
     // ====== ВЫБОР МОДЕЛИ ДЛЯ ФОТО ======
     if (currentState === "choosing_photo_model") {
-      if (text === "🍌 Nano Banano 2 (Gemini 3.1 Flash)") { // 👈 Изменено
+      if (text === "🍌 Nano Banano 2 (Gemini 3.1 Flash)") {
         await supabase
           .from("profiles")
           .update({
@@ -384,8 +384,7 @@ export async function POST(req: Request) {
 
     // Состояние: выбор модели (для обычной генерации)
     if (currentState === "choosing_model") {
-      // 🍌 Nano Banano 2 (Gemini 3.1 Flash) — обновлено
-      if (text === "🍌 Nano Banano 2 (Gemini 3.1 Flash)") { // 👈 Изменено
+      if (text === "🍌 Nano Banano 2 (Gemini 3.1 Flash)") {
         await supabase
           .from("profiles")
           .update({
@@ -402,7 +401,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // 💎 Ultra модель
       if (text === "💎 Ultra (5 кредитов)") {
         await supabase
           .from("profiles")
@@ -417,7 +415,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // 🪄 GPT Image модель
       if (text === "🪄 GPT Image - ИИ фотошоп от OpenAI") {
         await supabase
           .from("profiles")
@@ -432,7 +429,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // ⬅️ Назад
       if (text === "⬅️ Назад") {
         await supabase
           .from("profiles")
@@ -447,20 +443,17 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // Неизвестный ввод в состоянии выбора модели
       await sendMessage(chatId, "Пожалуйста, выберите модель из списка.");
       return NextResponse.json({ ok: true });
     }
 
     // Состояние: ожидание промпта (для обычной генерации)
     if (currentState === "awaiting_prompt") {
-      // 🛡 ЗАЩИТА: проверяем, что пользователь прислал именно текст
       if (!text) {
         await sendMessage(chatId, "Пожалуйста, отправьте текстовое описание ✍️");
         return NextResponse.json({ ok: true });
       }
 
-      // Проверка баланса
       if (profile.balance <= 0) {
         await sendMessage(
           chatId,
@@ -480,28 +473,23 @@ export async function POST(req: Request) {
       const modelId = selectedModel || "gemini-3.1-flash-image-preview";
 
       try {
-        // Определяем формат из текста промпта
         const detectedRatio = extractAspectRatio(text);
 
         const result = await generateImageCore({
           userId: profile.id,
           prompt: text,
           modelId,
-          aspectRatio: detectedRatio, // 👈 Теперь здесь переменная вместо "1:1"
+          aspectRatio: detectedRatio,
           supabase,
         });
 
         console.log("SENDING PHOTO:", result.imageUrl);
         
-        // Сначала присылаем обычное фото (превью)
         await sendPhotoBuffer(chatId, result.imageUrl);
-        
-        // 🚀 И СРАЗУ ПРИСЫЛАЕМ ФАЙЛОМ (без сжатия)
         await sendDocumentBuffer(chatId, result.imageUrl);
         
         console.log("PHOTO AND DOCUMENT SENT");
 
-        // Сбрасываем состояние после успешной генерации
         await supabase
           .from("profiles")
           .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
@@ -510,11 +498,14 @@ export async function POST(req: Request) {
         console.error("GENERATION ERROR:", error);
         await sendMessage(chatId, `❌ Ошибка генерации:\n${error.message}`);
 
-        // Сбрасываем состояние даже при ошибке
+        // Обязательно сбрасываем состояние даже при ошибке
         await supabase
           .from("profiles")
           .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
           .eq("id", profile.id);
+
+        // Если бы у нас был ID генерации, мы могли бы пометить запись как failed
+        // await supabase.from("generations").update({ status: "failed" }).eq("id", generationId);
       }
 
       return NextResponse.json({ ok: true });
@@ -522,7 +513,6 @@ export async function POST(req: Request) {
 
     // Состояние: ожидание промпта после получения фото
     if (currentState === "awaiting_photo_prompt") {
-      // 🛡 ЗАЩИТА: проверяем, что пользователь прислал именно текст
       if (!text) {
         await sendMessage(chatId, "Пожалуйста, отправьте текстовое описание для фото ✍️");
         return NextResponse.json({ ok: true });
@@ -550,27 +540,22 @@ export async function POST(req: Request) {
       await sendMessage(chatId, "🎨 Генерация по фото запущена...");
 
       try {
-        // скачиваем фото из Telegram
         const imageResponse = await fetch(profile.bot_reference_url);
         const imageArrayBuffer = await imageResponse.arrayBuffer();
         const imageBuffer = Buffer.from(imageArrayBuffer);
 
-        // Также определяем формат для работы по фото
         const detectedRatio = extractAspectRatio(text);
 
         const result = await generateImageCore({
           userId: profile.id,
           prompt: text,
           modelId: profile.bot_selected_model || "imagen-4-ultra",
-          aspectRatio: detectedRatio, // 👈 Передаем определенный формат
+          aspectRatio: detectedRatio,
           supabase,
-          imageBuffer // 👈 КЛЮЧЕВОЕ
+          imageBuffer
         });
 
-        // Сначала присылаем обычное фото (превью)
         await sendPhotoBuffer(chatId, result.imageUrl);
-        
-        // 🚀 И СРАЗУ ПРИСЫЛАЕМ ФАЙЛОМ (без сжатия)
         await sendDocumentBuffer(chatId, result.imageUrl);
 
         await supabase
@@ -580,13 +565,16 @@ export async function POST(req: Request) {
 
       } catch (error: any) {
         console.error("PHOTO GENERATION ERROR:", error);
-
         await sendMessage(chatId, `❌ Ошибка генерации:\n${error.message}`);
 
+        // Обязательно сбрасываем состояние даже при ошибке
         await supabase
           .from("profiles")
           .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
           .eq("id", profile.id);
+
+        // Если бы у нас был ID генерации, мы могли бы пометить запись как failed
+        // await supabase.from("generations").update({ status: "failed" }).eq("id", generationId);
       }
 
       return NextResponse.json({ ok: true });
