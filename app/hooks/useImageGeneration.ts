@@ -65,7 +65,18 @@ export function useImageGeneration(
     // Защита от двойного запуска
     if (isGenerating) return;
 
-    console.log('HANDLE GENERATE CALLED');
+    // 1. Определяем стоимость генерации на основе выбранной модели
+    const currentModel = MODELS.find(m => m.id === modelId);
+    const cost = currentModel?.price || 1;
+
+    console.log('HANDLE GENERATE CALLED', { 
+      user: !!user, 
+      prompt: generatePrompt, 
+      balance, 
+      modelId,
+      cost
+    });
+
     if (!user) {
       toast.error('Войдите в аккаунт для генерации');
       return;
@@ -74,16 +85,23 @@ export function useImageGeneration(
       toast.error('Введите промпт');
       return;
     }
-    if (balance <= 0) {
-      toast.error('Недостаточно средств на балансе');
+    // 2. Проверяем достаточно ли средств с учётом стоимости
+    if (balance < cost) {
+      toast.error(`Недостаточно средств. Для этой модели нужно ${cost} монет`);
+      return;
+    }
+
+    // 3. Запрет на использование фото с моделью DALL-E 3
+    if (modelId === 'dall-e-3' && referenceFile) {
+      toast.error('Модель GPT Image не поддерживает генерацию по фото. Удалите фото, чтобы продолжить.');
       return;
     }
 
     // Сохраняем предыдущий баланс для возможного отката
     const previousBalance = balance;
 
-    // Оптимистичное списание
-    setBalance(prev => Math.max(prev - 1, 0));
+    // 4. Оптимистичное списание (не 1, а реальная стоимость)
+    setBalance(prev => Math.max(prev - cost, 0));
 
     setIsGenerating(true);
     try {
