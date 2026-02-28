@@ -77,6 +77,27 @@ async function sendPhotoBuffer(chatId: number, imageUrl: string) {
   console.log("SEND PHOTO RESPONSE:", data);
 }
 
+/**
+ * Отправляет изображение как файл (без сжатия)
+ */
+async function sendDocumentBuffer(chatId: number, imageUrl: string) {
+  const imageResponse = await fetch(imageUrl);
+  const buffer = await imageResponse.arrayBuffer();
+
+  const formData = new FormData();
+  formData.append("chat_id", chatId.toString());
+  formData.append(
+    "document",
+    new Blob([buffer], { type: "image/jpeg" }),
+    "nano_banano_result.jpg" // Имя файла, которое увидит пользователь
+  );
+
+  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -450,8 +471,14 @@ export async function POST(req: Request) {
         });
 
         console.log("SENDING PHOTO:", result.imageUrl);
+        
+        // Сначала присылаем обычное фото (превью)
         await sendPhotoBuffer(chatId, result.imageUrl);
-        console.log("PHOTO SENT");
+        
+        // 🚀 И СРАЗУ ПРИСЫЛАЕМ ФАЙЛОМ (без сжатия)
+        await sendDocumentBuffer(chatId, result.imageUrl);
+        
+        console.log("PHOTO AND DOCUMENT SENT");
 
         // Сбрасываем состояние после успешной генерации
         await supabase
@@ -516,7 +543,11 @@ export async function POST(req: Request) {
           imageBuffer // 👈 КЛЮЧЕВОЕ
         });
 
+        // Сначала присылаем обычное фото (превью)
         await sendPhotoBuffer(chatId, result.imageUrl);
+        
+        // 🚀 И СРАЗУ ПРИСЫЛАЕМ ФАЙЛОМ (без сжатия)
+        await sendDocumentBuffer(chatId, result.imageUrl);
 
         await supabase
           .from("profiles")
