@@ -11,6 +11,14 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 console.log("SUPABASE URL:", SUPABASE_URL);
 console.log("SERVICE ROLE EXISTS:", !!SUPABASE_SERVICE_ROLE_KEY);
 
+// Типы состояний бота (для документации)
+type UserState =
+  | "idle"
+  | "choosing_model"
+  | "awaiting_prompt"
+  | "awaiting_photo"
+  | "awaiting_photo_prompt";
+
 async function sendMessage(chatId: number, text: string) {
   await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: "POST",
@@ -80,6 +88,7 @@ export async function POST(req: Request) {
     const telegramId = message.from.id;
     const username = message.from.username || `telegram_${telegramId}`;
     const text = message.text;
+    const photo = message.photo; // может быть undefined
 
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
@@ -128,6 +137,7 @@ export async function POST(req: Request) {
           balance: 0,
           bot_state: "idle",
           bot_selected_model: null,
+          bot_reference_url: null, // новое поле для хранения ссылки на фото
         })
         .select()
         .single();
@@ -153,6 +163,7 @@ export async function POST(req: Request) {
         .update({
           bot_state: "idle",
           bot_selected_model: null,
+          bot_reference_url: null,
         })
         .eq("id", profile.id);
 
@@ -169,7 +180,7 @@ export async function POST(req: Request) {
     if (text === "🎨 Сгенерировать") {
       await supabase
         .from("profiles")
-        .update({ bot_state: "choosing_model" })
+        .update({ bot_state: "choosing_model", bot_reference_url: null })
         .eq("id", profile.id);
 
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -196,10 +207,18 @@ export async function POST(req: Request) {
     if (text === "🖼 По фото") {
       await supabase
         .from("profiles")
-        .update({ bot_state: "idle", bot_selected_model: null })
+        .update({
+          bot_state: "awaiting_photo",
+          bot_selected_model: "imagen-4-ultra", // по фото сразу Ultra
+          bot_reference_url: null,
+        })
         .eq("id", profile.id);
 
-      await sendMessage(chatId, "Функция в разработке.");
+      await sendMessage(
+        chatId,
+        "Отправьте фотографию, на основе которой нужно создать изображение 📷"
+      );
+
       return NextResponse.json({ ok: true });
     }
 
@@ -207,7 +226,7 @@ export async function POST(req: Request) {
     if (text === "💰 Баланс") {
       await supabase
         .from("profiles")
-        .update({ bot_state: "idle", bot_selected_model: null })
+        .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
         .eq("id", profile.id);
 
       await sendMessage(chatId, `💰 Ваш баланс: ${profile.balance} кредитов.`);
@@ -218,7 +237,7 @@ export async function POST(req: Request) {
     if (text === "🚀 Открыть приложение") {
       await supabase
         .from("profiles")
-        .update({ bot_state: "idle", bot_selected_model: null })
+        .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
         .eq("id", profile.id);
 
       await sendMessage(
@@ -230,6 +249,41 @@ export async function POST(req: Request) {
 
     // ================== МАШИНА СОСТОЯНИЙ ==================
 
+    // ====== ОЖИДАЕМ ФОТО ======
+    if (currentState === "awaiting_photo") {
+      if (!photo) {
+        await sendMessage(chatId, "Пожалуйста, отправьте фотографию 📷");
+        return NextResponse.json({ ok: true });
+      }
+
+      // Берём самое большое фото
+      const largestPhoto = photo[photo.length - 1];
+      const fileId = largestPhoto.file_id;
+
+      // Получаем file_path
+      const fileRes = await fetch(
+        `https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`
+      );
+      const fileData = await fileRes.json();
+
+      const filePath = fileData.result.file_path;
+      const fileUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`;
+
+      // Сохраняем ссылку временно в profiles
+      await supabase
+        .from("profiles")
+        .update({
+          bot_state: "awaiting_photo_prompt",
+          bot_selected_model: profile.bot_selected_model,
+          bot_reference_url: fileUrl,
+        })
+        .eq("id", profile.id);
+
+      await sendMessage(chatId, "Теперь напишите описание 🎨");
+
+      return NextResponse.json({ ok: true });
+    }
+
     // Состояние: выбор модели
     if (currentState === "choosing_model") {
       // ⚡ Быстрая модель
@@ -239,6 +293,7 @@ export async function POST(req: Request) {
           .update({
             bot_state: "awaiting_prompt",
             bot_selected_model: "gemini-2.5-flash-image",
+            bot_reference_url: null,
           })
           .eq("id", profile.id);
 
@@ -253,6 +308,7 @@ export async function POST(req: Request) {
           .update({
             bot_state: "awaiting_prompt",
             bot_selected_model: "imagen-4-ultra",
+            bot_reference_url: null,
           })
           .eq("id", profile.id);
 
@@ -267,6 +323,7 @@ export async function POST(req: Request) {
           .update({
             bot_state: "idle",
             bot_selected_model: null,
+            bot_reference_url: null,
           })
           .eq("id", profile.id);
 
@@ -279,7 +336,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // Состояние: ожидание промпта
+    // Состояние: ожидание промпта (для обычной генерации)
     if (currentState === "awaiting_prompt") {
       // Проверка баланса
       if (profile.balance <= 0) {
@@ -290,7 +347,7 @@ export async function POST(req: Request) {
 
         await supabase
           .from("profiles")
-          .update({ bot_state: "idle", bot_selected_model: null })
+          .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
           .eq("id", profile.id);
 
         return NextResponse.json({ ok: true });
@@ -316,7 +373,7 @@ export async function POST(req: Request) {
         // Сбрасываем состояние после успешной генерации
         await supabase
           .from("profiles")
-          .update({ bot_state: "idle", bot_selected_model: null })
+          .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
           .eq("id", profile.id);
       } catch (error: any) {
         console.error("GENERATION ERROR:", error);
@@ -325,7 +382,66 @@ export async function POST(req: Request) {
         // Сбрасываем состояние даже при ошибке
         await supabase
           .from("profiles")
-          .update({ bot_state: "idle", bot_selected_model: null })
+          .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
+          .eq("id", profile.id);
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // Состояние: ожидание промпта после получения фото
+    if (currentState === "awaiting_photo_prompt") {
+      if (!profile.bot_reference_url) {
+        await sendMessage(chatId, "Ошибка: фото не найдено.");
+        return NextResponse.json({ ok: true });
+      }
+
+      if (profile.balance <= 0) {
+        await sendMessage(
+          chatId,
+          "❌ Недостаточно средств.\n\nПополни баланс в Mini App."
+        );
+
+        await supabase
+          .from("profiles")
+          .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
+          .eq("id", profile.id);
+
+        return NextResponse.json({ ok: true });
+      }
+
+      await sendMessage(chatId, "🎨 Генерация по фото запущена...");
+
+      try {
+        // скачиваем фото из Telegram
+        const imageResponse = await fetch(profile.bot_reference_url);
+        const imageArrayBuffer = await imageResponse.arrayBuffer();
+        const imageBuffer = Buffer.from(imageArrayBuffer);
+
+        const result = await generateImageCore({
+          userId: profile.id,
+          prompt: text,
+          modelId: profile.bot_selected_model || "imagen-4-ultra",
+          aspectRatio: "1:1",
+          supabase,
+          imageBuffer // 👈 КЛЮЧЕВОЕ
+        });
+
+        await sendPhotoBuffer(chatId, result.imageUrl);
+
+        await supabase
+          .from("profiles")
+          .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
+          .eq("id", profile.id);
+
+      } catch (error: any) {
+        console.error("PHOTO GENERATION ERROR:", error);
+
+        await sendMessage(chatId, `❌ Ошибка генерации:\n${error.message}`);
+
+        await supabase
+          .from("profiles")
+          .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
           .eq("id", profile.id);
       }
 
