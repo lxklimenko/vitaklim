@@ -106,7 +106,9 @@ export async function generateImageCore({
         response_format: "b64_json",
       });
 
-      const base64Image = response.data[0].b64_json;
+      // Добавили знаки вопроса для безопасной проверки
+      const base64Image = response?.data?.[0]?.b64_json;
+      
       if (!base64Image) {
         throw new Error("OpenAI не вернул изображение");
       }
