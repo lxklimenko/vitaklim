@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase-server'
-import { Generation } from '@/app/types' // Импортируем тип для типизации
+import { Generation } from '@/app/types'
 
 export async function GET(req: Request) {
   const supabase = await createClient()
   const { searchParams } = new URL(req.url)
   const offset = parseInt(searchParams.get('offset') || '0')
-  const limit = 20
+  const limit = 10 // изменено с 20 на 10
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // 1. Исправлено: убран дубликат .from()
   const { data: generations, error: queryError } = await supabase
     .from('generations')
     .select('*')
@@ -24,7 +23,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ generations: [], hasMore: false })
   }
 
-  // 2. Исправлено: добавлены типы для параметров 'g', 'gen' и 'index'
   const paths = (generations as Generation[])
     .map((g: Generation) => g.storage_path)
     .filter((path): path is string => !!path)

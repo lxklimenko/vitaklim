@@ -23,7 +23,7 @@ export default function HistoryClient({ initialGenerations }: Props) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   // Состояния для подгрузки
-  const [hasMore, setHasMore] = useState(initialGenerations.length === 20)
+  const [hasMore, setHasMore] = useState(initialGenerations.length === 10) // 🔹 теперь 10
   const [isLoadingMore, setIsLoadingMore] = useState(false)
 
   const handleDelete = async (id: string) => {

@@ -8,14 +8,14 @@ export default async function HistoryPage() {
 
   if (!user) return <HistoryClient initialGenerations={[]} />
 
-  // Загружаем только первые 20 завершенных генераций
+  // Загружаем только первые 10 завершенных генераций
   const { data: generations } = await supabase
     .from('generations')
     .select('*')
     .eq('user_id', user.id)
     .eq('status', 'completed')
     .order('created_at', { ascending: false })
-    .range(0, 19) // 🔥 Лимит на сервере
+    .range(0, 9) // 🔥 Лимит на сервере – 10 элементов
 
   if (!generations || generations.length === 0) {
     return <HistoryClient initialGenerations={[]} />
