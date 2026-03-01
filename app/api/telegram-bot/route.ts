@@ -5,6 +5,7 @@ import { generateImageCore } from "@/app/lib/generateCore";
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const PAYMENT_PROVIDER_TOKEN = process.env.PAYMENT_PROVIDER_TOKEN!; // ДОБАВЛЕНО
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -18,18 +19,17 @@ type UserState =
   | "choosing_photo_model"
   | "awaiting_prompt"
   | "awaiting_photo"
-  | "awaiting_photo_prompt";
+  | "awaiting_photo_prompt"
+  | "awaiting_payment_amount"; // ДОБАВЛЕНО
 
 /**
  * Ищет в тексте формат (например, 21:9, 9 на 16 или 1:1).
  * Теперь поддерживает панорамный режим 21:9.
  */
 function extractAspectRatio(text: string): string {
-  // 1. Улучшенный поиск: понимает ":" "на" "x" и пробелы (например, "21 на 9")
   const ratioRegex = /(\d{1,2})[:\sнаx]+(\d{1,2})/;
   const match = text.match(ratioRegex);
   
-  // 2. Добавляем 21:9 в список разрешенных
   const supportedRatios = ['1:1', '9:16', '16:9', '4:3', '3:4', '2:3', '3:2', '21:9'];
   
   if (match) {
@@ -39,7 +39,7 @@ function extractAspectRatio(text: string): string {
     }
   }
   
-  return "1:1"; // Если ничего не найдено, возвращаем квадрат
+  return "1:1";
 }
 
 async function sendMessage(chatId: number, text: string) {
@@ -75,7 +75,6 @@ async function sendMainMenu(chatId: number) {
  * Отправляет фото в Telegram, загружая его по URL и передавая как бинарные данные (multipart/form-data)
  */
 async function sendPhotoBuffer(chatId: number, imageUrl: string) {
-  // скачиваем файл с signed URL
   const imageResponse = await fetch(imageUrl);
   const buffer = await imageResponse.arrayBuffer();
 
@@ -111,7 +110,7 @@ async function sendDocumentBuffer(chatId: number, imageUrl: string) {
   formData.append(
     "document",
     new Blob([buffer], { type: "image/jpeg" }),
-    "nano_banano_result.jpg" // Имя файла, которое увидит пользователь
+    "nano_banano_result.jpg"
   );
 
   await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`, {
@@ -125,6 +124,66 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("UPDATE:", body);
 
+    // ========== Обработка callback_query (нажатие inline-кнопки) ==========
+    if (body.callback_query) {
+      const cb = body.callback_query;
+      const cbChatId = cb.message.chat.id;
+      const cbTelegramId = cb.from.id;
+      const cbData = cb.data;
+
+      // Получаем профиль по telegram_id из callback
+      const { data: cbProfile, error: cbProfileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("telegram_id", cbTelegramId)
+        .maybeSingle();
+
+      if (cbProfileError) {
+        console.error("CALLBACK PROFILE ERROR:", cbProfileError);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (!cbProfile) {
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            callback_query_id: cb.id,
+            text: "Профиль не найден. Начните с /start",
+          }),
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      // Обработка нажатия кнопки "Пополнить баланс"
+      if (cbData === "start_payment") {
+        await supabase
+          .from("profiles")
+          .update({ bot_state: "awaiting_payment_amount" })
+          .eq("id", cbProfile.id);
+
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: cbChatId,
+            text: "Введите сумму пополнения в рублях ✍️\n(Например: 55, 100 или 500)",
+          }),
+        });
+
+        // Закрываем "часики" на кнопке
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ callback_query_id: cb.id }),
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
+      // Если другие callback'и – можно добавить позже
+    }
+
     const message = body.message;
     if (!message) return NextResponse.json({ ok: true });
 
@@ -132,7 +191,7 @@ export async function POST(req: Request) {
     const telegramId = message.from.id;
     const username = message.from.username || `telegram_${telegramId}`;
     const text = message.text;
-    const photo = message.photo; // может быть undefined
+    const photo = message.photo;
 
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
@@ -194,13 +253,11 @@ export async function POST(req: Request) {
       profile = newProfile;
     }
 
-    // Состояние хранится в БД
     const currentState = profile.bot_state ?? "idle";
     const selectedModel = profile.bot_selected_model;
 
     // ================== ОБРАБОТКА КОМАНД ==================
 
-    // /start
     if (text === "/start") {
       await supabase
         .from("profiles")
@@ -220,7 +277,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // 🎨 Сгенерировать (обновлённое меню с новой кнопкой)
     if (text === "🎨 Сгенерировать") {
       await supabase
         .from("profiles")
@@ -236,7 +292,7 @@ export async function POST(req: Request) {
           reply_markup: {
             keyboard: [
               [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
-              [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }], // 👈 Новая кнопка
+              [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
               [{ text: "💎 Ultra (5 кредитов)" }],
               [{ text: "🪄 GPT Image - ИИ фотошоп от OpenAI" }],
               [{ text: "⬅️ Назад" }],
@@ -249,7 +305,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // 🖼 По фото
     if (text === "🖼 По фото") {
       await supabase
         .from("profiles")
@@ -269,7 +324,7 @@ export async function POST(req: Request) {
           reply_markup: {
             keyboard: [
               [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
-              [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }], // 👈 Новая кнопка
+              [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
               [{ text: "💎 Ultra (5 кредитов)" }],
               [{ text: "⬅️ Назад" }],
             ],
@@ -281,46 +336,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // 💰 Баланс (расширенная версия с Markdown и кнопкой)
+    // ИСПРАВЛЕННЫЙ БЛОК: "💰 Баланс" с inline-кнопкой и улучшенным текстом
     if (text === "💰 Баланс") {
-      // 1. Сбрасываем состояние, чтобы пользователь не "застрял" в ожидании промпта
       await supabase
         .from("profiles")
-        .update({ 
-          bot_state: "idle", 
-          bot_selected_model: null, 
-          bot_reference_url: null 
-        })
+        .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
         .eq("id", profile.id);
 
-      // 2. Формируем красивое сообщение с использованием Markdown
-      const balanceMessage = 
-        `💳 *Личный кабинет*\n\n` +
-        `👤 Пользователь: @${username.replace(/_/g, '\\_')}\n` +
-        `💰 *Ваш баланс:* ${profile.balance} 🍌\n\n` +
-        `💡 _1 генерация Nano Banana Pro = 1 🍌_\n` +
-        `💎 _1 генерация Ultra = 5 🍌_`;
-
-      // 3. Отправляем сообщение с поддержкой разметки Markdown
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: balanceMessage,
-          parse_mode: "Markdown", // Позволяет делать текст жирным и курсивом
+          text: `💰 *Ваш баланс:* ${profile.balance} 🍌\n\n_Нажмите кнопку ниже, чтобы пополнить счет на любую сумму_`,
+          parse_mode: "Markdown",
           reply_markup: {
-            inline_keyboard: [
-              [{ text: "⚡️ Пополнить баланс", url: "https://klex.pro/pricing" }] // Ссылка на твой сайт
-            ]
-          }
+            inline_keyboard: [[{ text: "💳 Пополнить баланс", callback_data: "start_payment" }]]
+          },
         }),
       });
-
       return NextResponse.json({ ok: true });
     }
 
-    // 🚀 Открыть приложение
     if (text === "🚀 Открыть приложение") {
       await supabase
         .from("profiles")
@@ -329,7 +366,7 @@ export async function POST(req: Request) {
 
       await sendMessage(
         chatId,
-        "Откройте Mini App: https://t.me/YourBotName/app" // замените на реальную ссылку
+        "Откройте Mini App: https://t.me/YourBotName/app"
       );
       return NextResponse.json({ ok: true });
     }
@@ -354,7 +391,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // 👇 Новая обработка для Pro-модели
       if (text === "🍌 Nano Banana Pro (Gemini 3 Pro)") {
         await supabase
           .from("profiles")
@@ -435,7 +471,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // Состояние: выбор модели (для обычной генерации)
+    // ====== ВЫБОР МОДЕЛИ ДЛЯ ТЕКСТОВОЙ ГЕНЕРАЦИИ ======
     if (currentState === "choosing_model") {
       if (text === "🍌 Nano Banano 2 (Gemini 3.1 Flash)") {
         await supabase
@@ -454,7 +490,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // 👇 Новая обработка для Pro-модели
       if (text === "🍌 Nano Banana Pro (Gemini 3 Pro)") {
         await supabase
           .from("profiles")
@@ -520,7 +555,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // Состояние: ожидание промпта (для обычной генерации)
+    // ====== ОЖИДАНИЕ ПРОМПТА (ТЕКСТОВАЯ ГЕНЕРАЦИЯ) ======
     if (currentState === "awaiting_prompt") {
       if (!text) {
         await sendMessage(chatId, "Пожалуйста, отправьте текстовое описание ✍️");
@@ -571,20 +606,16 @@ export async function POST(req: Request) {
         console.error("GENERATION ERROR:", error);
         await sendMessage(chatId, `❌ Ошибка генерации:\n${error.message}`);
 
-        // Обязательно сбрасываем состояние даже при ошибке
         await supabase
           .from("profiles")
           .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
           .eq("id", profile.id);
-
-        // Если бы у нас был ID генерации, мы могли бы пометить запись как failed
-        // await supabase.from("generations").update({ status: "failed" }).eq("id", generationId);
       }
 
       return NextResponse.json({ ok: true });
     }
 
-    // Состояние: ожидание промпта после получения фото
+    // ====== ОЖИДАНИЕ ПРОМПТА ПОСЛЕ ФОТО ======
     if (currentState === "awaiting_photo_prompt") {
       if (!text) {
         await sendMessage(chatId, "Пожалуйста, отправьте текстовое описание для фото ✍️");
@@ -640,15 +671,48 @@ export async function POST(req: Request) {
         console.error("PHOTO GENERATION ERROR:", error);
         await sendMessage(chatId, `❌ Ошибка генерации:\n${error.message}`);
 
-        // Обязательно сбрасываем состояние даже при ошибке
         await supabase
           .from("profiles")
           .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
           .eq("id", profile.id);
-
-        // Если бы у нас был ID генерации, мы могли бы пометить запись как failed
-        // await supabase.from("generations").update({ status: "failed" }).eq("id", generationId);
       }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // ====== СОСТОЯНИЕ ОЖИДАНИЯ СУММЫ ПОПОЛНЕНИЯ ======
+    if (currentState === "awaiting_payment_amount") {
+      const amount = parseInt(text || "");
+      
+      if (isNaN(amount) || amount < 10) {
+        await sendMessage(chatId, "❌ Пожалуйста, введите корректное число (минимум 10 рублей).");
+        return NextResponse.json({ ok: true });
+      }
+
+      // Генерируем инвойс
+      const invoiceResponse = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendInvoice`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          title: "Пополнение баланса KLEX",
+          description: `Зачисление ${amount} бананов 🍌 на ваш аккаунт`,
+          payload: `topup_${amount}_${profile.id}`,
+          provider_token: PAYMENT_PROVIDER_TOKEN,
+          currency: "RUB",
+          prices: [{ label: "Пополнение баланса", amount: amount * 100 }],
+          start_parameter: "topup-balance",
+        }),
+      });
+
+      const invoiceData = await invoiceResponse.json();
+      console.log("INVOICE SENT:", invoiceData);
+
+      // Сбрасываем состояние в idle
+      await supabase
+        .from("profiles")
+        .update({ bot_state: "idle" })
+        .eq("id", profile.id);
 
       return NextResponse.json({ ok: true });
     }
