@@ -684,6 +684,7 @@ export async function POST(req: Request) {
     if (currentState === "awaiting_payment_amount") {
       const amount = parseInt(text || "");
       
+      // Валидация: проверяем, что это число и оно не меньше 10 рублей
       if (isNaN(amount) || amount < 10) {
         await sendMessage(chatId, "❌ Пожалуйста, введите корректное число (минимум 10 рублей).");
         return NextResponse.json({ ok: true });
@@ -696,7 +697,7 @@ export async function POST(req: Request) {
         body: JSON.stringify({
           chat_id: chatId,
           title: "Пополнение баланса KLEX",
-          description: `Зачисление ${amount} бананов 🍌 на ваш аккаунт`,
+          description: `Зачисление ${amount} 🍌 на ваш личный счет`,
           payload: `topup_${amount}_${profile.id}`,
           provider_token: PAYMENT_PROVIDER_TOKEN,
           currency: "RUB",
@@ -706,7 +707,13 @@ export async function POST(req: Request) {
       });
 
       const invoiceData = await invoiceResponse.json();
-      console.log("INVOICE SENT:", invoiceData);
+      
+      if (!invoiceData.ok) {
+        console.error("Ошибка выставления счета:", invoiceData);
+        await sendMessage(chatId, "❌ Произошла ошибка при создании счета. Попробуйте позже.");
+        // НЕ сбрасываем состояние, чтобы пользователь мог повторить ввод
+        return NextResponse.json({ ok: true });
+      }
 
       // Сбрасываем состояние в idle
       await supabase
