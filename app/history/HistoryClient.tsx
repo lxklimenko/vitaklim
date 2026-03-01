@@ -22,6 +22,10 @@ export default function HistoryClient({ initialGenerations }: Props) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
+  // Состояния для подгрузки
+  const [hasMore, setHasMore] = useState(initialGenerations.length === 20)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+
   const handleDelete = async (id: string) => {
     if (!user) return;
 
@@ -50,6 +54,26 @@ export default function HistoryClient({ initialGenerations }: Props) {
       setDeletingId(null);
     }
   };
+
+  const loadMore = async () => {
+    if (isLoadingMore) return
+    setIsLoadingMore(true)
+
+    try {
+      const offset = generations.length
+      const res = await fetch(`/api/history/load-more?offset=${offset}`)
+      const data = await res.json()
+
+      if (data.generations) {
+        setLocalGenerations(prev => [...prev, ...data.generations])
+        setHasMore(data.hasMore)
+      }
+    } catch (error) {
+      console.error("Load more error:", error)
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }
 
   if (!user) {
     return (
@@ -116,6 +140,19 @@ export default function HistoryClient({ initialGenerations }: Props) {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Кнопка "Показать ещё" */}
+          {hasMore && (
+            <div className="mt-8 flex justify-center">
+              <button
+                onClick={loadMore}
+                disabled={isLoadingMore}
+                className="px-8 py-3 rounded-2xl bg-zinc-900 border border-white/10 hover:bg-zinc-800 transition disabled:opacity-50"
+              >
+                {isLoadingMore ? 'Загрузка...' : 'Показать еще'}
+              </button>
             </div>
           )}
         </div>
