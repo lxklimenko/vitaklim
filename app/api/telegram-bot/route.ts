@@ -21,21 +21,25 @@ type UserState =
   | "awaiting_photo_prompt";
 
 /**
- * Ищет в тексте формат (например, 9:16 или 16:9).
- * Если не находит, возвращает 1:1 по умолчанию.
+ * Ищет в тексте формат (например, 21:9, 9 на 16 или 1:1).
+ * Теперь поддерживает панорамный режим 21:9.
  */
 function extractAspectRatio(text: string): string {
-  const ratioRegex = /\b(\d{1,2}:\d{1,2})\b/;
+  // 1. Улучшенный поиск: понимает ":" "на" "x" и пробелы (например, "21 на 9")
+  const ratioRegex = /(\d{1,2})[:\sнаx]+(\d{1,2})/;
   const match = text.match(ratioRegex);
   
-  // Список форматов, которые точно поддерживает Nano Banano 2 (Gemini 3.1)
-  const supportedRatios = ['1:1', '9:16', '16:9', '4:3', '3:4', '2:3', '3:2'];
+  // 2. Добавляем 21:9 в список разрешенных
+  const supportedRatios = ['1:1', '9:16', '16:9', '4:3', '3:4', '2:3', '3:2', '21:9'];
   
-  if (match && supportedRatios.includes(match[1])) {
-    return match[1];
+  if (match) {
+    const foundRatio = `${match[1]}:${match[2]}`;
+    if (supportedRatios.includes(foundRatio)) {
+      return foundRatio;
+    }
   }
   
-  return "1:1"; // Автоматический выбор, если формат не указан или не поддерживается
+  return "1:1"; // Если ничего не найдено, возвращаем квадрат
 }
 
 async function sendMessage(chatId: number, text: string) {
@@ -277,14 +281,42 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // 💰 Баланс
+    // 💰 Баланс (расширенная версия с Markdown и кнопкой)
     if (text === "💰 Баланс") {
+      // 1. Сбрасываем состояние, чтобы пользователь не "застрял" в ожидании промпта
       await supabase
         .from("profiles")
-        .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
+        .update({ 
+          bot_state: "idle", 
+          bot_selected_model: null, 
+          bot_reference_url: null 
+        })
         .eq("id", profile.id);
 
-      await sendMessage(chatId, `💰 Ваш баланс: ${profile.balance} кредитов.`);
+      // 2. Формируем красивое сообщение с использованием Markdown
+      const balanceMessage = 
+        `💳 *Личный кабинет*\n\n` +
+        `👤 Пользователь: @${username.replace(/_/g, '\\_')}\n` +
+        `💰 *Ваш баланс:* ${profile.balance} 🍌\n\n` +
+        `💡 _1 генерация Nano Banana Pro = 1 🍌_\n` +
+        `💎 _1 генерация Ultra = 5 🍌_`;
+
+      // 3. Отправляем сообщение с поддержкой разметки Markdown
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: balanceMessage,
+          parse_mode: "Markdown", // Позволяет делать текст жирным и курсивом
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "⚡️ Пополнить баланс", url: "https://klex.pro/pricing" }] // Ссылка на твой сайт
+            ]
+          }
+        }),
+      });
+
       return NextResponse.json({ ok: true });
     }
 
