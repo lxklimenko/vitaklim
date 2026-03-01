@@ -5,7 +5,7 @@ import { generateImageCore } from "@/app/lib/generateCore";
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const PAYMENT_PROVIDER_TOKEN = process.env.PAYMENT_PROVIDER_TOKEN!; // ДОБАВЛЕНО
+const PAYMENT_PROVIDER_TOKEN = process.env.PAYMENT_PROVIDER_TOKEN!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -20,7 +20,7 @@ type UserState =
   | "awaiting_prompt"
   | "awaiting_photo"
   | "awaiting_photo_prompt"
-  | "awaiting_payment_amount"; // ДОБАВЛЕНО
+  | "awaiting_payment_amount";
 
 /**
  * Ищет в тексте формат (например, 21:9, 9 на 16 или 1:1).
@@ -167,7 +167,7 @@ export async function POST(req: Request) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             chat_id: cbChatId,
-            text: "Введите сумму пополнения в рублях ✍️\n(Например: 55, 100 или 500)",
+            text: "Введите сумму пополнения в рублях ✍️\n(Например: 100, 200 или 500)",
           }),
         });
 
@@ -336,7 +336,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ИСПРАВЛЕННЫЙ БЛОК: "💰 Баланс" с inline-кнопкой и улучшенным текстом
     if (text === "💰 Баланс") {
       await supabase
         .from("profiles")
@@ -680,13 +679,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ====== СОСТОЯНИЕ ОЖИДАНИЯ СУММЫ ПОПОЛНЕНИЯ ======
+    // ====== СОСТОЯНИЕ ОЖИДАНИЯ СУММЫ ПОПОЛНЕНИЯ (ИСПРАВЛЕНО) ======
     if (currentState === "awaiting_payment_amount") {
       const amount = parseInt(text || "");
       
-      // Валидация: проверяем, что это число и оно не меньше 10 рублей
-      if (isNaN(amount) || amount < 10) {
-        await sendMessage(chatId, "❌ Пожалуйста, введите корректное число (минимум 10 рублей).");
+      // Увеличиваем лимит до 100 рублей (эквивалент ~$1 для прохождения фильтра)
+      if (isNaN(amount) || amount < 100) {
+        await sendMessage(chatId, "❌ Минимальная сумма пополнения — 100 рублей (ограничение платежной системы).");
         return NextResponse.json({ ok: true });
       }
 
@@ -697,11 +696,12 @@ export async function POST(req: Request) {
         body: JSON.stringify({
           chat_id: chatId,
           title: "Пополнение баланса KLEX",
-          description: `Зачисление ${amount} 🍌 на ваш личный счет`,
+          description: `Зачисление ${amount} 🍌 на ваш аккаунт`,
           payload: `topup_${amount}_${profile.id}`,
           provider_token: PAYMENT_PROVIDER_TOKEN,
           currency: "RUB",
-          prices: [{ label: "Пополнение баланса", amount: amount * 100 }],
+          // Убеждаемся, что передаем целое число в копейках
+          prices: [{ label: "Пополнение баланса", amount: Math.floor(amount * 100) }],
           start_parameter: "topup-balance",
         }),
       });
@@ -710,12 +710,12 @@ export async function POST(req: Request) {
       
       if (!invoiceData.ok) {
         console.error("Ошибка выставления счета:", invoiceData);
-        await sendMessage(chatId, "❌ Произошла ошибка при создании счета. Попробуйте позже.");
-        // НЕ сбрасываем состояние, чтобы пользователь мог повторить ввод
+        // Выводим подробную ошибку для диагностики
+        await sendMessage(chatId, `❌ Ошибка: ${invoiceData.description}`);
         return NextResponse.json({ ok: true });
       }
 
-      // Сбрасываем состояние в idle
+      // Если всё ок, сбрасываем состояние
       await supabase
         .from("profiles")
         .update({ bot_state: "idle" })
