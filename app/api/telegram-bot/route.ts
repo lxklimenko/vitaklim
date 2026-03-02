@@ -126,6 +126,50 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("UPDATE:", body);
 
+    // ========== ОБРАБОТКА ПЛАТЕЖЕЙ ==========
+
+    // 1. Подтверждение готовности к платежу (Pre-Checkout)
+    if (body.pre_checkout_query) {
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerPreCheckoutQuery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pre_checkout_query_id: body.pre_checkout_query.id,
+          ok: true
+        }),
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    // 2. Обработка успешного платежа
+    if (body.message?.successful_payment) {
+      const chatId = body.message.chat.id;
+      const payment = body.message.successful_payment;
+      const payload = payment.invoice_payload; // Например: "topup_100_uuid"
+      const amount = payment.total_amount / 100; // Из копеек в рубли
+      
+      const payloadParts = payload.split('_');
+      const userId = payloadParts[2]; // userId из payload
+
+      // Вызываем RPC функцию в Supabase для начисления баланса
+      await supabase.rpc('increment_balance', { 
+        p_user_id: userId, 
+        p_amount: amount 
+      });
+
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `✅ *Оплата прошла успешно!*\n\nНа ваш баланс зачислено ${amount} 🍌. Спасибо, что вы с нами!`,
+          parse_mode: "Markdown"
+        }),
+      });
+      
+      return NextResponse.json({ ok: true });
+    }
+
     // ========== Обработка callback_query (нажатие inline-кнопки) ==========
     if (body.callback_query) {
       const cb = body.callback_query;
