@@ -53,7 +53,7 @@ async function sendMessage(chatId: number, text: string) {
   });
 }
 
-// Шаг А: Обновлённое главное меню с новыми кнопками
+// Обновлённое главное меню с новыми кнопками
 async function sendMainMenu(chatId: number) {
   await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: "POST",
@@ -124,12 +124,11 @@ async function sendDocumentBuffer(chatId: number, imageUrl: string) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    console.log("UPDATE:", body);
+    console.log("UPDATE RECEIVED:", JSON.stringify(body, null, 2));
 
-    // ========== ОБРАБОТКА ПЛАТЕЖЕЙ ==========
-
-    // 1. Подтверждение готовности к платежу (Pre-Checkout)
+    // ========== 1. ОБРАБОТКА PRE_CHECKOUT (ПОДТВЕРЖДЕНИЕ ПЛАТЕЖА) ==========
     if (body.pre_checkout_query) {
+      console.log("HANDLING PRE_CHECKOUT:", body.pre_checkout_query.id);
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerPreCheckoutQuery`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -141,36 +140,40 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // 2. Обработка успешного платежа
+    // ========== 2. ОБРАБОТКА УСПЕШНОГО ПЛАТЕЖА (до получения message) ==========
     if (body.message?.successful_payment) {
-      const chatId = body.message.chat.id;
       const payment = body.message.successful_payment;
-      const payload = payment.invoice_payload; // Например: "topup_100_uuid"
-      const amount = payment.total_amount / 100; // Из копеек в рубли
-      
-      const payloadParts = payload.split('_');
-      const userId = payloadParts[2]; // userId из payload
+      const payload = payment.invoice_payload; // 'topup_100_uuid'
+      const amount = payment.total_amount / 100; // из копеек в рубли
+      const userId = payload.split('_')[2]; // извлекаем userId
 
-      // Вызываем RPC функцию в Supabase для начисления баланса
-      await supabase.rpc('increment_balance', { 
+      console.log(`💳 PAYMENT SUCCESS: User ${userId}, Amount ${amount}`);
+
+      // Начисляем баланс через RPC
+      const { error: rpcError } = await supabase.rpc('increment_balance', { 
         p_user_id: userId, 
         p_amount: amount 
       });
 
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: `✅ *Оплата прошла успешно!*\n\nНа ваш баланс зачислено ${amount} 🍌. Спасибо, что вы с нами!`,
-          parse_mode: "Markdown"
-        }),
-      });
+      if (rpcError) {
+        console.error("RPC ERROR:", rpcError);
+        await sendMessage(body.message.chat.id, "⚠️ Платеж прошёл, но возникла ошибка при начислении. Свяжитесь с поддержкой.");
+      } else {
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: body.message.chat.id,
+            text: `✅ *Оплата прошла успешно!*\n\nНа ваш баланс зачислено ${amount} 🍌.`,
+            parse_mode: "Markdown"
+          }),
+        });
+      }
       
       return NextResponse.json({ ok: true });
     }
 
-    // ========== Обработка callback_query (нажатие inline-кнопки) ==========
+    // ========== 3. ОБРАБОТКА CALLBACK_QUERY (нажатие inline-кнопок) ==========
     if (body.callback_query) {
       const cb = body.callback_query;
       const cbChatId = cb.message.chat.id;
@@ -230,6 +233,7 @@ export async function POST(req: Request) {
       // Если другие callback'и – можно добавить позже
     }
 
+    // ========== ТЕПЕРЬ ПОЛУЧАЕМ ОБЫЧНОЕ СООБЩЕНИЕ ==========
     const message = body.message;
     if (!message) return NextResponse.json({ ok: true });
 
@@ -239,6 +243,7 @@ export async function POST(req: Request) {
     const text = message.text;
     const photo = message.photo;
 
+    // ========== ПОЛУЧАЕМ ИЛИ СОЗДАЁМ ПРОФИЛЬ ==========
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .select("*")
@@ -403,7 +408,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // Шаг Б: Обработка новых кнопок
     // 📜 История
     if (text === "📜 История") {
       await supabase
@@ -785,7 +789,7 @@ export async function POST(req: Request) {
     if (currentState === "awaiting_payment_amount") {
       const amount = parseInt(text || "");
       
-      // Увеличиваем лимит до 100 рублей (эквивалент ~$1 для прохождения фильтра)
+      // Минимальная сумма 100 рублей (ограничение платежной системы)
       if (isNaN(amount) || amount < 100) {
         await sendMessage(chatId, "❌ Минимальная сумма пополнения — 100 рублей (ограничение платежной системы).");
         return NextResponse.json({ ok: true });
@@ -802,7 +806,6 @@ export async function POST(req: Request) {
           payload: `topup_${amount}_${profile.id}`,
           provider_token: PAYMENT_PROVIDER_TOKEN,
           currency: "RUB",
-          // Убеждаемся, что передаем целое число в копейках
           prices: [{ label: "Пополнение баланса", amount: Math.floor(amount * 100) }],
           start_parameter: "topup-balance",
         }),
@@ -812,12 +815,11 @@ export async function POST(req: Request) {
       
       if (!invoiceData.ok) {
         console.error("Ошибка выставления счета:", invoiceData);
-        // Выводим подробную ошибку для диагностики
         await sendMessage(chatId, `❌ Ошибка: ${invoiceData.description}`);
         return NextResponse.json({ ok: true });
       }
 
-      // Если всё ок, сбрасываем состояние
+      // Сбрасываем состояние
       await supabase
         .from("profiles")
         .update({ bot_state: "idle" })
