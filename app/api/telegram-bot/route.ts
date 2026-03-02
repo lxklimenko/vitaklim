@@ -149,10 +149,10 @@ export async function POST(req: Request) {
 
       console.log(`💳 PAYMENT SUCCESS: User ${userId}, Amount ${amount}`);
 
-      // Начисляем баланс через RPC
+      // Начисляем баланс через RPC (Используем имена, которые помнит кэш Supabase)
       const { error: rpcError } = await supabase.rpc('increment_balance', { 
-        p_user_id: userId, 
-        p_amount: amount 
+        user_id: userId,
+        amount_to_add: amount
       });
 
       if (rpcError) {
@@ -408,20 +408,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // 📜 История
+    // 📜 История с персональным ID
     if (text === "📜 История") {
       await supabase
         .from("profiles")
         .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
         .eq("id", profile.id);
 
-      const historyUrl = `https://klex.pro/history`; // замените на реальный URL истории пользователя, если нужно
+      // Генерируем ссылку с параметром u (user id)
+      const historyUrl = `https://klex.pro/history?u=${profile.id}`; 
+      
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `📂 *Ваша история генераций*\n\nВсе ваши изображения бережно хранятся здесь:\n${historyUrl}`,
+          text: `📂 *Ваша история генераций*\n\nНажмите на ссылку ниже, чтобы просмотреть свои шедевры без лишних входов:\n${historyUrl}`,
           parse_mode: "Markdown",
         }),
       });
