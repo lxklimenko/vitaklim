@@ -8,13 +8,27 @@ export async function GET(req: Request) {
   const offset = parseInt(searchParams.get('offset') || '0')
   const limit = 10 // изменено с 20 на 10
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Читаем параметр 'u' (guest user id)
+  const guestUserId = searchParams.get('u')
+
+  let targetUserId: string
+
+  if (guestUserId) {
+    // Если передан guestUserId, используем его как целевой ID
+    targetUserId = guestUserId
+  } else {
+    // Иначе пытаемся получить текущего аутентифицированного пользователя
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    targetUserId = user.id
+  }
 
   const { data: generations, error: queryError } = await supabase
     .from('generations')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', targetUserId)
     .eq('status', 'completed')
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)

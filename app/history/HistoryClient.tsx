@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Trash2 } from 'lucide-react'
@@ -15,45 +16,75 @@ interface Props {
 
 export default function HistoryClient({ initialGenerations }: Props) {
   const { user } = useAuth()
+  const searchParams = useSearchParams()
+  const userIdFromUrl = searchParams.get('u')
+  const isGuestMode = !!userIdFromUrl && (!user || user.id !== userIdFromUrl)
 
-  const [generations, setLocalGenerations] =
-    useState<Generation[]>(initialGenerations)
-
+  const [generations, setLocalGenerations] = useState<Generation[]>(initialGenerations)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   // Состояния для подгрузки
-  const [hasMore, setHasMore] = useState(initialGenerations.length === 10) // 🔹 теперь 10
+  const [hasMore, setHasMore] = useState(initialGenerations.length === 10)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
 
-  const handleDelete = async (id: string) => {
-    if (!user) return;
+  // Состояние для начальной загрузки в гостевом режиме
+  const [isInitialLoading, setIsInitialLoading] = useState(isGuestMode && initialGenerations.length === 0)
 
-    setDeletingId(id);
+  // Загрузка истории для гостя (если не авторизован или смотрит чужую)
+  useEffect(() => {
+    async function fetchGuestHistory() {
+      if (!userIdFromUrl) return
+      try {
+        const { data } = await supabase
+          .from('generations')
+          .select('*')
+          .eq('user_id', userIdFromUrl)
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        if (data) {
+          setLocalGenerations(data)
+          setHasMore(data.length === 10)
+        }
+      } catch (error) {
+        console.error('Error fetching guest history:', error)
+      } finally {
+        setIsInitialLoading(false)
+      }
+    }
+
+    if (isGuestMode && initialGenerations.length === 0) {
+      fetchGuestHistory()
+    }
+  }, [userIdFromUrl, isGuestMode, initialGenerations.length])
+
+  const handleDelete = async (id: string) => {
+    if (!user) return
+
+    setDeletingId(id)
 
     try {
-      const response = await fetch("/api/delete-generation", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const response = await fetch('/api/delete-generation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
-      });
+      })
 
-      const result = await response.json();
+      const result = await response.json()
 
       if (!response.ok) {
-        console.error(result.error);
-        return;
+        console.error(result.error)
+        return
       }
 
-      setLocalGenerations(prev => prev.filter(g => g.id !== id));
+      setLocalGenerations(prev => prev.filter(g => g.id !== id))
     } catch (error) {
-      console.error("Delete error:", error);
+      console.error('Delete error:', error)
     } finally {
-      setDeletingId(null);
+      setDeletingId(null)
     }
-  };
+  }
 
   const loadMore = async () => {
     if (isLoadingMore) return
@@ -61,7 +92,10 @@ export default function HistoryClient({ initialGenerations }: Props) {
 
     try {
       const offset = generations.length
-      const res = await fetch(`/api/history/load-more?offset=${offset}`)
+      const url = userIdFromUrl
+        ? `/api/history/load-more?offset=${offset}&u=${userIdFromUrl}`
+        : `/api/history/load-more?offset=${offset}`
+      const res = await fetch(url)
       const data = await res.json()
 
       if (data.generations) {
@@ -69,16 +103,26 @@ export default function HistoryClient({ initialGenerations }: Props) {
         setHasMore(data.hasMore)
       }
     } catch (error) {
-      console.error("Load more error:", error)
+      console.error('Load more error:', error)
     } finally {
       setIsLoadingMore(false)
     }
   }
 
-  if (!user) {
+  // Если нет пользователя и нет параметра u – требуем авторизацию
+  if (!user && !userIdFromUrl) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Необходимо войти в аккаунт</p>
+      </div>
+    )
+  }
+
+  // Показываем загрузку, если идёт первый запрос для гостя
+  if (isInitialLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
       </div>
     )
   }
@@ -87,17 +131,13 @@ export default function HistoryClient({ initialGenerations }: Props) {
     <>
       <div className="min-h-screen pb-24 bg-[#0a0a0a] text-white">
         <div className="max-w-4xl mx-auto px-4 pt-6">
-          <h1 className="text-2xl font-bold mb-6">
-            История генераций
-          </h1>
+          <h1 className="text-2xl font-bold mb-6">История генераций</h1>
 
           {generations.length === 0 ? (
-            <div className="text-center text-gray-500 py-20">
-              История пока пуста
-            </div>
+            <div className="text-center text-gray-500 py-20">История пока пуста</div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
-              {generations.map((gen) => (
+              {generations.map(gen => (
                 <div
                   key={gen.id}
                   className="relative w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 shadow-lg group"
@@ -121,23 +161,25 @@ export default function HistoryClient({ initialGenerations }: Props) {
                     )}
                   </Link>
 
-                  {/* Кнопка удаления — открывает подтверждение */}
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setConfirmDeleteId(gen.id)
-                    }}
-                    className="absolute top-3 left-3 z-10
-                               w-10 h-10
-                               flex items-center justify-center
-                               rounded-2xl
-                               bg-black/50
-                               backdrop-blur-md
-                               border border-white/20"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  {/* Кнопка удаления только для владельца (не в гостевом режиме) */}
+                  {!isGuestMode && (
+                    <button
+                      onClick={e => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setConfirmDeleteId(gen.id)
+                      }}
+                      className="absolute top-3 left-3 z-10
+                                 w-10 h-10
+                                 flex items-center justify-center
+                                 rounded-2xl
+                                 bg-black/50
+                                 backdrop-blur-md
+                                 border border-white/20"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -164,9 +206,7 @@ export default function HistoryClient({ initialGenerations }: Props) {
       {confirmDeleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="bg-[#141414] border border-white/10 rounded-2xl p-6 w-80">
-            <h3 className="text-lg font-semibold mb-4">
-              Удалить генерацию?
-            </h3>
+            <h3 className="text-lg font-semibold mb-4">Удалить генерацию?</h3>
 
             <div className="flex justify-end gap-4">
               <button
