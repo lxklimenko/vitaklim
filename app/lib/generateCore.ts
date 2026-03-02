@@ -201,7 +201,7 @@ export async function generateImageCore({
     const metadata = await sharpInstance.metadata();
 
     // Проверяем: если модель Pro, а разрешение пришло маленькое (менее 1500px по ширине)
-    if (isProModel && metadata.width && metadata.width < 1500) {
+    if (isProModel && metadata.width && metadata.width < 2500) {
       console.log(`[UPSCALING] Нативное разрешение ${metadata.width}x${metadata.height}. Формат: ${aspectRatio}`);
       
       // Пытаемся найти формат в промпте, если aspectRatio не передан или равен "1:1"
