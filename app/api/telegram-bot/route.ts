@@ -53,6 +53,7 @@ async function sendMessage(chatId: number, text: string) {
   });
 }
 
+// Шаг А: Обновлённое главное меню с новыми кнопками
 async function sendMainMenu(chatId: number) {
   await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: "POST",
@@ -63,7 +64,8 @@ async function sendMainMenu(chatId: number) {
       reply_markup: {
         keyboard: [
           [{ text: "🎨 Сгенерировать" }, { text: "🖼 По фото" }],
-          [{ text: "💰 Баланс" }, { text: "🚀 Открыть приложение" }],
+          [{ text: "💰 Баланс" }, { text: "📜 История" }],
+          [{ text: "⚙️ Настройки" }, { text: "❓ Помощь" }],
         ],
         resize_keyboard: true,
       },
@@ -352,6 +354,62 @@ export async function POST(req: Request) {
           reply_markup: {
             inline_keyboard: [[{ text: "💳 Пополнить баланс", callback_data: "start_payment" }]]
           },
+        }),
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    // Шаг Б: Обработка новых кнопок
+    // 📜 История
+    if (text === "📜 История") {
+      await supabase
+        .from("profiles")
+        .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
+        .eq("id", profile.id);
+
+      const historyUrl = `https://klex.pro/history`; // замените на реальный URL истории пользователя, если нужно
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `📂 *Ваша история генераций*\n\nВсе ваши изображения бережно хранятся здесь:\n${historyUrl}`,
+          parse_mode: "Markdown",
+        }),
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    // ❓ Помощь
+    if (text === "❓ Помощь") {
+      const helpText = 
+        `🚀 *Шпаргалка по KLEX.PRO*\n\n` +
+        `• *🎨 Сгенерировать* — создание картинки по тексту.\n` +
+        `• *🖼 По фото* — изменение вашего фото или создание похожего.\n` +
+        `• *💰 Баланс* — проверка счета и пополнение через ЮKassa.\n\n` +
+        `📸 *Как менять формат:* просто напиши в конце запроса \`21:9\`, \`16:9\` или \`9:16\`. Бот сам настроит размер!`;
+      
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: helpText,
+          parse_mode: "Markdown",
+        }),
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    // ⚙️ Настройки
+    if (text === "⚙️ Настройки") {
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: "⚙️ *Настройки*\n\nСкоро здесь можно будет выбрать модель по умолчанию и настроить авто-улучшение лиц.",
+          parse_mode: "Markdown",
         }),
       });
       return NextResponse.json({ ok: true });
@@ -679,7 +737,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ====== СОСТОЯНИЕ ОЖИДАНИЯ СУММЫ ПОПОЛНЕНИЯ (ИСПРАВЛЕНО) ======
+    // ====== СОСТОЯНИЕ ОЖИДАНИЯ СУММЫ ПОПОЛНЕНИЯ ======
     if (currentState === "awaiting_payment_amount") {
       const amount = parseInt(text || "");
       
