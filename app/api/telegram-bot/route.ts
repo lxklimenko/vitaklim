@@ -16,8 +16,9 @@ console.log("SERVICE ROLE EXISTS:", !!SUPABASE_SERVICE_ROLE_KEY);
 type UserState =
   | "idle"
   | "choosing_model"
-  | "choosing_format"          // <-- ДОБАВЛЕНО
+  | "choosing_format"
   | "choosing_photo_model"
+  | "choosing_photo_format"   // <-- ДОБАВЛЕНО
   | "awaiting_prompt"
   | "awaiting_photo"
   | "awaiting_photo_prompt"
@@ -481,74 +482,118 @@ export async function POST(req: Request) {
 
     // ================== МАШИНА СОСТОЯНИЙ ==================
 
-    // ====== ВЫБОР МОДЕЛИ ДЛЯ ФОТО ======
+    // ====== ВЫБОР МОДЕЛИ ДЛЯ ФОТО (ОБНОВЛЁН) ======
     if (currentState === "choosing_photo_model") {
-      if (text === "🍌 Nano Banano 2 (Gemini 3.1 Flash)") {
-        await supabase
-          .from("profiles")
-          .update({
-            bot_state: "awaiting_photo",
-            bot_selected_model: "gemini-3.1-flash-image-preview",
-          })
-          .eq("id", profile.id);
-
-        await sendMessage(
-          chatId,
-          "Создавайте и редактируйте изображения прямо в чате.\nГотовы начать?\nОтправьте фотографию 📷"
-        );
-        return NextResponse.json({ ok: true });
-      }
-
-      if (text === "🍌 Nano Banana Pro (Gemini 3 Pro)") {
-        await supabase
-          .from("profiles")
-          .update({
-            bot_state: "awaiting_photo",
-            bot_selected_model: "gemini-3-pro-image-preview",
-          })
-          .eq("id", profile.id);
-
-        await sendMessage(
-          chatId,
-          "Выбрана Nano Banana Pro 🚀\n" +
-          "Это профессиональная модель для сложных задач.\n\n" +
-          "Отправьте фотографию 📷"
-        );
-        return NextResponse.json({ ok: true });
-      }
-
-      if (text === "💎 Ultra (5 кредитов)") {
-        await supabase
-          .from("profiles")
-          .update({
-            bot_state: "awaiting_photo",
-            bot_selected_model: "imagen-4-ultra",
-          })
-          .eq("id", profile.id);
-
-        await sendMessage(chatId, "Отправьте фотографию 📷");
-        return NextResponse.json({ ok: true });
-      }
-
       if (text === "⬅️ Назад") {
-        await supabase
-          .from("profiles")
-          .update({
-            bot_state: "idle",
-            bot_selected_model: null,
-            bot_reference_url: null,
-          })
-          .eq("id", profile.id);
-
+        await supabase.from("profiles").update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null }).eq("id", profile.id);
         await sendMainMenu(chatId);
         return NextResponse.json({ ok: true });
       }
 
-      await sendMessage(chatId, "Пожалуйста, выберите модель из списка.");
+      let selectedModelId = "";
+      let modelName = "";
+
+      if (text === "🍌 Nano Banano 2 (Gemini 3.1 Flash)") {
+        selectedModelId = "gemini-3.1-flash-image-preview";
+        modelName = "Nano Banano 2";
+      } else if (text === "🍌 Nano Banana Pro (Gemini 3 Pro)") {
+        selectedModelId = "gemini-3-pro-image-preview";
+        modelName = "Nano Banana Pro 🚀";
+      } else if (text === "💎 Ultra (5 кредитов)") {
+        selectedModelId = "imagen-4-ultra";
+        modelName = "Ultra 💎";
+      } else {
+        await sendMessage(chatId, "Пожалуйста, выберите модель из списка.");
+        return NextResponse.json({ ok: true });
+      }
+
+      // Переводим в состояние выбора формата для фото и сохраняем ID модели
+      await supabase
+        .from("profiles")
+        .update({
+          bot_state: "choosing_photo_format",
+          bot_selected_model: selectedModelId,
+        })
+        .eq("id", profile.id);
+
+      // Выводим красивые кнопки форматов
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `Модель: *${modelName}*\n\nВыберите нужный формат для генерации по фото:`,
+          parse_mode: "Markdown",
+          reply_markup: {
+            keyboard: [
+              [{ text: "⬛ 1:1 (Квадрат)" }],
+              [{ text: "📱 9:16 (Вертикальный)" }, { text: "🖥 16:9 (Горизонтальный)" }],
+              [{ text: "⬅️ Назад" }]
+            ],
+            resize_keyboard: true
+          }
+        }),
+      });
+
       return NextResponse.json({ ok: true });
     }
 
-    // ====== ОЖИДАЕМ ФОТО ======
+    // ====== ВЫБОР ФОРМАТА ДЛЯ ФОТО (НОВЫЙ БЛОК) ======
+    if (currentState === "choosing_photo_format") {
+      if (text === "⬅️ Назад") {
+        await supabase.from("profiles").update({ bot_state: "choosing_photo_model" }).eq("id", profile.id);
+        // Возвращаем клавиатуру моделей для фото
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "Выберите модель для генерации по фото:",
+            reply_markup: {
+              keyboard: [
+                [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
+                [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
+                [{ text: "💎 Ultra (5 кредитов)" }],
+                [{ text: "⬅️ Назад" }],
+              ],
+              resize_keyboard: true,
+            },
+          }),
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      // Определяем формат
+      let selectedFormat = "1:1";
+      if (text.includes("9:16")) selectedFormat = "9:16";
+      else if (text.includes("16:9")) selectedFormat = "16:9";
+
+      // Склеиваем модель и формат
+      const newModelStr = `${profile.bot_selected_model}|${selectedFormat}`;
+
+      await supabase
+        .from("profiles")
+        .update({
+          bot_state: "awaiting_photo",
+          bot_selected_model: newModelStr
+        })
+        .eq("id", profile.id);
+
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `✅ Формат *${selectedFormat}* выбран!\n\nТеперь отправьте фотографию 📷`,
+          parse_mode: "Markdown",
+          reply_markup: { remove_keyboard: true }
+        }),
+      });
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // ====== ОЖИДАЕМ ФОТО (БЕЗ ИЗМЕНЕНИЙ) ======
     if (currentState === "awaiting_photo") {
       if (!photo) {
         await sendMessage(chatId, "Пожалуйста, отправьте фотографию 📷");
@@ -579,7 +624,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ====== ВЫБОР МОДЕЛИ ДЛЯ ТЕКСТОВОЙ ГЕНЕРАЦИИ ======
+    // ====== ВЫБОР МОДЕЛИ ДЛЯ ТЕКСТОВОЙ ГЕНЕРАЦИИ (УЖЕ БЫЛО) ======
     if (currentState === "choosing_model") {
       if (text === "⬅️ Назад") {
         await supabase.from("profiles").update({ bot_state: "idle", bot_selected_model: null }).eq("id", profile.id);
@@ -607,7 +652,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // Переводим в состояние выбора формата и сохраняем ID модели
       await supabase
         .from("profiles")
         .update({
@@ -616,7 +660,6 @@ export async function POST(req: Request) {
         })
         .eq("id", profile.id);
 
-      // Выводим красивые кнопки форматов
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -638,12 +681,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ====== ВЫБОР ФОРМАТА ======
+    // ====== ВЫБОР ФОРМАТА ДЛЯ ТЕКСТА (УЖЕ БЫЛО) ======
     if (currentState === "choosing_format") {
       if (text === "⬅️ Назад") {
         await supabase.from("profiles").update({ bot_state: "choosing_model" }).eq("id", profile.id);
         
-        // Возвращаем клавиатуру моделей
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -665,12 +707,10 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // Определяем, что нажал юзер
       let selectedFormat = "1:1";
       if (text.includes("9:16")) selectedFormat = "9:16";
       else if (text.includes("16:9")) selectedFormat = "16:9";
 
-      // 🔥 ТОТ САМЫЙ ТРЮК: Склеиваем модель и формат через разделитель "|"
       const newModelStr = `${profile.bot_selected_model}|${selectedFormat}`;
 
       await supabase
@@ -681,7 +721,6 @@ export async function POST(req: Request) {
         })
         .eq("id", profile.id);
 
-      // Убираем клавиатуру форматов, чтобы ничего не мешало писать текст
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -689,14 +728,14 @@ export async function POST(req: Request) {
           chat_id: chatId,
           text: `✅ Формат *${selectedFormat}* выбран!\n\nНапишите, что нужно создать ✍️`,
           parse_mode: "Markdown",
-          reply_markup: { remove_keyboard: true } // Убираем кнопки вниз
+          reply_markup: { remove_keyboard: true }
         }),
       });
 
       return NextResponse.json({ ok: true });
     }
 
-    // ====== ОЖИДАНИЕ ПРОМПТА (ТЕКСТОВАЯ ГЕНЕРАЦИЯ) ======
+    // ====== ОЖИДАНИЕ ПРОМПТА (ТЕКСТ) ======
     if (currentState === "awaiting_prompt") {
       if (!text) {
         await sendMessage(chatId, "Пожалуйста, отправьте текстовое описание ✍️");
@@ -719,11 +758,8 @@ export async function POST(req: Request) {
 
       await sendMessage(chatId, "🎨 Генерация запущена...");
 
-      // 1. Распаковываем модель и формат
       const savedModel = profile.bot_selected_model || "gemini-3.1-flash-image-preview|1:1";
-      const [modelId, formatFromDb] = savedModel.split('|'); // Разделяем по символу "|"
-      
-      // 2. Если юзер хитрец и написал формат руками в промпте, даем ему приоритет. Иначе берем из кнопок.
+      const [modelId, formatFromDb] = savedModel.split('|');
       const detectedRatio = extractAspectRatio(text);
       const finalRatio = detectedRatio !== "1:1" ? detectedRatio : (formatFromDb || "1:1");
 
@@ -731,8 +767,8 @@ export async function POST(req: Request) {
         const result = await generateImageCore({
           userId: profile.id,
           prompt: text,
-          modelId: modelId,       // Чистая модель
-          aspectRatio: finalRatio, // Выбранный формат
+          modelId: modelId,
+          aspectRatio: finalRatio,
           supabase,
         });
 
@@ -743,12 +779,11 @@ export async function POST(req: Request) {
         
         console.log("PHOTO AND DOCUMENT SENT");
 
-        // 🔥 ВАЖНО: Возвращаем главное меню после успешной генерации
         await supabase
           .from("profiles")
           .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
           .eq("id", profile.id);
-        await sendMainMenu(chatId); 
+        await sendMainMenu(chatId);
 
       } catch (error: any) {
         console.error("GENERATION ERROR:", error);
@@ -764,7 +799,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ====== ОЖИДАНИЕ ПРОМПТА ПОСЛЕ ФОТО ======
+    // ====== ОЖИДАНИЕ ПРОМПТА ПОСЛЕ ФОТО (ОБНОВЛЁН) ======
     if (currentState === "awaiting_photo_prompt") {
       if (!text) {
         await sendMessage(chatId, "Пожалуйста, отправьте текстовое описание для фото ✍️");
@@ -792,18 +827,24 @@ export async function POST(req: Request) {
 
       await sendMessage(chatId, "🎨 Генерация по фото запущена...");
 
+      // 1. Распаковываем склеенную строку
+      const savedModel = profile.bot_selected_model || "gemini-3.1-flash-image-preview|1:1";
+      const [modelId, formatFromDb] = savedModel.split('|');
+
+      // 2. Приоритет формата: ручной ввод в тексте -> выбранная кнопка -> 1:1
+      const detectedRatio = extractAspectRatio(text);
+      const finalRatio = detectedRatio !== "1:1" ? detectedRatio : (formatFromDb || "1:1");
+
       try {
         const imageResponse = await fetch(profile.bot_reference_url);
         const imageArrayBuffer = await imageResponse.arrayBuffer();
         const imageBuffer = Buffer.from(imageArrayBuffer);
 
-        const detectedRatio = extractAspectRatio(text);
-
         const result = await generateImageCore({
           userId: profile.id,
           prompt: text,
-          modelId: profile.bot_selected_model || "imagen-4-ultra",
-          aspectRatio: detectedRatio,
+          modelId: modelId,
+          aspectRatio: finalRatio,
           supabase,
           imageBuffer
         });
@@ -811,6 +852,7 @@ export async function POST(req: Request) {
         await sendPhotoBuffer(chatId, result.imageUrl);
         await sendDocumentBuffer(chatId, result.imageUrl);
 
+        // Возвращаем в главное меню после успеха
         await supabase
           .from("profiles")
           .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
