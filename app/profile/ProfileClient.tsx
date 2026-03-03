@@ -45,72 +45,58 @@ export default function ProfileClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
 
-  // Глобальный callback и вставка виджета Telegram (исправленная версия)
+  // ОБНОВЛЁННЫЙ useEffect (с отладочными логами и улучшенной вставкой)
   useEffect(() => {
-    // 1. Определяем функцию-обработчик в глобальной области
-    (window as any).onTelegramAuth = async (user: any) => {
+    // 1. Сначала объявляем функцию в глобальном окне
+    (window as any).onTelegramAuth = async (tgUser: any) => {
+      console.log("!!! CALLBACK TRIGGERED !!!", tgUser); // Мы должны увидеть это в консоли!
       setIsSubmitting(true);
       try {
         const res = await fetch('/api/auth/telegram', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ widgetData: user }),
+          body: JSON.stringify({ widgetData: tgUser }),
         });
 
+        const data = await res.json();
+        console.log("API RESPONSE:", data);
+
         if (res.ok) {
-          const email = `telegram_${user.id}@telegram.local`;
-          const password = `secure_${user.id}`;
+          const email = `telegram_${tgUser.id}@telegram.local`;
+          const password = `secure_${tgUser.id}`;
+          
+          const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+          if (signInError) throw signInError;
 
-          const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-          if (error) throw error;
-
-          toast.success('С возвращением, ' + (user.first_name || 'Алекс') + '!');
-
-          // Даём Supabase секунду обновить куки и перезагружаем страницу
-          setTimeout(() => {
-            window.location.href = '/profile';
-          }, 500);
+          toast.success('Успешный вход!');
+          window.location.href = '/profile'; // Перезагрузка для обновления серверного состояния
         } else {
-          const errorData = await res.json();
-          toast.error(errorData.error || 'Ошибка проверки Telegram');
+          toast.error(data.error || 'Ошибка проверки Telegram');
         }
-      } catch (err) {
-        toast.error('Ошибка входа');
+      } catch (err: any) {
+        console.error("AUTH FATAL ERROR:", err);
+        toast.error('Ошибка входа: ' + err.message);
       } finally {
         setIsSubmitting(false);
       }
     };
 
-    // 2. Логика вставки скрипта виджета
-    const renderWidget = () => {
-      const container = document.getElementById('telegram-login-container');
-      if (container) {
-        // Очищаем контейнер перед вставкой, чтобы избежать дублирования
-        container.innerHTML = '';
-        const script = document.createElement('script');
-        script.src = 'https://telegram.org/js/telegram-widget.js?22';
-        script.setAttribute('data-telegram-login', 'klexprobot'); // Убедитесь, что это имя вашего бота
-        script.setAttribute('data-size', 'large');
-        script.setAttribute('data-radius', '12');
-        script.setAttribute('data-onauth', 'onTelegramAuth'); // Исправлено: только имя функции
-        script.setAttribute('data-request-access', 'write');
-        script.async = true;
-        container.appendChild(script);
-      }
-    };
+    // 2. Рендерим виджет
+    const container = document.getElementById('telegram-login-container');
+    if (container && !container.hasChildNodes()) {
+      const script = document.createElement('script');
+      script.src = 'https://telegram.org/js/telegram-widget.js?22';
+      script.setAttribute('data-telegram-login', 'klexprobot'); 
+      script.setAttribute('data-size', 'large');
+      script.setAttribute('data-radius', '12');
+      script.setAttribute('data-onauth', 'onTelegramAuth'); 
+      script.setAttribute('data-request-access', 'write');
+      script.async = true;
+      container.appendChild(script);
+    }
 
-    // Даём небольшую задержку, чтобы DOM точно обновился после переключения authMode
-    const timeoutId = setTimeout(renderWidget, 100);
-
-    // Cleanup: удаляем глобальную функцию и предотвращаем выполнение отложенного рендера
-    return () => {
-      clearTimeout(timeoutId);
-      if (typeof window !== 'undefined') {
-        delete (window as any).onTelegramAuth;
-      }
-    };
-  }, [authMode, router]);
+    // Убираем delete из cleanup, чтобы функция оставалась доступной после размонтирования
+  }, [authMode]);
 
   // Логика входа / регистрации
   const handleAuth = async (e: React.FormEvent) => {
