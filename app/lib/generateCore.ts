@@ -29,6 +29,26 @@ export async function generateImageCore({
 }) {
   console.log("START GENERATION:", { userId, prompt, modelId, hasImageBuffer: !!imageBuffer });
 
+  // 🔥 НОВЫЙ БЛОК: Оптимизируем входящее фото СРАЗУ, чтобы не грузить память
+  let optimizedImageBuffer = imageBuffer;
+  if (imageBuffer) {
+    try {
+      console.log("SHARP: Оптимизация входного референса...");
+      optimizedImageBuffer = await sharp(imageBuffer)
+        .resize({ 
+          width: 1536, 
+          height: 1536, 
+          fit: 'inside', 
+          withoutEnlargement: true 
+        })
+        .jpeg({ quality: 80 }) // Сжимаем сильнее для стабильности
+        .toBuffer();
+      console.log("SHARP: Вес фото уменьшен до", Math.round(optimizedImageBuffer.length / 1024), "KB");
+    } catch (e) {
+      console.error("SHARP PRE-PROCESS ERROR:", e);
+    }
+  }
+
   const startTime = Date.now();
 
   // 1️⃣ Anti-spam
@@ -59,7 +79,8 @@ export async function generateImageCore({
     .single();
 
   if (processingError) {
-    throw new Error("Не удалось создать запись генерации");
+    console.error("SUPABASE INSERT ERROR:", processingError); // Видим реальную причину
+    throw new Error(`Ошибка БД: ${processingError.message}`);
   }
 
   console.log("PENDING CREATED:", processingRecord.id);
@@ -92,14 +113,14 @@ export async function generateImageCore({
     let finalPrompt = prompt;
 
     // Если есть референсное изображение, используем GPT-4o для его описания
-    if (imageBuffer) {
+    if (optimizedImageBuffer) {
       const visionResponse = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [{
           role: "user",
           content: [
             { type: "text", text: "Опиши это изображение во всех деталях для создания похожего. Верни только описание." },
-            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBuffer.toString("base64")}` } },
+            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${optimizedImageBuffer.toString("base64")}` } },
           ],
         }],
       });
@@ -135,17 +156,12 @@ export async function generateImageCore({
     // 1️⃣ Формируем части запроса
     const parts: any[] = [{ text: prompt }];
 
-    if (imageBuffer) {
-      // Для Pro-модели отправляем референс в чуть лучшем качестве
-      const optimizedRef = await sharp(imageBuffer)
-        .resize({ width: 1536, withoutEnlargement: true })
-        .jpeg({ quality: 95 })
-        .toBuffer();
-
+    if (optimizedImageBuffer) {
+      // Используем уже готовую оптимизированную версию
       parts.push({
         inlineData: {
           mimeType: "image/jpeg",
-          data: optimizedRef.toString("base64")
+          data: optimizedImageBuffer.toString("base64")
         }
       });
     }
