@@ -45,32 +45,26 @@ export default function ProfileClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
 
-  // Добавляем глобальный callback для Telegram Widget
+  // Глобальный callback и вставка виджета Telegram
   useEffect(() => {
+    // 1. Определяем функцию-обработчик
     (window as any).onTelegramAuth = async (user: any) => {
       setIsSubmitting(true);
       try {
-        // Отправляем данные на наш сервер для проверки
         const res = await fetch('/api/auth/telegram', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ widgetData: user }),
         });
 
-        const data = await res.json();
-
         if (res.ok) {
-          // Если проверка прошла, логинимся в Supabase
           const email = `telegram_${user.id}@telegram.local`;
           const password = `secure_${user.id}`;
-
-          const { error } = await supabase.auth.signInWithPassword({ email, password });
-          if (error) throw error;
-
+          await supabase.auth.signInWithPassword({ email, password });
           toast.success('Успешный вход!');
-          router.refresh(); // Обновляем данные профиля
+          router.refresh();
         } else {
-          toast.error(data.error || 'Ошибка входа');
+          toast.error('Ошибка проверки Telegram');
         }
       } catch (err) {
         toast.error('Ошибка соединения');
@@ -78,7 +72,21 @@ export default function ProfileClient({
         setIsSubmitting(false);
       }
     };
-  }, []);
+
+    // 2. Вставляем скрипт виджета в контейнер (если он есть и ещё пуст)
+    const container = document.getElementById('telegram-login-container');
+    if (container && !container.hasChildNodes()) {
+      const script = document.createElement('script');
+      script.src = 'https://telegram.org/js/telegram-widget.js?22';
+      script.setAttribute('data-telegram-login', 'Vitaklimbot'); // Убедитесь, что это имя вашего бота
+      script.setAttribute('data-size', 'large');
+      script.setAttribute('data-radius', '12');
+      script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+      script.setAttribute('data-request-access', 'write');
+      script.async = true;
+      container.appendChild(script);
+    }
+  }, [authMode, router]); // Зависимость от authMode, чтобы скрипт пересоздавался при переключении режима
 
   // Логика входа / регистрации
   const handleAuth = async (e: React.FormEvent) => {
@@ -250,18 +258,8 @@ export default function ProfileClient({
               {authMode === 'login' && (
                 <div className="flex flex-col items-center gap-3 mt-4">
                   <p className="text-white/40 text-xs">Или войти через</p>
-                  {/* Виджет сам отрисует красивую кнопку */}
-                  <div className="bg-white rounded-xl overflow-hidden">
-                    <script
-                      async
-                      src="https://telegram.org/js/telegram-widget.js?22"
-                      data-telegram-login="Vitaklimbot" // Убедись, что это имя твоего бота без @
-                      data-size="large"
-                      data-radius="12"
-                      data-onauth="onTelegramAuth(user)"
-                      data-request-access="write"
-                    ></script>
-                  </div>
+                  {/* Контейнер, в который будет вставлена кнопка Telegram */}
+                  <div id="telegram-login-container"></div>
                 </div>
               )}
             </form>
