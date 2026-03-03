@@ -45,9 +45,9 @@ export default function ProfileClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
 
-  // Глобальный callback и вставка виджета Telegram
+  // Глобальный callback и вставка виджета Telegram (исправленная версия)
   useEffect(() => {
-    // 1. Определяем функцию-обработчик
+    // 1. Определяем функцию-обработчик в глобальной области
     (window as any).onTelegramAuth = async (user: any) => {
       setIsSubmitting(true);
       try {
@@ -73,20 +73,35 @@ export default function ProfileClient({
       }
     };
 
-    // 2. Вставляем скрипт виджета в контейнер (если он есть и ещё пуст)
-    const container = document.getElementById('telegram-login-container');
-    if (container && !container.hasChildNodes()) {
-      const script = document.createElement('script');
-      script.src = 'https://telegram.org/js/telegram-widget.js?22';
-      script.setAttribute('data-telegram-login', 'Vitaklimbot'); // Убедитесь, что это имя вашего бота
-      script.setAttribute('data-size', 'large');
-      script.setAttribute('data-radius', '12');
-      script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-      script.setAttribute('data-request-access', 'write');
-      script.async = true;
-      container.appendChild(script);
-    }
-  }, [authMode, router]); // Зависимость от authMode, чтобы скрипт пересоздавался при переключении режима
+    // 2. Логика вставки скрипта виджета
+    const renderWidget = () => {
+      const container = document.getElementById('telegram-login-container');
+      if (container) {
+        // Очищаем контейнер перед вставкой, чтобы избежать дублирования
+        container.innerHTML = '';
+        const script = document.createElement('script');
+        script.src = 'https://telegram.org/js/telegram-widget.js?22';
+        script.setAttribute('data-telegram-login', 'Vitaklimbot'); // Убедитесь, что это имя вашего бота
+        script.setAttribute('data-size', 'large');
+        script.setAttribute('data-radius', '12');
+        script.setAttribute('data-onauth', 'onTelegramAuth'); // Исправлено: только имя функции
+        script.setAttribute('data-request-access', 'write');
+        script.async = true;
+        container.appendChild(script);
+      }
+    };
+
+    // Даём небольшую задержку, чтобы DOM точно обновился после переключения authMode
+    const timeoutId = setTimeout(renderWidget, 100);
+
+    // Cleanup: удаляем глобальную функцию и предотвращаем выполнение отложенного рендера
+    return () => {
+      clearTimeout(timeoutId);
+      if (typeof window !== 'undefined') {
+        delete (window as any).onTelegramAuth;
+      }
+    };
+  }, [authMode, router]);
 
   // Логика входа / регистрации
   const handleAuth = async (e: React.FormEvent) => {
