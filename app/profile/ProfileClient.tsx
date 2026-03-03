@@ -45,14 +45,13 @@ export default function ProfileClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
 
-  // ОБНОВЛЁННЫЙ useEffect с ожиданием контейнера и authReady
+  // НОВАЯ ВЕРСИЯ useEffect (без интервала, с более агрессивной проверкой)
   useEffect(() => {
-    // Если еще идет первичная загрузка авторизации, ничего не делаем
     if (!authReady) return;
 
-    // 1. Объявляем функцию-коллбэк
-    (window as any).onTelegramAuth = async (tgUser: any) => {
-      console.log("!!! CALLBACK TRIGGERED !!!", tgUser);
+    // 1. Делаем функцию глобальной и "вечной"
+    const onAuth = async (tgUser: any) => {
+      console.log("🚀 TELEGRAM CALLBACK CALLED:", tgUser); // ЕСЛИ ЭТОГО НЕТ В КОНСОЛИ - БЛОКИРУЕТ БРАУЗЕР
       setIsSubmitting(true);
       try {
         const res = await fetch('/api/auth/telegram', {
@@ -70,47 +69,38 @@ export default function ProfileClient({
           if (signInError) throw signInError;
 
           toast.success('Успешный вход!');
-          window.location.href = '/profile'; 
+          window.location.href = '/profile'; // Жесткий редирект для обновления состояния
         } else {
-          toast.error(data.error || 'Ошибка проверки Telegram');
+          toast.error(data.error || 'Ошибка входа');
         }
       } catch (err: any) {
-        console.error("AUTH FATAL ERROR:", err);
-        toast.error('Ошибка входа');
+        console.error("FATAL AUTH ERROR:", err);
+        toast.error('Ошибка соединения с сервером');
       } finally {
         setIsSubmitting(false);
       }
     };
 
-    // 2. Функция вставки скрипта
-    const injectScript = () => {
-      const container = document.getElementById('telegram-login-container');
-      if (container && !container.hasChildNodes()) {
-        const script = document.createElement('script');
-        script.src = 'https://telegram.org/js/telegram-widget.js?22';
-        script.setAttribute('data-telegram-login', 'klexprobot'); 
-        script.setAttribute('data-size', 'large');
-        script.setAttribute('data-radius', '12');
-        script.setAttribute('data-onauth', 'onTelegramAuth'); 
-        script.setAttribute('data-request-access', 'write');
-        script.async = true;
-        container.appendChild(script);
-      }
-    };
+    // Привязываем к window
+    (window as any).onTelegramAuth = onAuth;
 
-    // Запускаем проверку каждые 100мс, пока контейнер не появится (всего 3 секунды)
-    let attempts = 0;
-    const interval = setInterval(() => {
-      attempts++;
-      if (document.getElementById('telegram-login-container') || attempts > 30) {
-        injectScript();
-        clearInterval(interval);
-      }
-    }, 100);
+    // 2. Вставляем скрипт с защитой от дублей
+    const container = document.getElementById('telegram-login-container');
+    if (container && !container.querySelector('iframe')) {
+      container.innerHTML = ''; // Чистим на всякий случай
+      const script = document.createElement('script');
+      script.src = 'https://telegram.org/js/telegram-widget.js?22';
+      script.setAttribute('data-telegram-login', 'klexprobot'); 
+      script.setAttribute('data-size', 'large');
+      script.setAttribute('data-radius', '12');
+      script.setAttribute('data-onauth', 'onTelegramAuth(user)'); // Добавили (user) для надежности
+      script.setAttribute('data-request-access', 'write');
+      script.async = true;
+      container.appendChild(script);
+    }
 
-    return () => clearInterval(interval);
-
-  }, [authMode, authReady]); // Добавили authReady в зависимости
+    // ВАЖНО: Мы не удаляем функцию в cleanup!
+  }, [authMode, authReady]);
 
   // Логика входа / регистрации
   const handleAuth = async (e: React.FormEvent) => {
@@ -283,7 +273,7 @@ export default function ProfileClient({
                 <div className="flex flex-col items-center gap-3 mt-4">
                   <p className="text-white/40 text-xs">Или войти через</p>
                   {/* Контейнер с минимальной высотой для корректного рендера виджета */}
-                  <div id="telegram-login-container" className="min-h-[40px] flex items-center justify-center"></div>
+                  <div id="telegram-login-container" className="min-h-10 flex items-center justify-center"></div>
                 </div>
               )}
             </form>
