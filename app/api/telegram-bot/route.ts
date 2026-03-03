@@ -63,7 +63,7 @@ async function sendMainMenu(chatId: number) {
       text: "Выберите действие:",
       reply_markup: {
         keyboard: [
-          [{ text: "🎨 Сгенерировать" }, { text: "🖼 По фото" }],
+          [{ text: "🎨 Создать картинку" }, { text: "🖼 Сгенерировать по фото" }],
           [{ text: "💰 Баланс" }, { text: "📜 История" }],
           [{ text: "⚙️ Настройки" }, { text: "❓ Помощь" }],
         ],
@@ -328,7 +328,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    if (text === "🎨 Сгенерировать") {
+    if (text === "🎨 Создать картинку") {
       await supabase
         .from("profiles")
         .update({ bot_state: "choosing_model", bot_reference_url: null })
@@ -356,7 +356,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    if (text === "🖼 По фото") {
+    if (text === "🖼 Сгенерировать по фото") {
       await supabase
         .from("profiles")
         .update({
@@ -434,8 +434,8 @@ export async function POST(req: Request) {
     if (text === "❓ Помощь") {
       const helpText = 
         `🚀 *Шпаргалка по KLEX.PRO*\n\n` +
-        `• *🎨 Сгенерировать* — создание картинки по тексту.\n` +
-        `• *🖼 По фото* — изменение вашего фото или создание похожего.\n` +
+        `• *🎨 Создать картинку* — создание картинки по тексту.\n` +
+        `• *🖼 Сгенерировать по фото* — изменение вашего фото или создание похожего.\n` +
         `• *💰 Баланс* — проверка счета и пополнение через ЮKassa.\n\n` +
         `📸 *Как менять формат:* просто напиши в конце запроса \`21:9\`, \`16:9\` или \`9:16\`. Бот сам настроит размер!`;
       
