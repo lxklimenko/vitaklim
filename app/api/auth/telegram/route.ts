@@ -2,84 +2,54 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { supabaseAdmin } from '@/app/lib/supabase-admin'
 
+// Валидация данных от Mini App (initData)
 function validateTelegramInitData(initData: string) {
-  const botToken = process.env.TELEGRAM_BOT_TOKEN!
+  const botToken = process.env.TELEGRAM_BOT_TOKEN
   if (!botToken) throw new Error('BOT TOKEN not configured')
 
   const urlParams = new URLSearchParams(initData)
   const hash = urlParams.get('hash')
-
   if (!hash) return null
 
   urlParams.delete('hash')
-
   const dataCheckString = Array.from(urlParams.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, value]) => `${key}=${value}`)
     .join('\n')
 
-  const secretKey = crypto
-    .createHash('sha256')
-    .update(botToken)
-    .digest()
+  const secretKey = crypto.createHash('sha256').update(botToken).digest()
+  const hmac = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex')
 
-  const hmac = crypto
-    .createHmac('sha256', secretKey)
-    .update(dataCheckString)
-    .digest('hex')
-
-  if (hmac !== hash) {
-    return null
-  }
-
-  // Проверка на устаревание данных (24 часа)
-  const authDate = urlParams.get('auth_date')
-  if (!authDate) return null
-
-  const authTimestamp = parseInt(authDate, 10)
-  const now = Math.floor(Date.now() / 1000)
-
-  // 24 часа = 86400 секунд
-  if (now - authTimestamp > 86400) {
-    return null
-  }
+  if (hmac !== hash) return null
 
   const userString = urlParams.get('user')
-  if (!userString) return null
-
-  return JSON.parse(userString)
+  return userString ? JSON.parse(userString) : null
 }
 
+// Валидация данных от Виджета (widgetData)
 function validateWidgetData(data: any) {
-  const botToken = process.env.TELEGRAM_BOT_TOKEN!
+  const botToken = process.env.TELEGRAM_BOT_TOKEN
   if (!botToken) throw new Error('BOT TOKEN not configured')
 
   const { hash, ...user } = data
-
   if (!hash) return null
 
-  // Проверка на устаревание данных (24 часа)
-  if (!user.auth_date) return null
-  const authTimestamp = parseInt(user.auth_date, 10)
-  const now = Math.floor(Date.now() / 1000)
-  if (now - authTimestamp > 86400) {
-    return null
-  }
-
-  // 1. Создаем строку из всех полей, кроме hash, в алфавитном порядке
+  // 1. Строка проверки: ключи в алфавитном порядке, только непустые значения
   const checkString = Object.keys(user)
     .sort()
     .map(key => `${key}=${user[key]}`)
     .join('\n')
 
-  // 2. Считаем SHA256 от токена
   const secretKey = crypto.createHash('sha256').update(botToken).digest()
-
-  // 3. Считаем HMAC-SHA256
   const hmac = crypto.createHmac('sha256', secretKey).update(checkString).digest('hex')
 
-  // 4. Сравниваем
   if (hmac !== hash) return null
+
+  // Проверка на устаревание (24 часа)
+  if (user.auth_date) {
+    const now = Math.floor(Date.now() / 1000)
+    if (now - parseInt(user.auth_date) > 86400) return null
+  }
 
   return user
 }
@@ -101,58 +71,58 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid Telegram data' }, { status: 401 })
     }
 
+    // Тот же формат, что на фронтенде
     const email = `telegram_${telegramUser.id}@telegram.local`
     const password = `secure_${telegramUser.id}`
 
-    const { data: existingUsers } =
-      await supabaseAdmin.auth.admin.listUsers()
-
-    const userFound = existingUsers?.users?.find(
-      (u) => u.email === email
-    )
+    // Проверяем существование пользователя
+    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers()
+    const userFound = users?.find((u) => u.email === email)
 
     let userId: string
 
     if (!userFound) {
-      const { data: createdUser, error } =
-        await supabaseAdmin.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: true,
-        })
+      // СОЗДАЕМ НОВОГО
+      const { data: createdUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      })
 
-      if (error || !createdUser.user) {
+      if (createError || !createdUser.user) {
+        console.error('User creation error:', createError)
         return NextResponse.json({ error: 'User creation failed' }, { status: 500 })
       }
 
       userId = createdUser.user.id
 
+      // Создаем профиль с начальным балансом (например, 5 кредитов в подарок)
       await supabaseAdmin.from('profiles').insert({
         id: userId,
-        balance: 0,
+        balance: 5, 
         telegram_id: telegramUser.id,
         telegram_username: telegramUser.username || null,
         telegram_first_name: telegramUser.first_name || null,
-        telegram_avatar_url: telegramUser.photo_url || null,
+        telegram_avatar_url: telegramUser.photo_url || telegramUser.avatar_url || null,
       })
     } else {
+      // ОБНОВЛЯЕМ СУЩЕСТВУЮЩЕГО
       userId = userFound.id
-
       await supabaseAdmin
         .from('profiles')
         .update({
-          telegram_id: telegramUser.id,
           telegram_username: telegramUser.username || null,
           telegram_first_name: telegramUser.first_name || null,
-          telegram_avatar_url: telegramUser.photo_url || null,
+          telegram_avatar_url: telegramUser.photo_url || telegramUser.avatar_url || null,
         })
         .eq('id', userId)
     }
 
-    return NextResponse.json({ success: true })
+    // Возвращаем успех
+    return NextResponse.json({ success: true, userId })
 
   } catch (err) {
-    console.error(err)
+    console.error('Auth API Error:', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

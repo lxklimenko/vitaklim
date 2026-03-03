@@ -60,14 +60,23 @@ export default function ProfileClient({
         if (res.ok) {
           const email = `telegram_${user.id}@telegram.local`;
           const password = `secure_${user.id}`;
-          await supabase.auth.signInWithPassword({ email, password });
-          toast.success('Успешный вход!');
-          router.refresh();
+
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+          if (error) throw error;
+
+          toast.success('С возвращением, ' + (user.first_name || 'Алекс') + '!');
+
+          // Даём Supabase секунду обновить куки и перезагружаем страницу
+          setTimeout(() => {
+            window.location.href = '/profile';
+          }, 500);
         } else {
-          toast.error('Ошибка проверки Telegram');
+          const errorData = await res.json();
+          toast.error(errorData.error || 'Ошибка проверки Telegram');
         }
       } catch (err) {
-        toast.error('Ошибка соединения');
+        toast.error('Ошибка входа');
       } finally {
         setIsSubmitting(false);
       }
