@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
   }
 
-  // Используем SERVICE_ROLE_KEY, который имеет права читать базу в обход RLS
+  // Подключаемся к базе как админ, чтобы отдать картинки гостю по ссылке
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 
   try {
     const { data: generations, error } = await supabase
-      .from('generations') // Проверь, так ли называется таблица
+      .from('generations')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
