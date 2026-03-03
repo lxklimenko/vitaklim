@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, LogOut, CreditCard, Mail, User as UserIcon, Loader2 } from 'lucide-react';
@@ -44,6 +44,41 @@ export default function ProfileClient({
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
+
+  // Добавляем глобальный callback для Telegram Widget
+  useEffect(() => {
+    (window as any).onTelegramAuth = async (user: any) => {
+      setIsSubmitting(true);
+      try {
+        // Отправляем данные на наш сервер для проверки
+        const res = await fetch('/api/auth/telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ widgetData: user }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          // Если проверка прошла, логинимся в Supabase
+          const email = `telegram_${user.id}@telegram.local`;
+          const password = `secure_${user.id}`;
+
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+
+          toast.success('Успешный вход!');
+          router.refresh(); // Обновляем данные профиля
+        } else {
+          toast.error(data.error || 'Ошибка входа');
+        }
+      } catch (err) {
+        toast.error('Ошибка соединения');
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+  }, []);
 
   // Логика входа / регистрации
   const handleAuth = async (e: React.FormEvent) => {
@@ -213,14 +248,21 @@ export default function ProfileClient({
               </button>
 
               {authMode === 'login' && (
-                <a
-                  href="https://t.me/Vitaklimbot"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full mt-3 bg-blue-500 text-white font-bold rounded-xl py-3 hover:bg-blue-600 transition text-center block"
-                >
-                  Войти через Telegram
-                </a>
+                <div className="flex flex-col items-center gap-3 mt-4">
+                  <p className="text-white/40 text-xs">Или войти через</p>
+                  {/* Виджет сам отрисует красивую кнопку */}
+                  <div className="bg-white rounded-xl overflow-hidden">
+                    <script
+                      async
+                      src="https://telegram.org/js/telegram-widget.js?22"
+                      data-telegram-login="Vitaklimbot" // Убедись, что это имя твоего бота без @
+                      data-size="large"
+                      data-radius="12"
+                      data-onauth="onTelegramAuth(user)"
+                      data-request-access="write"
+                    ></script>
+                  </div>
+                </div>
               )}
             </form>
 

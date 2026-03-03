@@ -32,7 +32,7 @@ function validateTelegramInitData(initData: string) {
     return null
   }
 
-  // Добавленная проверка на устаревание данных (24 часа)
+  // Проверка на устаревание данных (24 часа)
   const authDate = urlParams.get('auth_date')
   if (!authDate) return null
 
@@ -50,16 +50,52 @@ function validateTelegramInitData(initData: string) {
   return JSON.parse(userString)
 }
 
+function validateWidgetData(data: any) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN!
+  if (!botToken) throw new Error('BOT TOKEN not configured')
+
+  const { hash, ...user } = data
+
+  if (!hash) return null
+
+  // Проверка на устаревание данных (24 часа)
+  if (!user.auth_date) return null
+  const authTimestamp = parseInt(user.auth_date, 10)
+  const now = Math.floor(Date.now() / 1000)
+  if (now - authTimestamp > 86400) {
+    return null
+  }
+
+  // 1. Создаем строку из всех полей, кроме hash, в алфавитном порядке
+  const checkString = Object.keys(user)
+    .sort()
+    .map(key => `${key}=${user[key]}`)
+    .join('\n')
+
+  // 2. Считаем SHA256 от токена
+  const secretKey = crypto.createHash('sha256').update(botToken).digest()
+
+  // 3. Считаем HMAC-SHA256
+  const hmac = crypto.createHmac('sha256', secretKey).update(checkString).digest('hex')
+
+  // 4. Сравниваем
+  if (hmac !== hash) return null
+
+  return user
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { initData } = body
+    const { initData, widgetData } = body
 
-    if (!initData) {
-      return NextResponse.json({ error: 'No initData' }, { status: 400 })
+    let telegramUser: any = null
+
+    if (initData) {
+      telegramUser = validateTelegramInitData(initData)
+    } else if (widgetData) {
+      telegramUser = validateWidgetData(widgetData)
     }
-
-    const telegramUser = validateTelegramInitData(initData)
 
     if (!telegramUser?.id) {
       return NextResponse.json({ error: 'Invalid Telegram data' }, { status: 401 })
