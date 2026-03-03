@@ -81,7 +81,7 @@ export default function ProfileClient({
         container.innerHTML = '';
         const script = document.createElement('script');
         script.src = 'https://telegram.org/js/telegram-widget.js?22';
-        script.setAttribute('data-telegram-login', 'Vitaklimbot'); // Убедитесь, что это имя вашего бота
+        script.setAttribute('data-telegram-login', 'klexprobot'); // Убедитесь, что это имя вашего бота
         script.setAttribute('data-size', 'large');
         script.setAttribute('data-radius', '12');
         script.setAttribute('data-onauth', 'onTelegramAuth'); // Исправлено: только имя функции
