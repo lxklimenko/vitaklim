@@ -29,6 +29,11 @@ export async function generateImageCore({
 }) {
   console.log("START GENERATION:", { userId, prompt, modelId, hasImageBuffer: !!imageBuffer });
 
+  // ========== НОВЫЙ БЛОК: Обработка суффикса 4K ==========
+  const is4KRequested = modelId.endsWith("-4k");
+  const cleanModelId = is4KRequested ? modelId.replace(/-4k$/, "") : modelId;
+  // ======================================================
+
   // 🔥 НОВЫЙ БЛОК: Оптимизируем входящее фото СРАЗУ, чтобы не грузить память
   let optimizedImageBuffer = imageBuffer;
   if (imageBuffer) {
@@ -67,8 +72,7 @@ export async function generateImageCore({
     }
   }
 
-  // 🔥 НОВЫЙ БЛОК: Удаляем старые зависшие "pending" записи пользователя,
-  // чтобы не натыкаться на ошибку "uniq_generations_one_pending_per_user"
+  // 🔥 НОВЫЙ БЛОК: Удаляем старые зависшие "pending" записи пользователя
   await supabase
     .from("generations")
     .delete()
@@ -87,14 +91,20 @@ export async function generateImageCore({
     .single();
 
   if (processingError) {
-    console.error("SUPABASE INSERT ERROR:", processingError); // Видим реальную причину
+    console.error("SUPABASE INSERT ERROR:", processingError);
     throw new Error(`Ошибка БД: ${processingError.message}`);
   }
 
   console.log("PENDING CREATED:", processingRecord.id);
 
-  // Определяем стоимость в зависимости от модели
-  const cost = (modelId === "imagen-4-ultra" || modelId === "dall-e-3") ? 5 : GENERATION_COST;
+  // ========== НОВЫЙ БЛОК: Определение стоимости ==========
+  let cost = GENERATION_COST;
+  if (modelId.includes("4k")) {
+    cost = 10; // Цена за 4K
+  } else if (modelId === "imagen-4-ultra" || modelId === "dall-e-3") {
+    cost = 5;
+  }
+  // ======================================================
 
   // 3️⃣ Всегда списываем баланс через RPC
   const { data: rpcResult } = await supabase.rpc("create_generation", {
@@ -112,7 +122,7 @@ export async function generateImageCore({
   let buffer: Buffer;
 
   if (modelId === "dall-e-3") {
-    // OpenAI DALL-E 3
+    // OpenAI DALL-E 3 (оставляем без изменений, суффикс 4k здесь не обрабатывается)
     console.log("CALLING OPENAI API");
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error("API ключ OpenAI не настроен");
@@ -120,7 +130,6 @@ export async function generateImageCore({
     const openai = new OpenAI({ apiKey });
     let finalPrompt = prompt;
 
-    // Если есть референсное изображение, используем GPT-4o для его описания
     if (optimizedImageBuffer) {
       const visionResponse = await openai.chat.completions.create({
         model: "gpt-4o",
@@ -136,7 +145,6 @@ export async function generateImageCore({
       finalPrompt = `На основе описания: ${visualDescription}. Изменения: ${prompt}`;
     }
 
-    // Динамический выбор размера для DALL-E 3 на основе aspectRatio
     let dallESize: "1024x1024" | "1792x1024" | "1024x1792" = "1024x1024";
     if (aspectRatio === "16:9" || aspectRatio === "21:9") dallESize = "1792x1024";
     else if (aspectRatio === "9:16") dallESize = "1024x1792";
@@ -154,18 +162,17 @@ export async function generateImageCore({
     buffer = Buffer.from(base64Image, "base64");
     console.log("OPENAI RESPONSE RECEIVED");
   } else {
-    // 🌐 ГЕНЕРАЦИЯ ЧЕРЕЗ GOOGLE (Nano, Pro, Ultra)
+    // 🌐 ГЕНЕРАЦИЯ ЧЕРЕЗ GOOGLE (Nano, Pro, Ultra) — используем cleanModelId
     console.log("CALLING GOOGLE API");
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) throw new Error("API key не настроен");
 
-    const isProModel = modelId === "gemini-3-pro-image-preview" || modelId === "imagen-4-ultra";
+    // Определяем Pro модель по очищенному имени
+    const isProModel = cleanModelId === "gemini-3-pro-image-preview" || cleanModelId === "imagen-4-ultra";
 
-    // 1️⃣ Формируем части запроса
     const parts: any[] = [{ text: prompt }];
 
     if (optimizedImageBuffer) {
-      // Используем уже готовую оптимизированную версию
       parts.push({
         inlineData: {
           mimeType: "image/jpeg",
@@ -174,7 +181,6 @@ export async function generateImageCore({
       });
     }
 
-    // 2️⃣ СЕКРЕТНЫЙ КОНФИГ: Форсируем максимальное разрешение и ослабляем фильтры безопасности
     const requestBody = {
       contents: [{ parts }],
       generationConfig: {
@@ -186,7 +192,6 @@ export async function generateImageCore({
         }),
         temperature: isProModel ? 0.35 : 0.7,
       },
-      // 🚨 Ослабляем фильтры, чтобы модель выдавала 4MP без цензурных тормозов
       safetySettings: [
         { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
         { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
@@ -195,9 +200,8 @@ export async function generateImageCore({
       ]
     };
 
-    // 3️⃣ Вызов API
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${cleanModelId}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -215,20 +219,25 @@ export async function generateImageCore({
   }
 
   // ------------------- ОБРАБОТКА И СОХРАНЕНИЕ -------------------
-  // 🚀 ШАГ 4: СУПЕР-ОБРАБОТКА (Smart Upscale для Pro-качества)
+  // 🚀 ШАГ 4: СУПЕР-ОБРАБОТКА (Smart Upscale для Pro-качества) — ЗАМЕНЕН НА НОВЫЙ УМНЫЙ РАСЧЁТ
   let processedBuffer: Buffer;
   try {
-    const isProModel = modelId === "gemini-3-pro-image-preview" || modelId === "imagen-4-ultra";
+    // Определяем Pro модель по очищенному имени (уже есть isProModel, но для блока обработки переопределим для наглядности)
+    const isProModel = cleanModelId === "gemini-3-pro-image-preview" || cleanModelId === "imagen-4-ultra";
     
     // Создаем экземпляр sharp для анализа
     let sharpInstance = sharp(buffer);
-    const metadata = await sharpInstance.metadata();
-
-    // Проверяем: если модель Pro, а разрешение пришло маленькое (менее 1500px по ширине)
-    if (isProModel && metadata.width && metadata.width < 2500) {
-      console.log(`[UPSCALING] Нативное разрешение ${metadata.width}x${metadata.height}. Формат: ${aspectRatio}`);
+    
+    if (isProModel) {
+      console.log(`[UPSCALE] Режим: ${is4KRequested ? '4K' : 'Pro 2K'}`);
       
-      // Пытаемся найти формат в промпте, если aspectRatio не передан или равен "1:1"
+      // Настройка площади и лимитов сторон
+      const targetArea = is4KRequested ? 8294400 : 4194304; // 8.3 Мп для 4K, 4.2 Мп для 2K Pro
+      const MAX_SIDE = is4KRequested ? 3840 : 2560;
+
+      const metadata = await sharpInstance.metadata();
+      
+      // Определяем эффективное соотношение сторон
       let effectiveRatio = aspectRatio || "1:1";
       if (!aspectRatio || aspectRatio === "1:1") {
         const found = prompt.match(/(\d+):(\d+)/);
@@ -236,29 +245,24 @@ export async function generateImageCore({
       }
 
       const ratioParts = effectiveRatio.split(':').map(Number);
-      const wPart = ratioParts[0] || 1;
-      const hPart = ratioParts[1] || 1;
-      const ratio = wPart / hPart;
+      const ratio = (ratioParts[0] || 1) / (ratioParts[1] || 1);
 
-      // Целевая площадь для Pro-качества (4.2 миллиона пикселей)
-      const targetArea = 4194304; 
-
-      // Вычисляем идеальную ширину: sqrt(Площадь * Пропорция)
       let targetWidth = Math.round(Math.sqrt(targetArea * ratio));
-      
-      // Ограничиваем максимальную сторону (для стабильности Telegram и Vercel)
-      const MAX_SIDE = 2560;
       if (targetWidth > MAX_SIDE) targetWidth = MAX_SIDE;
 
-      console.log(`[UPSCALE] Рассчитанная целевая ширина: ${targetWidth}px (формат ${effectiveRatio})`);
-
-      sharpInstance = sharpInstance
-        .resize({ 
-          width: targetWidth, 
-          kernel: sharp.kernel.lanczos3,
-          withoutEnlargement: false 
-        })
-        .sharpen(1.0, 0.5, 0.2);
+      // Увеличиваем только если текущая ширина меньше целевой
+      if (metadata.width && metadata.width < targetWidth) {
+        console.log(`[UPSCALE] Увеличение с ${metadata.width}px до ${targetWidth}px`);
+        sharpInstance = sharpInstance
+          .resize({ 
+            width: targetWidth, 
+            kernel: sharp.kernel.lanczos3,
+            withoutEnlargement: false 
+          })
+          .sharpen(is4KRequested ? 1.5 : 1.0, 0.5, 0.2);
+      } else {
+        console.log(`[UPSCALE] Изображение уже достаточного размера (${metadata.width}px), пропускаем увеличение`);
+      }
     }
 
     // Финальная упаковка без потерь качества
@@ -292,7 +296,6 @@ export async function generateImageCore({
 
   console.log("UPLOADED TO STORAGE:", fileName);
 
-  // Создаём временную ссылку (1 час)
   const { data: signedUrlData, error: signedError } =
     await supabase.storage
       .from(STORAGE_BUCKET)

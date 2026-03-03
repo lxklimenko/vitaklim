@@ -18,7 +18,7 @@ type UserState =
   | "choosing_model"
   | "choosing_format"
   | "choosing_photo_model"
-  | "choosing_photo_format"   // <-- ДОБАВЛЕНО
+  | "choosing_photo_format"
   | "awaiting_prompt"
   | "awaiting_photo"
   | "awaiting_photo_prompt"
@@ -378,6 +378,7 @@ export async function POST(req: Request) {
             keyboard: [
               [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
               [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
+              [{ text: "🔥 Nano Banano Pro (4K)" }], // НОВАЯ КНОПКА
               [{ text: "💎 Ultra (5 кредитов)" }],
               [{ text: "⬅️ Назад" }],
             ],
@@ -482,7 +483,7 @@ export async function POST(req: Request) {
 
     // ================== МАШИНА СОСТОЯНИЙ ==================
 
-    // ====== ВЫБОР МОДЕЛИ ДЛЯ ФОТО (ОБНОВЛЁН) ======
+    // ====== ВЫБОР МОДЕЛИ ДЛЯ ФОТО (ОБНОВЛЁН С 4K) ======
     if (currentState === "choosing_photo_model") {
       if (text === "⬅️ Назад") {
         await supabase.from("profiles").update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null }).eq("id", profile.id);
@@ -499,6 +500,9 @@ export async function POST(req: Request) {
       } else if (text === "🍌 Nano Banana Pro (Gemini 3 Pro)") {
         selectedModelId = "gemini-3-pro-image-preview";
         modelName = "Nano Banana Pro 🚀";
+      } else if (text === "🔥 Nano Banano Pro (4K)") { // НОВОЕ УСЛОВИЕ
+        selectedModelId = "gemini-3-pro-image-preview-4k";
+        modelName = "Nano Banano Pro (4K) 🔥";
       } else if (text === "💎 Ultra (5 кредитов)") {
         selectedModelId = "imagen-4-ultra";
         modelName = "Ultra 💎";
@@ -538,7 +542,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ====== ВЫБОР ФОРМАТА ДЛЯ ФОТО (НОВЫЙ БЛОК) ======
+    // ====== ВЫБОР ФОРМАТА ДЛЯ ФОТО ======
     if (currentState === "choosing_photo_format") {
       if (text === "⬅️ Назад") {
         await supabase.from("profiles").update({ bot_state: "choosing_photo_model" }).eq("id", profile.id);
@@ -553,6 +557,7 @@ export async function POST(req: Request) {
               keyboard: [
                 [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
                 [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
+                [{ text: "🔥 Nano Banano Pro (4K)" }], // НОВАЯ КНОПКА
                 [{ text: "💎 Ultra (5 кредитов)" }],
                 [{ text: "⬅️ Назад" }],
               ],
@@ -593,7 +598,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ====== ОЖИДАЕМ ФОТО (БЕЗ ИЗМЕНЕНИЙ) ======
+    // ====== ОЖИДАЕМ ФОТО ======
     if (currentState === "awaiting_photo") {
       if (!photo) {
         await sendMessage(chatId, "Пожалуйста, отправьте фотографию 📷");
@@ -624,7 +629,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ====== ВЫБОР МОДЕЛИ ДЛЯ ТЕКСТОВОЙ ГЕНЕРАЦИИ (УЖЕ БЫЛО) ======
+    // ====== ВЫБОР МОДЕЛИ ДЛЯ ТЕКСТОВОЙ ГЕНЕРАЦИИ ======
     if (currentState === "choosing_model") {
       if (text === "⬅️ Назад") {
         await supabase.from("profiles").update({ bot_state: "idle", bot_selected_model: null }).eq("id", profile.id);
@@ -681,7 +686,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ====== ВЫБОР ФОРМАТА ДЛЯ ТЕКСТА (УЖЕ БЫЛО) ======
+    // ====== ВЫБОР ФОРМАТА ДЛЯ ТЕКСТА ======
     if (currentState === "choosing_format") {
       if (text === "⬅️ Назад") {
         await supabase.from("profiles").update({ bot_state: "choosing_model" }).eq("id", profile.id);
@@ -799,7 +804,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ====== ОЖИДАНИЕ ПРОМПТА ПОСЛЕ ФОТО (ОБНОВЛЁН) ======
+    // ====== ОЖИДАНИЕ ПРОМПТА ПОСЛЕ ФОТО ======
     if (currentState === "awaiting_photo_prompt") {
       if (!text) {
         await sendMessage(chatId, "Пожалуйста, отправьте текстовое описание для фото ✍️");
