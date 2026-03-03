@@ -67,6 +67,14 @@ export async function generateImageCore({
     }
   }
 
+  // 🔥 НОВЫЙ БЛОК: Удаляем старые зависшие "pending" записи пользователя,
+  // чтобы не натыкаться на ошибку "uniq_generations_one_pending_per_user"
+  await supabase
+    .from("generations")
+    .delete()
+    .eq("user_id", userId)
+    .eq("status", "pending");
+
   // 2️⃣ Создаём запись со статусом pending
   const { data: processingRecord, error: processingError } = await supabase
     .from("generations")
@@ -215,7 +223,7 @@ export async function generateImageCore({
     // Создаем экземпляр sharp для анализа
     let sharpInstance = sharp(buffer);
     const metadata = await sharpInstance.metadata();
-//
+
     // Проверяем: если модель Pro, а разрешение пришло маленькое (менее 1500px по ширине)
     if (isProModel && metadata.width && metadata.width < 2500) {
       console.log(`[UPSCALING] Нативное разрешение ${metadata.width}x${metadata.height}. Формат: ${aspectRatio}`);
