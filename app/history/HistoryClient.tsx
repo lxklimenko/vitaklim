@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Loader2 } from 'lucide-react'
 import { Navigation } from '@/app/components/Navigation'
 import { useAuth } from '@/app/context/AuthContext'
 import { supabase } from '@/app/lib/supabase'
@@ -153,6 +153,36 @@ export default function HistoryClient({ initialGenerations }: Props) {
             </div>
           )}
         </div>
+
+        {/* Модалка подтверждения удаления */}
+        {confirmDeleteId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-zinc-900 border border-white/10 p-6 rounded-3xl max-w-sm w-full shadow-2xl">
+              <h3 className="text-xl font-bold mb-2">Удалить шедевр?</h3>
+              <p className="text-gray-400 mb-6">Это действие нельзя отменить. Картинка исчезнет из истории и из базы данных.</p>
+              
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setConfirmDeleteId(null)}
+                  className="flex-1 py-3 rounded-2xl bg-white/5 hover:bg-white/10 transition font-medium"
+                >
+                  Отмена
+                </button>
+                <button 
+                  onClick={() => {
+                    handleDelete(confirmDeleteId);
+                    setConfirmDeleteId(null);
+                  }}
+                  disabled={!!deletingId}
+                  className="flex-1 py-3 rounded-2xl bg-red-500 hover:bg-red-600 transition font-bold flex items-center justify-center gap-2"
+                >
+                  {deletingId ? <Loader2 className="animate-spin" size={18} /> : 'Удалить'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <Navigation />
       </div>
     </>
