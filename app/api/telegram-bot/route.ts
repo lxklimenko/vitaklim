@@ -12,18 +12,24 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 console.log("SUPABASE URL:", SUPABASE_URL);
 console.log("SERVICE ROLE EXISTS:", !!SUPABASE_SERVICE_ROLE_KEY);
 
-// Маппинг отображаемых названий моделей на ID для API
-const MODEL_NAME_TO_ID: Record<string, string> = {
-  "🍌 Nano Banano 2 (Gemini 3.1 Flash)": "gemini-3.1-flash-image-preview",
-  "🍌 Nano Banana Pro (Gemini 3 Pro)": "gemini-3-pro-image-preview",
-  "🔥 Nano Banano Pro (4K)": "gemini-3-pro-image-preview-4k",
+// ==================== ЗОЛОТОЙ СТАНДАРТ НАЗВАНИЙ ====================
+const MODELS = {
+  NANO2: "🍌 Nano Banano 2 (Gemini 3.1 Flash) — 5 🍌",
+  PRO: "🍌 Nano Banana Pro (Gemini 3 Pro) — 10 🍌",
+  PRO4K: "🔥 Nano Banano Pro (4K) — 15 🍌"
 };
 
-// Стоимость моделей в бананах по отображаемому названию
-const MODEL_PRICES: Record<string, number> = {
-  "🍌 Nano Banano 2 (Gemini 3.1 Flash)": 5,
-  "🍌 Nano Banana Pro (Gemini 3 Pro)": 10,
-  "🔥 Nano Banano Pro (4K)": 15,
+const PRICES: Record<string, number> = {
+  [MODELS.NANO2]: 5,
+  [MODELS.PRO]: 10,
+  [MODELS.PRO4K]: 15
+};
+
+// Маппинг названий моделей (с ценой) на ID для API
+const MODEL_NAME_TO_ID: Record<string, string> = {
+  [MODELS.NANO2]: "gemini-3.1-flash-image-preview",
+  [MODELS.PRO]: "gemini-3-pro-image-preview",
+  [MODELS.PRO4K]: "gemini-3-pro-image-preview-4k",
 };
 
 // Типы состояний бота (для документации)
@@ -358,9 +364,9 @@ export async function POST(req: Request) {
           text: "Выберите модель:",
           reply_markup: {
             keyboard: [
-              [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
-              [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
-              [{ text: "🔥 Nano Banano Pro (4K)" }],
+              [{ text: MODELS.NANO2 }],
+              [{ text: MODELS.PRO }],
+              [{ text: MODELS.PRO4K }],
               [{ text: "⬅️ Назад" }],
             ],
             resize_keyboard: true,
@@ -389,9 +395,9 @@ export async function POST(req: Request) {
           text: "Выберите модель для генерации по фото:",
           reply_markup: {
             keyboard: [
-              [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
-              [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
-              [{ text: "🔥 Nano Banano Pro (4K)" }],
+              [{ text: MODELS.NANO2 }],
+              [{ text: MODELS.PRO }],
+              [{ text: MODELS.PRO4K }],
               [{ text: "⬅️ Назад" }],
             ],
             resize_keyboard: true,
@@ -503,13 +509,13 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // Проверяем, что текст соответствует одной из моделей
-      if (!MODEL_PRICES.hasOwnProperty(text)) {
+      // Проверяем, что текст соответствует одной из моделей (используем MODELS)
+      if (!Object.values(MODELS).includes(text)) {
         await sendMessage(chatId, "Пожалуйста, выберите модель из списка.");
         return NextResponse.json({ ok: true });
       }
 
-      // Сохраняем отображаемое имя модели
+      // Сохраняем отображаемое имя модели (полное, с ценой)
       await supabase
         .from("profiles")
         .update({
@@ -553,9 +559,9 @@ export async function POST(req: Request) {
             text: "Выберите модель для генерации по фото:",
             reply_markup: {
               keyboard: [
-                [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
-                [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
-                [{ text: "🔥 Nano Banano Pro (4K)" }],
+                [{ text: MODELS.NANO2 }],
+                [{ text: MODELS.PRO }],
+                [{ text: MODELS.PRO4K }],
                 [{ text: "⬅️ Назад" }],
               ],
               resize_keyboard: true,
@@ -635,7 +641,7 @@ export async function POST(req: Request) {
       }
 
       // Проверяем, что текст соответствует одной из моделей
-      if (!MODEL_PRICES.hasOwnProperty(text)) {
+      if (!Object.values(MODELS).includes(text)) {
         await sendMessage(chatId, "Пожалуйста, выберите модель из списка.");
         return NextResponse.json({ ok: true });
       }
@@ -683,9 +689,9 @@ export async function POST(req: Request) {
             text: "Выберите модель:",
             reply_markup: {
               keyboard: [
-                [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
-                [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
-                [{ text: "🔥 Nano Banano Pro (4K)" }],
+                [{ text: MODELS.NANO2 }],
+                [{ text: MODELS.PRO }],
+                [{ text: MODELS.PRO4K }],
                 [{ text: "⬅️ Назад" }],
               ],
               resize_keyboard: true,
@@ -730,14 +736,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      const savedModel = profile.bot_selected_model || "🍌 Nano Banano 2 (Gemini 3.1 Flash)|1:1";
+      const savedModel = profile.bot_selected_model || `${MODELS.NANO2}|1:1`;
       const [modelDisplayName] = savedModel.split('|');
-      const cost = MODEL_PRICES[modelDisplayName] || 5;
+      const cost = PRICES[modelDisplayName] || 5;
 
       if (profile.balance < cost) {
         await sendMessage(
           chatId,
-          `❌ Недостаточно бананов. Для этой модели нужно ${cost} 🍌. У вас: ${profile.balance} 🍌\n\nПополните баланс кнопкой "Баланс" в меню.`
+          `❌ Недостаточно средств.\n\nВы выбрали модель за ${cost} 🍌, а у вас всего ${profile.balance} 🍌.\n\nПополните баланс в меню или выберите модель дешевле.`
         );
 
         await supabase
@@ -811,14 +817,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      const savedModel = profile.bot_selected_model || "🍌 Nano Banano 2 (Gemini 3.1 Flash)|1:1";
+      const savedModel = profile.bot_selected_model || `${MODELS.NANO2}|1:1`;
       const [modelDisplayName] = savedModel.split('|');
-      const cost = MODEL_PRICES[modelDisplayName] || 5;
+      const cost = PRICES[modelDisplayName] || 5;
 
       if (profile.balance < cost) {
         await sendMessage(
           chatId,
-          `❌ Недостаточно бананов. Для этой модели нужно ${cost} 🍌. У вас: ${profile.balance} 🍌\n\nПополните баланс кнопкой "Баланс" в меню.`
+          `❌ Недостаточно средств.\n\nВы выбрали модель за ${cost} 🍌, а у вас всего ${profile.balance} 🍌.\n\nПополните баланс в меню или выберите модель дешевле.`
         );
 
         await supabase
