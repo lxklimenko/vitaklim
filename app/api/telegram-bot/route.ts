@@ -156,6 +156,149 @@ async function fetchImageBuffers(urls: string[]): Promise<Buffer[]> {
   return buffers;
 }
 
+// ==================== ЦЕНТРАЛИЗОВАННАЯ ОБРАБОТКА НАЗАД ====================
+async function handleBackNavigation(chatId: number, profile: any) {
+  const currentState = profile.bot_state;
+
+  switch (currentState) {
+    case "choosing_model":
+    case "choosing_photo_model":
+      // Назад из выбора модели -> В главное меню
+      await supabase
+        .from("profiles")
+        .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
+        .eq("id", profile.id);
+      await sendMainMenu(chatId);
+      break;
+
+    case "choosing_format":
+      // Назад из формата текста -> К выбору моделей текста
+      await supabase
+        .from("profiles")
+        .update({ bot_state: "choosing_model" })
+        .eq("id", profile.id);
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: "Выберите модель:",
+          reply_markup: {
+            keyboard: [
+              [{ text: MODELS.NANO2 }],
+              [{ text: MODELS.PRO }],
+              [{ text: MODELS.PRO4K }],
+              [{ text: "⬅️ Назад" }],
+            ],
+            resize_keyboard: true,
+          },
+        }),
+      });
+      break;
+
+    case "choosing_photo_format":
+      // Назад из формата фото -> К выбору моделей фото
+      await supabase
+        .from("profiles")
+        .update({ bot_state: "choosing_photo_model", bot_reference_url: null })
+        .eq("id", profile.id);
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: "Выберите модель для генерации по фото:",
+          reply_markup: {
+            keyboard: [
+              [{ text: MODELS.NANO2 }],
+              [{ text: MODELS.PRO }],
+              [{ text: MODELS.PRO4K }],
+              [{ text: "⬅️ Назад" }],
+            ],
+            resize_keyboard: true,
+          },
+        }),
+      });
+      break;
+
+    case "awaiting_prompt":
+      // Назад из промпта -> К выбору формата текста
+      await supabase
+        .from("profiles")
+        .update({ bot_state: "choosing_format" })
+        .eq("id", profile.id);
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: "Выберите нужный формат изображения:",
+          reply_markup: {
+            keyboard: [
+              [{ text: "⬛ 1:1 (Квадрат)" }],
+              [{ text: "📱 9:16 (Вертикальный)" }, { text: "🖥 16:9 (Горизонтальный)" }],
+              [{ text: "⬅️ Назад" }],
+            ],
+            resize_keyboard: true,
+          },
+        }),
+      });
+      break;
+
+    case "awaiting_photo":
+      // Назад из загрузки фото -> К выбору формата фото
+      await supabase
+        .from("profiles")
+        .update({ bot_state: "choosing_photo_format" })
+        .eq("id", profile.id);
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: "Выберите формат для генерации по фото:",
+          reply_markup: {
+            keyboard: [
+              [{ text: "⬛ 1:1 (Квадрат)" }],
+              [{ text: "📱 9:16 (Вертикальный)" }, { text: "🖥 16:9 (Горизонтальный)" }],
+              [{ text: "⬅️ Назад" }],
+            ],
+            resize_keyboard: true,
+          },
+        }),
+      });
+      break;
+
+    case "awaiting_photo_prompt":
+      // Назад из промпта по фото -> К загрузке фото
+      await supabase
+        .from("profiles")
+        .update({ bot_state: "awaiting_photo" })
+        .eq("id", profile.id);
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: "Вы вернулись к загрузке фото. Можете добавить еще или нажать 'Готово'.",
+          reply_markup: {
+            keyboard: [[{ text: "✅ Готово" }], [{ text: "⬅️ Назад" }]],
+            resize_keyboard: true,
+          },
+        }),
+      });
+      break;
+
+    default:
+      // Если состояние неизвестно или idle, просто показываем главное меню
+      await supabase
+        .from("profiles")
+        .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
+        .eq("id", profile.id);
+      await sendMainMenu(chatId);
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -317,22 +460,23 @@ export async function POST(req: Request) {
         userId = authUser.user.id;
       }
 
+      // Используем upsert для защиты от гонок (если профиль уже создан)
       const { data: newProfile, error } = await supabase
         .from("profiles")
-        .insert({
+        .upsert({
           id: userId,
           telegram_id: telegramId,
           telegram_username: username,
-          balance: 50,
+          balance: 50, // Бонус начислится, только если записи не было
           bot_state: "idle",
           bot_selected_model: null,
-          bot_reference_url: null, // теперь это поле типа text[] (массив ссылок)
+          bot_reference_url: null,
         })
         .select()
         .single();
 
       if (error) {
-        console.error("PROFILE INSERT ERROR:", error);
+        console.error("PROFILE UPSERT ERROR:", error);
         return NextResponse.json({ ok: true });
       }
 
@@ -340,7 +484,13 @@ export async function POST(req: Request) {
     }
 
     const currentState = profile.bot_state ?? "idle";
-    const selectedModel = profile.bot_selected_model;
+
+    // ================== ГЛОБАЛЬНЫЙ ПЕРЕХВАТ КНОПКИ "НАЗАД" ==================
+    if (text === "⬅️ Назад") {
+      console.log("BACK NAVIGATION TRIGGERED");
+      await handleBackNavigation(chatId, profile);
+      return NextResponse.json({ ok: true });
+    }
 
     // ================== ОБРАБОТКА КОМАНД ==================
 
@@ -516,12 +666,6 @@ export async function POST(req: Request) {
 
     // ====== ВЫБОР МОДЕЛИ ДЛЯ ФОТО ======
     if (currentState === "choosing_photo_model") {
-      if (text === "⬅️ Назад") {
-        await supabase.from("profiles").update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null }).eq("id", profile.id);
-        await sendMainMenu(chatId);
-        return NextResponse.json({ ok: true });
-      }
-
       // Проверяем, что текст соответствует одной из моделей (используем MODELS)
       if (!Object.values(MODELS).includes(text)) {
         await sendMessage(chatId, "Пожалуйста, выберите модель из списка.");
@@ -561,29 +705,6 @@ export async function POST(req: Request) {
 
     // ====== ВЫБОР ФОРМАТА ДЛЯ ФОТО ======
     if (currentState === "choosing_photo_format") {
-      if (text === "⬅️ Назад") {
-        await supabase.from("profiles").update({ bot_state: "choosing_photo_model" }).eq("id", profile.id);
-        // Возвращаем клавиатуру моделей для фото с новыми названиями
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: "Выберите модель для генерации по фото:",
-            reply_markup: {
-              keyboard: [
-                [{ text: MODELS.NANO2 }],
-                [{ text: MODELS.PRO }],
-                [{ text: MODELS.PRO4K }],
-                [{ text: "⬅️ Назад" }],
-              ],
-              resize_keyboard: true,
-            },
-          }),
-        });
-        return NextResponse.json({ ok: true });
-      }
-
       // Определяем формат
       let selectedFormat = "1:1";
       if (text.includes("9:16")) selectedFormat = "9:16";
@@ -655,39 +776,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // Обработка кнопки "Назад"
-      if (text === "⬅️ Назад") {
-        // Возвращаемся к выбору модели для фото, сбрасываем фото
-        await supabase
-          .from("profiles")
-          .update({
-            bot_state: "choosing_photo_model",
-            bot_selected_model: null,
-            bot_reference_url: null
-          })
-          .eq("id", profile.id);
-
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: "Выберите модель для генерации по фото:",
-            reply_markup: {
-              keyboard: [
-                [{ text: MODELS.NANO2 }],
-                [{ text: MODELS.PRO }],
-                [{ text: MODELS.PRO4K }],
-                [{ text: "⬅️ Назад" }],
-              ],
-              resize_keyboard: true,
-            },
-          }),
-        });
-
-        return NextResponse.json({ ok: true });
-      }
-
       // Если прислали фото
       if (photo) {
         const largestPhoto = photo[photo.length - 1];
@@ -717,7 +805,7 @@ export async function POST(req: Request) {
       }
 
       // Если прислали любой другой текст, кроме известных кнопок
-      if (text && !["✅ Готово", "⬅️ Назад"].includes(text)) {
+      if (text && !["✅ Готово"].includes(text)) {
         await sendMessage(chatId, "Пожалуйста, отправьте фотографию или нажмите 'Готово'.");
         return NextResponse.json({ ok: true });
       }
@@ -728,12 +816,6 @@ export async function POST(req: Request) {
 
     // ====== ВЫБОР МОДЕЛИ ДЛЯ ТЕКСТОВОЙ ГЕНЕРАЦИИ ======
     if (currentState === "choosing_model") {
-      if (text === "⬅️ Назад") {
-        await supabase.from("profiles").update({ bot_state: "idle", bot_selected_model: null }).eq("id", profile.id);
-        await sendMainMenu(chatId);
-        return NextResponse.json({ ok: true });
-      }
-
       // Проверяем, что текст соответствует одной из моделей
       if (!Object.values(MODELS).includes(text)) {
         await sendMessage(chatId, "Пожалуйста, выберите модель из списка.");
@@ -772,29 +854,6 @@ export async function POST(req: Request) {
 
     // ====== ВЫБОР ФОРМАТА ДЛЯ ТЕКСТА ======
     if (currentState === "choosing_format") {
-      if (text === "⬅️ Назад") {
-        await supabase.from("profiles").update({ bot_state: "choosing_model" }).eq("id", profile.id);
-        
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: "Выберите модель:",
-            reply_markup: {
-              keyboard: [
-                [{ text: MODELS.NANO2 }],
-                [{ text: MODELS.PRO }],
-                [{ text: MODELS.PRO4K }],
-                [{ text: "⬅️ Назад" }],
-              ],
-              resize_keyboard: true,
-            },
-          }),
-        });
-        return NextResponse.json({ ok: true });
-      }
-
       let selectedFormat = "1:1";
       if (text.includes("9:16")) selectedFormat = "9:16";
       else if (text.includes("16:9")) selectedFormat = "16:9";
@@ -828,30 +887,6 @@ export async function POST(req: Request) {
 
     // ====== ОЖИДАНИЕ ПРОМПТА (ТЕКСТ) ======
     if (currentState === "awaiting_prompt") {
-      // Обработка кнопки "Назад"
-      if (text === "⬅️ Назад") {
-        // Возвращаем в состояние выбора формата
-        await supabase.from("profiles").update({ bot_state: "choosing_format" }).eq("id", profile.id);
-        
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: "Выберите нужный формат изображения:",
-            reply_markup: {
-              keyboard: [
-                [{ text: "⬛ 1:1 (Квадрат)" }],
-                [{ text: "📱 9:16 (Вертикальный)" }, { text: "🖥 16:9 (Горизонтальный)" }],
-                [{ text: "⬅️ Назад" }]
-              ],
-              resize_keyboard: true
-            }
-          }),
-        });
-        return NextResponse.json({ ok: true });
-      }
-
       if (!text) {
         await sendMessage(chatId, "Пожалуйста, отправьте текстовое описание ✍️");
         return NextResponse.json({ ok: true });
@@ -889,7 +924,6 @@ export async function POST(req: Request) {
           modelId: modelId,
           aspectRatio: finalRatio,
           supabase,
-          // Явно указываем, что буферы отсутствуют
           imageBuffers: undefined
         });
 
@@ -912,7 +946,7 @@ export async function POST(req: Request) {
         // ВОЗВРАТ СРЕДСТВ:
         await supabase.rpc('increment_balance', { 
           user_id: profile.id, 
-          amount_to_add: cost // Возвращаем ту же сумму, что списали
+          amount_to_add: cost
         });
 
         const friendlyError = "Хьюстон, у нас фильтры! 🛑 ИИ посчитал этот запрос или фото небезопасным. Попробуй изменить описание — бананы мы тебе вернули!";
@@ -930,32 +964,6 @@ export async function POST(req: Request) {
 
     // ====== ОЖИДАНИЕ ПРОМПТА ПОСЛЕ ФОТО ======
     if (currentState === "awaiting_photo_prompt") {
-      // Обработка кнопки "Назад"
-      if (text === "⬅️ Назад") {
-        // Возвращаем в состояние ожидания фото (сбор фото)
-        await supabase
-          .from("profiles")
-          .update({ bot_state: "awaiting_photo" })
-          .eq("id", profile.id);
-
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: "Вы можете добавить ещё фотографии или нажать 'Готово'.",
-            reply_markup: {
-              keyboard: [
-                [{ text: "✅ Готово" }],
-                [{ text: "⬅️ Назад" }]
-              ],
-              resize_keyboard: true
-            }
-          }),
-        });
-        return NextResponse.json({ ok: true });
-      }
-
       if (!text) {
         await sendMessage(chatId, "Пожалуйста, отправьте текстовое описание для фото ✍️");
         return NextResponse.json({ ok: true });
@@ -999,7 +1007,6 @@ export async function POST(req: Request) {
       const finalRatio = detectedRatio !== "1:1" ? detectedRatio : (formatFromDb || "1:1");
 
       try {
-        // Загружаем все фото
         const imageBuffers = await fetchImageBuffers(referenceUrls);
 
         const result = await generateImageCore({
@@ -1008,13 +1015,12 @@ export async function POST(req: Request) {
           modelId: modelId,
           aspectRatio: finalRatio,
           supabase,
-          imageBuffers, // передаём массив буферов
+          imageBuffers,
         });
 
         await sendPhotoBuffer(chatId, result.imageUrl);
         await sendDocumentBuffer(chatId, result.imageUrl);
 
-        // Возвращаем в главное меню после успеха
         await supabase
           .from("profiles")
           .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
@@ -1024,10 +1030,9 @@ export async function POST(req: Request) {
       } catch (error: any) {
         console.error("PHOTO GENERATION ERROR:", error);
 
-        // ВОЗВРАТ СРЕДСТВ:
         await supabase.rpc('increment_balance', { 
           user_id: profile.id, 
-          amount_to_add: cost // Возвращаем ту же сумму, что списали
+          amount_to_add: cost
         });
 
         const friendlyError = "Хьюстон, у нас фильтры! 🛑 ИИ посчитал этот запрос или фото небезопасным. Попробуй изменить описание — бананы мы тебе вернули!";
@@ -1047,13 +1052,11 @@ export async function POST(req: Request) {
     if (currentState === "awaiting_payment_amount") {
       const amount = parseInt(text || "");
       
-      // Минимальная сумма 100 рублей (ограничение платежной системы)
       if (isNaN(amount) || amount < 100) {
         await sendMessage(chatId, "❌ Минимальная сумма пополнения — 100 рублей (ограничение платежной системы).");
         return NextResponse.json({ ok: true });
       }
 
-      // Генерируем инвойс
       const invoiceResponse = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendInvoice`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1077,7 +1080,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // Сбрасываем состояние
       await supabase
         .from("profiles")
         .update({ bot_state: "idle" })
