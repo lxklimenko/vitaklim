@@ -779,7 +779,15 @@ export async function POST(req: Request) {
 
       } catch (error: any) {
         console.error("GENERATION ERROR:", error);
-        await sendMessage(chatId, `❌ Ошибка генерации:\n${error.message}`);
+
+        // ВОЗВРАТ СРЕДСТВ:
+        await supabase.rpc('increment_balance', { 
+          user_id: profile.id, 
+          amount_to_add: cost // Возвращаем ту же сумму, что списали
+        });
+
+        const friendlyError = "Хьюстон, у нас фильтры! 🛑 ИИ посчитал этот запрос или фото небезопасным. Попробуй изменить описание — бананы мы тебе вернули!";
+        await sendMessage(chatId, friendlyError);
 
         await supabase
           .from("profiles")
@@ -854,7 +862,15 @@ export async function POST(req: Request) {
 
       } catch (error: any) {
         console.error("PHOTO GENERATION ERROR:", error);
-        await sendMessage(chatId, `❌ Ошибка генерации:\n${error.message}`);
+
+        // ВОЗВРАТ СРЕДСТВ:
+        await supabase.rpc('increment_balance', { 
+          user_id: profile.id, 
+          amount_to_add: cost // Возвращаем ту же сумму, что списали
+        });
+
+        const friendlyError = "Хьюстон, у нас фильтры! 🛑 ИИ посчитал этот запрос или фото небезопасным. Попробуй изменить описание — бананы мы тебе вернули!";
+        await sendMessage(chatId, friendlyError);
 
         await supabase
           .from("profiles")

@@ -215,6 +215,9 @@ export async function generateImageCore({
     const data = await response.json();
     if (!response.ok) throw new Error(data.error?.message || "Ошибка генерации");
 
+    // 🔍 ДОБАВЛЕННАЯ СТРОКА ЛОГИРОВАНИЯ
+    console.log("GOOGLE RAW RESPONSE:", JSON.stringify(data, null, 2));
+
     const base64Image = data?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData)?.inlineData?.data;
     if (!base64Image) throw new Error("Модель не вернула изображение");
     buffer = Buffer.from(base64Image, "base64");
