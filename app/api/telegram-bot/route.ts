@@ -143,6 +143,19 @@ async function sendDocumentBuffer(chatId: number, imageUrl: string) {
   });
 }
 
+/**
+ * Загружает несколько изображений по URL и возвращает массив буферов
+ */
+async function fetchImageBuffers(urls: string[]): Promise<Buffer[]> {
+  const buffers: Buffer[] = [];
+  for (const url of urls) {
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    buffers.push(Buffer.from(arrayBuffer));
+  }
+  return buffers;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -310,10 +323,10 @@ export async function POST(req: Request) {
           id: userId,
           telegram_id: telegramId,
           telegram_username: username,
-          balance: 0,
+          balance: 50,
           bot_state: "idle",
           bot_selected_model: null,
-          bot_reference_url: null,
+          bot_reference_url: null, // теперь это поле типа text[] (массив ссылок)
         })
         .select()
         .single();
@@ -579,11 +592,13 @@ export async function POST(req: Request) {
       // Склеиваем имя модели и формат
       const newModelStr = `${profile.bot_selected_model}|${selectedFormat}`;
 
+      // Переходим в состояние ожидания фото, показываем клавиатуру с кнопками "Готово" и "Назад"
       await supabase
         .from("profiles")
         .update({
           bot_state: "awaiting_photo",
-          bot_selected_model: newModelStr
+          bot_selected_model: newModelStr,
+          bot_reference_url: null, // сбрасываем массив фото перед новым набором
         })
         .eq("id", profile.id);
 
@@ -592,43 +607,118 @@ export async function POST(req: Request) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `✅ Формат *${selectedFormat}* выбран!\n\nТеперь отправьте фотографию 📷`,
+          text: `✅ Формат *${selectedFormat}* выбран!\n\nТеперь отправляйте фотографии 📷. Можно отправить несколько. Когда закончите, нажмите "Готово".`,
           parse_mode: "Markdown",
-          reply_markup: { remove_keyboard: true }
+          reply_markup: {
+            keyboard: [
+              [{ text: "✅ Готово" }],
+              [{ text: "⬅️ Назад" }]
+            ],
+            resize_keyboard: true
+          }
         }),
       });
 
       return NextResponse.json({ ok: true });
     }
 
-    // ====== ОЖИДАЕМ ФОТО ======
+    // ====== ОЖИДАЕМ ФОТО (возможна отправка нескольких) ======
     if (currentState === "awaiting_photo") {
-      if (!photo) {
-        await sendMessage(chatId, "Пожалуйста, отправьте фотографию 📷");
+      // Обработка кнопки "Готово"
+      if (text === "✅ Готово") {
+        const currentUrls = profile.bot_reference_url;
+        if (!currentUrls || currentUrls.length === 0) {
+          await sendMessage(chatId, "Сначала отправьте хотя бы одно фото.");
+          return NextResponse.json({ ok: true });
+        }
+
+        // Переходим к запросу промпта
+        await supabase
+          .from("profiles")
+          .update({ bot_state: "awaiting_photo_prompt" })
+          .eq("id", profile.id);
+
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "Теперь напишите описание 🎨",
+            reply_markup: { remove_keyboard: true }
+          }),
+        });
+
         return NextResponse.json({ ok: true });
       }
 
-      const largestPhoto = photo[photo.length - 1];
-      const fileId = largestPhoto.file_id;
+      // Обработка кнопки "Назад"
+      if (text === "⬅️ Назад") {
+        // Возвращаемся к выбору модели для фото, сбрасываем фото
+        await supabase
+          .from("profiles")
+          .update({
+            bot_state: "choosing_photo_model",
+            bot_selected_model: null,
+            bot_reference_url: null
+          })
+          .eq("id", profile.id);
 
-      const fileRes = await fetch(
-        `https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`
-      );
-      const fileData = await fileRes.json();
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "Выберите модель для генерации по фото:",
+            reply_markup: {
+              keyboard: [
+                [{ text: MODELS.NANO2 }],
+                [{ text: MODELS.PRO }],
+                [{ text: MODELS.PRO4K }],
+                [{ text: "⬅️ Назад" }],
+              ],
+              resize_keyboard: true,
+            },
+          }),
+        });
 
-      const filePath = fileData.result.file_path;
-      const fileUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`;
+        return NextResponse.json({ ok: true });
+      }
 
-      await supabase
-        .from("profiles")
-        .update({
-          bot_state: "awaiting_photo_prompt",
-          bot_selected_model: profile.bot_selected_model,
-          bot_reference_url: fileUrl,
-        })
-        .eq("id", profile.id);
+      // Если прислали фото
+      if (photo) {
+        const largestPhoto = photo[photo.length - 1];
+        const fileId = largestPhoto.file_id;
 
-      await sendMessage(chatId, "Теперь напишите описание 🎨");
+        const fileRes = await fetch(
+          `https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`
+        );
+        const fileData = await fileRes.json();
+
+        const filePath = fileData.result.file_path;
+        const fileUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`;
+
+        // Добавляем ссылку в массив bot_reference_url
+        const currentUrls = profile.bot_reference_url || [];
+        const updatedUrls = [...currentUrls, fileUrl];
+
+        await supabase
+          .from("profiles")
+          .update({ bot_reference_url: updatedUrls })
+          .eq("id", profile.id);
+
+        // Подтверждаем получение, клавиатура остаётся прежней
+        await sendMessage(chatId, `📸 Фото добавлено (всего ${updatedUrls.length}). Можете добавить ещё или нажать "Готово".`);
+
+        return NextResponse.json({ ok: true });
+      }
+
+      // Если прислали любой другой текст, кроме известных кнопок
+      if (text && !["✅ Готово", "⬅️ Назад"].includes(text)) {
+        await sendMessage(chatId, "Пожалуйста, отправьте фотографию или нажмите 'Готово'.");
+        return NextResponse.json({ ok: true });
+      }
+
+      // Если ничего не подошло (например, пустое сообщение) — игнорируем
       return NextResponse.json({ ok: true });
     }
 
@@ -768,6 +858,8 @@ export async function POST(req: Request) {
           modelId: modelId,
           aspectRatio: finalRatio,
           supabase,
+          // Явно указываем, что буферы отсутствуют
+          imageBuffers: undefined
         });
 
         console.log("SENDING PHOTO:", result.imageUrl);
@@ -812,11 +904,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      if (!profile.bot_reference_url) {
-        await sendMessage(chatId, "Ошибка: фото не найдено.");
-        return NextResponse.json({ ok: true });
-      }
-
       const savedModel = profile.bot_selected_model || `${MODELS.NANO2}|1:1`;
       const [modelDisplayName] = savedModel.split('|');
       const cost = PRICES[modelDisplayName] || 5;
@@ -835,6 +922,18 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
+      // Проверяем наличие фото
+      const referenceUrls = profile.bot_reference_url;
+      if (!referenceUrls || referenceUrls.length === 0) {
+        await sendMessage(chatId, "Ошибка: не найдено ни одного фото. Начните заново.");
+        await supabase
+          .from("profiles")
+          .update({ bot_state: "idle", bot_reference_url: null })
+          .eq("id", profile.id);
+        await sendMainMenu(chatId);
+        return NextResponse.json({ ok: true });
+      }
+
       await sendMessage(chatId, "🎨 Генерация по фото запущена...");
 
       const [modelDisplayNameForGen, formatFromDb] = savedModel.split('|');
@@ -843,9 +942,8 @@ export async function POST(req: Request) {
       const finalRatio = detectedRatio !== "1:1" ? detectedRatio : (formatFromDb || "1:1");
 
       try {
-        const imageResponse = await fetch(profile.bot_reference_url);
-        const imageArrayBuffer = await imageResponse.arrayBuffer();
-        const imageBuffer = Buffer.from(imageArrayBuffer);
+        // Загружаем все фото
+        const imageBuffers = await fetchImageBuffers(referenceUrls);
 
         const result = await generateImageCore({
           userId: profile.id,
@@ -853,7 +951,7 @@ export async function POST(req: Request) {
           modelId: modelId,
           aspectRatio: finalRatio,
           supabase,
-          imageBuffer
+          imageBuffers, // передаём массив буферов
         });
 
         await sendPhotoBuffer(chatId, result.imageUrl);
