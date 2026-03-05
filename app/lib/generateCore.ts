@@ -97,14 +97,17 @@ export async function generateImageCore({
 
   console.log("PENDING CREATED:", processingRecord.id);
 
-  // ========== НОВЫЙ БЛОК: Определение стоимости ==========
-  let cost = GENERATION_COST;
-  if (modelId.includes("4k")) {
-    cost = 10; // Цена за 4K
-  } else if (modelId === "imagen-4-ultra" || modelId === "dall-e-3") {
-    cost = 5;
+  // ========== ОБНОВЛЁННЫЙ БЛОК: Определение стоимости (5, 10, 15) ==========
+  let cost = 5; // Базовая цена (Nano Banano 2 / Gemini Flash)
+
+  if (modelId.includes("-4k")) {
+    cost = 15; // Цена за Nano Banano Pro (4K) 🔥
+  } else if (modelId === "gemini-3-pro-image-preview" || modelId === "imagen-4-ultra") {
+    cost = 10; // Цена за Nano Banana Pro (Pro / Ultra) 🚀
+  } else if (modelId === "dall-e-3") {
+    cost = 15; // DALL-E 3 обычно дорогой, поставим 15 или по твоему усмотрению
   }
-  // ======================================================
+  // =========================================================================
 
   // 3️⃣ Всегда списываем баланс через RPC
   const { data: rpcResult } = await supabase.rpc("create_generation", {

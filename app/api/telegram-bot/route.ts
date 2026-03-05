@@ -12,6 +12,13 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 console.log("SUPABASE URL:", SUPABASE_URL);
 console.log("SERVICE ROLE EXISTS:", !!SUPABASE_SERVICE_ROLE_KEY);
 
+// Стоимость моделей в бананах
+const MODEL_COSTS: Record<string, number> = {
+  "gemini-3.1-flash-image-preview": 5,
+  "gemini-3-pro-image-preview": 10,
+  "gemini-3-pro-image-preview-4k": 15,
+};
+
 // Типы состояний бота (для документации)
 type UserState =
   | "idle"
@@ -344,10 +351,9 @@ export async function POST(req: Request) {
           text: "Выберите модель:",
           reply_markup: {
             keyboard: [
-              [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
-              [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
-              [{ text: "🔥 Nano Banano Pro (4K)" }],
-              // Кнопки Ultra и GPT Image удалены по требованию
+              [{ text: "🍌 Nano Banano 2 (5 🍌)" }],
+              [{ text: "🍌 Nano Banana Pro (10 🍌)" }],
+              [{ text: "🔥 Nano Banano Pro (4K) (15 🍌)" }],
               [{ text: "⬅️ Назад" }],
             ],
             resize_keyboard: true,
@@ -376,10 +382,9 @@ export async function POST(req: Request) {
           text: "Выберите модель для генерации по фото:",
           reply_markup: {
             keyboard: [
-              [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
-              [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
-              [{ text: "🔥 Nano Banano Pro (4K)" }],
-              // Кнопка Ultra удалена по требованию
+              [{ text: "🍌 Nano Banano 2 (5 🍌)" }],
+              [{ text: "🍌 Nano Banana Pro (10 🍌)" }],
+              [{ text: "🔥 Nano Banano Pro (4K) (15 🍌)" }],
               [{ text: "⬅️ Назад" }],
             ],
             resize_keyboard: true,
@@ -494,15 +499,15 @@ export async function POST(req: Request) {
       let selectedModelId = "";
       let modelName = "";
 
-      if (text === "🍌 Nano Banano 2 (Gemini 3.1 Flash)") {
+      if (text === "🍌 Nano Banano 2 (5 🍌)") {
         selectedModelId = "gemini-3.1-flash-image-preview";
-        modelName = "Nano Banano 2";
-      } else if (text === "🍌 Nano Banana Pro (Gemini 3 Pro)") {
+        modelName = "Nano Banano 2 (5 🍌)";
+      } else if (text === "🍌 Nano Banana Pro (10 🍌)") {
         selectedModelId = "gemini-3-pro-image-preview";
-        modelName = "Nano Banana Pro 🚀";
-      } else if (text === "🔥 Nano Banano Pro (4K)") {
+        modelName = "Nano Banana Pro (10 🍌)";
+      } else if (text === "🔥 Nano Banano Pro (4K) (15 🍌)") {
         selectedModelId = "gemini-3-pro-image-preview-4k";
-        modelName = "Nano Banano Pro (4K) 🔥";
+        modelName = "Nano Banano Pro (4K) (15 🍌)";
       } else {
         await sendMessage(chatId, "Пожалуйста, выберите модель из списка.");
         return NextResponse.json({ ok: true });
@@ -552,10 +557,9 @@ export async function POST(req: Request) {
             text: "Выберите модель для генерации по фото:",
             reply_markup: {
               keyboard: [
-                [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
-                [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
-                [{ text: "🔥 Nano Banano Pro (4K)" }],
-                // Кнопка Ultra удалена по требованию
+                [{ text: "🍌 Nano Banano 2 (5 🍌)" }],
+                [{ text: "🍌 Nano Banana Pro (10 🍌)" }],
+                [{ text: "🔥 Nano Banano Pro (4K) (15 🍌)" }],
                 [{ text: "⬅️ Назад" }],
               ],
               resize_keyboard: true,
@@ -637,21 +641,15 @@ export async function POST(req: Request) {
       let selectedModelId = "";
       let modelName = "";
 
-      if (text === "🍌 Nano Banano 2 (Gemini 3.1 Flash)") {
+      if (text === "🍌 Nano Banano 2 (5 🍌)") {
         selectedModelId = "gemini-3.1-flash-image-preview";
-        modelName = "Nano Banano 2";
-      } else if (text === "🍌 Nano Banana Pro (Gemini 3 Pro)") {
+        modelName = "Nano Banano 2 (5 🍌)";
+      } else if (text === "🍌 Nano Banana Pro (10 🍌)") {
         selectedModelId = "gemini-3-pro-image-preview";
-        modelName = "Nano Banana Pro 🚀";
-      } else if (text === "🔥 Nano Banano Pro (4K)") {
+        modelName = "Nano Banana Pro (10 🍌)";
+      } else if (text === "🔥 Nano Banano Pro (4K) (15 🍌)") {
         selectedModelId = "gemini-3-pro-image-preview-4k";
-        modelName = "Nano Banano Pro (4K) 🔥";
-      } else if (text === "💎 Ultra (5 кредитов)") {
-        selectedModelId = "imagen-4-ultra";
-        modelName = "Ultra 💎";
-      } else if (text === "🪄 GPT Image - ИИ фотошоп от OpenAI") {
-        selectedModelId = "dall-e-3";
-        modelName = "GPT Image 🪄";
+        modelName = "Nano Banano Pro (4K) (15 🍌)";
       } else {
         await sendMessage(chatId, "Пожалуйста, выберите модель из списка.");
         return NextResponse.json({ ok: true });
@@ -699,10 +697,9 @@ export async function POST(req: Request) {
             text: "Выберите модель:",
             reply_markup: {
               keyboard: [
-                [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
-                [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
-                [{ text: "🔥 Nano Banano Pro (4K)" }],
-                // Кнопки Ultra и GPT Image удалены по требованию
+                [{ text: "🍌 Nano Banano 2 (5 🍌)" }],
+                [{ text: "🍌 Nano Banana Pro (10 🍌)" }],
+                [{ text: "🔥 Nano Banano Pro (4K) (15 🍌)" }],
                 [{ text: "⬅️ Назад" }],
               ],
               resize_keyboard: true,
@@ -747,10 +744,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      if (profile.balance <= 0) {
+      const savedModel = profile.bot_selected_model || "gemini-3.1-flash-image-preview|1:1";
+      const [modelId] = savedModel.split('|');
+      const cost = MODEL_COSTS[modelId] || 5;
+
+      if (profile.balance < cost) {
         await sendMessage(
           chatId,
-          "❌ Недостаточно средств.\n\nПополни баланс в Mini App."
+          `❌ Недостаточно бананов.\n\nНужно: ${cost} 🍌\nУ вас: ${profile.balance} 🍌\n\nПополните баланс кнопкой "Баланс" в меню.`
         );
 
         await supabase
@@ -763,8 +764,7 @@ export async function POST(req: Request) {
 
       await sendMessage(chatId, "🎨 Генерация запущена...");
 
-      const savedModel = profile.bot_selected_model || "gemini-3.1-flash-image-preview|1:1";
-      const [modelId, formatFromDb] = savedModel.split('|');
+      const [modelIdForGen, formatFromDb] = savedModel.split('|');
       const detectedRatio = extractAspectRatio(text);
       const finalRatio = detectedRatio !== "1:1" ? detectedRatio : (formatFromDb || "1:1");
 
@@ -772,7 +772,7 @@ export async function POST(req: Request) {
         const result = await generateImageCore({
           userId: profile.id,
           prompt: text,
-          modelId: modelId,
+          modelId: modelIdForGen,
           aspectRatio: finalRatio,
           supabase,
         });
@@ -816,10 +816,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      if (profile.balance <= 0) {
+      const savedModel = profile.bot_selected_model || "gemini-3.1-flash-image-preview|1:1";
+      const [modelId] = savedModel.split('|');
+      const cost = MODEL_COSTS[modelId] || 5;
+
+      if (profile.balance < cost) {
         await sendMessage(
           chatId,
-          "❌ Недостаточно средств.\n\nПополни баланс в Mini App."
+          `❌ Недостаточно бананов.\n\nНужно: ${cost} 🍌\nУ вас: ${profile.balance} 🍌\n\nПополните баланс кнопкой "Баланс" в меню.`
         );
 
         await supabase
@@ -833,8 +837,7 @@ export async function POST(req: Request) {
       await sendMessage(chatId, "🎨 Генерация по фото запущена...");
 
       // 1. Распаковываем склеенную строку
-      const savedModel = profile.bot_selected_model || "gemini-3.1-flash-image-preview|1:1";
-      const [modelId, formatFromDb] = savedModel.split('|');
+      const [modelIdForGen, formatFromDb] = savedModel.split('|');
 
       // 2. Приоритет формата: ручной ввод в тексте -> выбранная кнопка -> 1:1
       const detectedRatio = extractAspectRatio(text);
@@ -848,7 +851,7 @@ export async function POST(req: Request) {
         const result = await generateImageCore({
           userId: profile.id,
           prompt: text,
-          modelId: modelId,
+          modelId: modelIdForGen,
           aspectRatio: finalRatio,
           supabase,
           imageBuffer
