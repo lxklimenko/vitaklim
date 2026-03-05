@@ -644,7 +644,11 @@ export async function POST(req: Request) {
           body: JSON.stringify({
             chat_id: chatId,
             text: "Теперь напишите описание 🎨",
-            reply_markup: { remove_keyboard: true }
+            parse_mode: "Markdown",
+            reply_markup: {
+              keyboard: [[{ text: "⬅️ Назад" }]],
+              resize_keyboard: true
+            }
           }),
         });
 
@@ -812,7 +816,10 @@ export async function POST(req: Request) {
           chat_id: chatId,
           text: `✅ Формат *${selectedFormat}* выбран!\n\nНапишите, что нужно создать ✍️`,
           parse_mode: "Markdown",
-          reply_markup: { remove_keyboard: true }
+          reply_markup: {
+            keyboard: [[{ text: "⬅️ Назад" }]],
+            resize_keyboard: true
+          }
         }),
       });
 
@@ -821,6 +828,30 @@ export async function POST(req: Request) {
 
     // ====== ОЖИДАНИЕ ПРОМПТА (ТЕКСТ) ======
     if (currentState === "awaiting_prompt") {
+      // Обработка кнопки "Назад"
+      if (text === "⬅️ Назад") {
+        // Возвращаем в состояние выбора формата
+        await supabase.from("profiles").update({ bot_state: "choosing_format" }).eq("id", profile.id);
+        
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "Выберите нужный формат изображения:",
+            reply_markup: {
+              keyboard: [
+                [{ text: "⬛ 1:1 (Квадрат)" }],
+                [{ text: "📱 9:16 (Вертикальный)" }, { text: "🖥 16:9 (Горизонтальный)" }],
+                [{ text: "⬅️ Назад" }]
+              ],
+              resize_keyboard: true
+            }
+          }),
+        });
+        return NextResponse.json({ ok: true });
+      }
+
       if (!text) {
         await sendMessage(chatId, "Пожалуйста, отправьте текстовое описание ✍️");
         return NextResponse.json({ ok: true });
@@ -899,6 +930,32 @@ export async function POST(req: Request) {
 
     // ====== ОЖИДАНИЕ ПРОМПТА ПОСЛЕ ФОТО ======
     if (currentState === "awaiting_photo_prompt") {
+      // Обработка кнопки "Назад"
+      if (text === "⬅️ Назад") {
+        // Возвращаем в состояние ожидания фото (сбор фото)
+        await supabase
+          .from("profiles")
+          .update({ bot_state: "awaiting_photo" })
+          .eq("id", profile.id);
+
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "Вы можете добавить ещё фотографии или нажать 'Готово'.",
+            reply_markup: {
+              keyboard: [
+                [{ text: "✅ Готово" }],
+                [{ text: "⬅️ Назад" }]
+              ],
+              resize_keyboard: true
+            }
+          }),
+        });
+        return NextResponse.json({ ok: true });
+      }
+
       if (!text) {
         await sendMessage(chatId, "Пожалуйста, отправьте текстовое описание для фото ✍️");
         return NextResponse.json({ ok: true });
