@@ -380,7 +380,7 @@ export async function POST(req: Request) {
               [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
               [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
               [{ text: "🔥 Nano Banano Pro (4K)" }], // НОВАЯ КНОПКА
-              [{ text: "💎 Ultra (5 кредитов)" }],
+              // Кнопка Ultra удалена по требованию
               [{ text: "⬅️ Назад" }],
             ],
             resize_keyboard: true,
@@ -504,9 +504,6 @@ export async function POST(req: Request) {
       } else if (text === "🔥 Nano Banano Pro (4K)") { // НОВОЕ УСЛОВИЕ
         selectedModelId = "gemini-3-pro-image-preview-4k";
         modelName = "Nano Banano Pro (4K) 🔥";
-      } else if (text === "💎 Ultra (5 кредитов)") {
-        selectedModelId = "imagen-4-ultra";
-        modelName = "Ultra 💎";
       } else {
         await sendMessage(chatId, "Пожалуйста, выберите модель из списка.");
         return NextResponse.json({ ok: true });
@@ -559,7 +556,7 @@ export async function POST(req: Request) {
                 [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
                 [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
                 [{ text: "🔥 Nano Banano Pro (4K)" }], // НОВАЯ КНОПКА
-                [{ text: "💎 Ultra (5 кредитов)" }],
+                // Кнопка Ultra удалена по требованию
                 [{ text: "⬅️ Назад" }],
               ],
               resize_keyboard: true,
