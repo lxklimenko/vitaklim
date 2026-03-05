@@ -12,11 +12,18 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 console.log("SUPABASE URL:", SUPABASE_URL);
 console.log("SERVICE ROLE EXISTS:", !!SUPABASE_SERVICE_ROLE_KEY);
 
-// Стоимость моделей в бананах
-const MODEL_COSTS: Record<string, number> = {
-  "gemini-3.1-flash-image-preview": 5,
-  "gemini-3-pro-image-preview": 10,
-  "gemini-3-pro-image-preview-4k": 15,
+// Маппинг отображаемых названий моделей на ID для API
+const MODEL_NAME_TO_ID: Record<string, string> = {
+  "🍌 Nano Banano 2 (Gemini 3.1 Flash)": "gemini-3.1-flash-image-preview",
+  "🍌 Nano Banana Pro (Gemini 3 Pro)": "gemini-3-pro-image-preview",
+  "🔥 Nano Banano Pro (4K)": "gemini-3-pro-image-preview-4k",
+};
+
+// Стоимость моделей в бананах по отображаемому названию
+const MODEL_PRICES: Record<string, number> = {
+  "🍌 Nano Banano 2 (Gemini 3.1 Flash)": 5,
+  "🍌 Nano Banana Pro (Gemini 3 Pro)": 10,
+  "🔥 Nano Banano Pro (4K)": 15,
 };
 
 // Типы состояний бота (для документации)
@@ -351,9 +358,9 @@ export async function POST(req: Request) {
           text: "Выберите модель:",
           reply_markup: {
             keyboard: [
-              [{ text: "🍌 Nano Banano 2 (5 🍌)" }],
-              [{ text: "🍌 Nano Banana Pro (10 🍌)" }],
-              [{ text: "🔥 Nano Banano Pro (4K) (15 🍌)" }],
+              [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
+              [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
+              [{ text: "🔥 Nano Banano Pro (4K)" }],
               [{ text: "⬅️ Назад" }],
             ],
             resize_keyboard: true,
@@ -382,9 +389,9 @@ export async function POST(req: Request) {
           text: "Выберите модель для генерации по фото:",
           reply_markup: {
             keyboard: [
-              [{ text: "🍌 Nano Banano 2 (5 🍌)" }],
-              [{ text: "🍌 Nano Banana Pro (10 🍌)" }],
-              [{ text: "🔥 Nano Banano Pro (4K) (15 🍌)" }],
+              [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
+              [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
+              [{ text: "🔥 Nano Banano Pro (4K)" }],
               [{ text: "⬅️ Назад" }],
             ],
             resize_keyboard: true,
@@ -488,7 +495,7 @@ export async function POST(req: Request) {
 
     // ================== МАШИНА СОСТОЯНИЙ ==================
 
-    // ====== ВЫБОР МОДЕЛИ ДЛЯ ФОТО (ОБНОВЛЁН С 4K) ======
+    // ====== ВЫБОР МОДЕЛИ ДЛЯ ФОТО ======
     if (currentState === "choosing_photo_model") {
       if (text === "⬅️ Назад") {
         await supabase.from("profiles").update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null }).eq("id", profile.id);
@@ -496,29 +503,18 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      let selectedModelId = "";
-      let modelName = "";
-
-      if (text === "🍌 Nano Banano 2 (5 🍌)") {
-        selectedModelId = "gemini-3.1-flash-image-preview";
-        modelName = "Nano Banano 2 (5 🍌)";
-      } else if (text === "🍌 Nano Banana Pro (10 🍌)") {
-        selectedModelId = "gemini-3-pro-image-preview";
-        modelName = "Nano Banana Pro (10 🍌)";
-      } else if (text === "🔥 Nano Banano Pro (4K) (15 🍌)") {
-        selectedModelId = "gemini-3-pro-image-preview-4k";
-        modelName = "Nano Banano Pro (4K) (15 🍌)";
-      } else {
+      // Проверяем, что текст соответствует одной из моделей
+      if (!MODEL_PRICES.hasOwnProperty(text)) {
         await sendMessage(chatId, "Пожалуйста, выберите модель из списка.");
         return NextResponse.json({ ok: true });
       }
 
-      // Переводим в состояние выбора формата для фото и сохраняем ID модели
+      // Сохраняем отображаемое имя модели
       await supabase
         .from("profiles")
         .update({
           bot_state: "choosing_photo_format",
-          bot_selected_model: selectedModelId,
+          bot_selected_model: text,
         })
         .eq("id", profile.id);
 
@@ -528,7 +524,7 @@ export async function POST(req: Request) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `Модель: *${modelName}*\n\nВыберите нужный формат для генерации по фото:`,
+          text: `Модель: *${text}*\n\nВыберите нужный формат для генерации по фото:`,
           parse_mode: "Markdown",
           reply_markup: {
             keyboard: [
@@ -548,7 +544,7 @@ export async function POST(req: Request) {
     if (currentState === "choosing_photo_format") {
       if (text === "⬅️ Назад") {
         await supabase.from("profiles").update({ bot_state: "choosing_photo_model" }).eq("id", profile.id);
-        // Возвращаем клавиатуру моделей для фото
+        // Возвращаем клавиатуру моделей для фото с новыми названиями
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -557,9 +553,9 @@ export async function POST(req: Request) {
             text: "Выберите модель для генерации по фото:",
             reply_markup: {
               keyboard: [
-                [{ text: "🍌 Nano Banano 2 (5 🍌)" }],
-                [{ text: "🍌 Nano Banana Pro (10 🍌)" }],
-                [{ text: "🔥 Nano Banano Pro (4K) (15 🍌)" }],
+                [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
+                [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
+                [{ text: "🔥 Nano Banano Pro (4K)" }],
                 [{ text: "⬅️ Назад" }],
               ],
               resize_keyboard: true,
@@ -574,7 +570,7 @@ export async function POST(req: Request) {
       if (text.includes("9:16")) selectedFormat = "9:16";
       else if (text.includes("16:9")) selectedFormat = "16:9";
 
-      // Склеиваем модель и формат
+      // Склеиваем имя модели и формат
       const newModelStr = `${profile.bot_selected_model}|${selectedFormat}`;
 
       await supabase
@@ -638,28 +634,18 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      let selectedModelId = "";
-      let modelName = "";
-
-      if (text === "🍌 Nano Banano 2 (5 🍌)") {
-        selectedModelId = "gemini-3.1-flash-image-preview";
-        modelName = "Nano Banano 2 (5 🍌)";
-      } else if (text === "🍌 Nano Banana Pro (10 🍌)") {
-        selectedModelId = "gemini-3-pro-image-preview";
-        modelName = "Nano Banana Pro (10 🍌)";
-      } else if (text === "🔥 Nano Banano Pro (4K) (15 🍌)") {
-        selectedModelId = "gemini-3-pro-image-preview-4k";
-        modelName = "Nano Banano Pro (4K) (15 🍌)";
-      } else {
+      // Проверяем, что текст соответствует одной из моделей
+      if (!MODEL_PRICES.hasOwnProperty(text)) {
         await sendMessage(chatId, "Пожалуйста, выберите модель из списка.");
         return NextResponse.json({ ok: true });
       }
 
+      // Сохраняем отображаемое имя модели
       await supabase
         .from("profiles")
         .update({
           bot_state: "choosing_format",
-          bot_selected_model: selectedModelId,
+          bot_selected_model: text,
         })
         .eq("id", profile.id);
 
@@ -668,7 +654,7 @@ export async function POST(req: Request) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `Модель: *${modelName}*\n\nВыберите нужный формат изображения:`,
+          text: `Модель: *${text}*\n\nВыберите нужный формат изображения:`,
           parse_mode: "Markdown",
           reply_markup: {
             keyboard: [
@@ -697,9 +683,9 @@ export async function POST(req: Request) {
             text: "Выберите модель:",
             reply_markup: {
               keyboard: [
-                [{ text: "🍌 Nano Banano 2 (5 🍌)" }],
-                [{ text: "🍌 Nano Banana Pro (10 🍌)" }],
-                [{ text: "🔥 Nano Banano Pro (4K) (15 🍌)" }],
+                [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
+                [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
+                [{ text: "🔥 Nano Banano Pro (4K)" }],
                 [{ text: "⬅️ Назад" }],
               ],
               resize_keyboard: true,
@@ -744,14 +730,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      const savedModel = profile.bot_selected_model || "gemini-3.1-flash-image-preview|1:1";
-      const [modelId] = savedModel.split('|');
-      const cost = MODEL_COSTS[modelId] || 5;
+      const savedModel = profile.bot_selected_model || "🍌 Nano Banano 2 (Gemini 3.1 Flash)|1:1";
+      const [modelDisplayName] = savedModel.split('|');
+      const cost = MODEL_PRICES[modelDisplayName] || 5;
 
       if (profile.balance < cost) {
         await sendMessage(
           chatId,
-          `❌ Недостаточно бананов.\n\nНужно: ${cost} 🍌\nУ вас: ${profile.balance} 🍌\n\nПополните баланс кнопкой "Баланс" в меню.`
+          `❌ Недостаточно бананов. Для этой модели нужно ${cost} 🍌. У вас: ${profile.balance} 🍌\n\nПополните баланс кнопкой "Баланс" в меню.`
         );
 
         await supabase
@@ -764,7 +750,8 @@ export async function POST(req: Request) {
 
       await sendMessage(chatId, "🎨 Генерация запущена...");
 
-      const [modelIdForGen, formatFromDb] = savedModel.split('|');
+      const [modelDisplayNameForGen, formatFromDb] = savedModel.split('|');
+      const modelId = MODEL_NAME_TO_ID[modelDisplayNameForGen];
       const detectedRatio = extractAspectRatio(text);
       const finalRatio = detectedRatio !== "1:1" ? detectedRatio : (formatFromDb || "1:1");
 
@@ -772,7 +759,7 @@ export async function POST(req: Request) {
         const result = await generateImageCore({
           userId: profile.id,
           prompt: text,
-          modelId: modelIdForGen,
+          modelId: modelId,
           aspectRatio: finalRatio,
           supabase,
         });
@@ -816,14 +803,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      const savedModel = profile.bot_selected_model || "gemini-3.1-flash-image-preview|1:1";
-      const [modelId] = savedModel.split('|');
-      const cost = MODEL_COSTS[modelId] || 5;
+      const savedModel = profile.bot_selected_model || "🍌 Nano Banano 2 (Gemini 3.1 Flash)|1:1";
+      const [modelDisplayName] = savedModel.split('|');
+      const cost = MODEL_PRICES[modelDisplayName] || 5;
 
       if (profile.balance < cost) {
         await sendMessage(
           chatId,
-          `❌ Недостаточно бананов.\n\nНужно: ${cost} 🍌\nУ вас: ${profile.balance} 🍌\n\nПополните баланс кнопкой "Баланс" в меню.`
+          `❌ Недостаточно бананов. Для этой модели нужно ${cost} 🍌. У вас: ${profile.balance} 🍌\n\nПополните баланс кнопкой "Баланс" в меню.`
         );
 
         await supabase
@@ -836,10 +823,8 @@ export async function POST(req: Request) {
 
       await sendMessage(chatId, "🎨 Генерация по фото запущена...");
 
-      // 1. Распаковываем склеенную строку
-      const [modelIdForGen, formatFromDb] = savedModel.split('|');
-
-      // 2. Приоритет формата: ручной ввод в тексте -> выбранная кнопка -> 1:1
+      const [modelDisplayNameForGen, formatFromDb] = savedModel.split('|');
+      const modelId = MODEL_NAME_TO_ID[modelDisplayNameForGen];
       const detectedRatio = extractAspectRatio(text);
       const finalRatio = detectedRatio !== "1:1" ? detectedRatio : (formatFromDb || "1:1");
 
@@ -851,7 +836,7 @@ export async function POST(req: Request) {
         const result = await generateImageCore({
           userId: profile.id,
           prompt: text,
-          modelId: modelIdForGen,
+          modelId: modelId,
           aspectRatio: finalRatio,
           supabase,
           imageBuffer
