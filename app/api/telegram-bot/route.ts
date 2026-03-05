@@ -346,9 +346,8 @@ export async function POST(req: Request) {
             keyboard: [
               [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
               [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
-              [{ text: "🔥 Nano Banano Pro (4K)" }], // НОВАЯ КНОПКА
-              [{ text: "💎 Ultra (5 кредитов)" }],
-              [{ text: "🪄 GPT Image - ИИ фотошоп от OpenAI" }],
+              [{ text: "🔥 Nano Banano Pro (4K)" }],
+              // Кнопки Ultra и GPT Image удалены по требованию
               [{ text: "⬅️ Назад" }],
             ],
             resize_keyboard: true,
@@ -379,7 +378,7 @@ export async function POST(req: Request) {
             keyboard: [
               [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
               [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
-              [{ text: "🔥 Nano Banano Pro (4K)" }], // НОВАЯ КНОПКА
+              [{ text: "🔥 Nano Banano Pro (4K)" }],
               // Кнопка Ultra удалена по требованию
               [{ text: "⬅️ Назад" }],
             ],
@@ -501,7 +500,7 @@ export async function POST(req: Request) {
       } else if (text === "🍌 Nano Banana Pro (Gemini 3 Pro)") {
         selectedModelId = "gemini-3-pro-image-preview";
         modelName = "Nano Banana Pro 🚀";
-      } else if (text === "🔥 Nano Banano Pro (4K)") { // НОВОЕ УСЛОВИЕ
+      } else if (text === "🔥 Nano Banano Pro (4K)") {
         selectedModelId = "gemini-3-pro-image-preview-4k";
         modelName = "Nano Banano Pro (4K) 🔥";
       } else {
@@ -555,7 +554,7 @@ export async function POST(req: Request) {
               keyboard: [
                 [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
                 [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
-                [{ text: "🔥 Nano Banano Pro (4K)" }], // НОВАЯ КНОПКА
+                [{ text: "🔥 Nano Banano Pro (4K)" }],
                 // Кнопка Ultra удалена по требованию
                 [{ text: "⬅️ Назад" }],
               ],
@@ -644,7 +643,7 @@ export async function POST(req: Request) {
       } else if (text === "🍌 Nano Banana Pro (Gemini 3 Pro)") {
         selectedModelId = "gemini-3-pro-image-preview";
         modelName = "Nano Banana Pro 🚀";
-      } else if (text === "🔥 Nano Banano Pro (4K)") { // НОВОЕ УСЛОВИЕ
+      } else if (text === "🔥 Nano Banano Pro (4K)") {
         selectedModelId = "gemini-3-pro-image-preview-4k";
         modelName = "Nano Banano Pro (4K) 🔥";
       } else if (text === "💎 Ultra (5 кредитов)") {
@@ -702,9 +701,8 @@ export async function POST(req: Request) {
               keyboard: [
                 [{ text: "🍌 Nano Banano 2 (Gemini 3.1 Flash)" }],
                 [{ text: "🍌 Nano Banana Pro (Gemini 3 Pro)" }],
-                [{ text: "🔥 Nano Banano Pro (4K)" }], // НОВАЯ КНОПКА
-                [{ text: "💎 Ultra (5 кредитов)" }],
-                [{ text: "🪄 GPT Image - ИИ фотошоп от OpenAI" }],
+                [{ text: "🔥 Nano Banano Pro (4K)" }],
+                // Кнопки Ultra и GPT Image удалены по требованию
                 [{ text: "⬅️ Назад" }],
               ],
               resize_keyboard: true,
