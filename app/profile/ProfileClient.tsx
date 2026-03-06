@@ -372,6 +372,22 @@ export default function ProfileClient({
         )}
       </div>
 
+      {/* Юридический блок внизу страницы */}
+      <div className="mt-12 pt-8 border-t border-gray-800 text-center">
+        <div className="flex flex-col md:flex-row justify-center gap-4 text-sm text-gray-500">
+          <a href="/terms" className="hover:text-yellow-500 transition-colors">
+            Публичная оферта
+          </a>
+          <span className="hidden md:inline">•</span>
+          <a href="/privacy" className="hover:text-yellow-500 transition-colors">
+            Политика конфиденциальности
+          </a>
+        </div>
+        <p className="mt-4 text-xs text-gray-600">
+          © 2026 KLEX.PRO — Генерация изображений с помощью ИИ
+        </p>
+      </div>
+
       <Navigation />
     </div>
   );
