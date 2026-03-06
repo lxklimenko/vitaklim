@@ -571,6 +571,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
+    // ================== ИЗМЕНЕНИЕ 1: Баланс с ссылками на оферту и политику ==================
     if (text === "💰 Баланс") {
       await supabase
         .from("profiles")
@@ -582,7 +583,8 @@ export async function POST(req: Request) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `💰 *Ваш баланс:* ${profile.balance} 🍌\n\n_Нажмите кнопку ниже, чтобы пополнить счет на любую сумму_`,
+          text: `💰 *Ваш баланс:* ${profile.balance} 🍌\n\n` +
+                `_Нажимая кнопку «Пополнить», вы принимаете условия_ [Публичной оферты](https://klex.pro/terms) _и_ [Политики конфиденциальности](https://klex.pro/privacy).`,
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [[{ text: "💳 Пополнить баланс", callback_data: "start_payment" }]]
@@ -614,14 +616,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ❓ Помощь
+    // ================== ИЗМЕНЕНИЕ 3: Помощь с ссылкой на юридическую информацию ==================
     if (text === "❓ Помощь") {
       const helpText = 
         `🚀 *Шпаргалка по KLEX.PRO*\n\n` +
         `• *🎨 Создать картинку* — создание картинки по тексту.\n` +
         `• *🖼 Сгенерировать по фото* — изменение вашего фото или создание похожего.\n` +
         `• *💰 Баланс* — проверка счета и пополнение через ЮKassa.\n\n` +
-        `📸 *Как менять формат:* просто напиши в конце запроса \`21:9\`, \`16:9\` или \`9:16\`. Бот сам настроит размер!`;
+        `📸 *Как менять формат:* просто напиши в конце запроса \`21:9\`, \`16:9\` или \`9:16\`. Бот сам настроит размер!\n\n` +
+        `⚖️ [Юридическая информация и оферта](https://klex.pro/terms)`;
       
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
@@ -1057,13 +1060,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
+      // ================== ИЗМЕНЕНИЕ 2: Инвойс с ссылкой на условия ==================
       const invoiceResponse = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendInvoice`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
           title: "Пополнение баланса KLEX",
-          description: `Зачисление ${amount} 🍌 на ваш аккаунт`,
+          description: `Зачисление ${amount} 🍌 на аккаунт. Условия: klex.pro/terms`,
           payload: `topup_${amount}_${profile.id}`,
           provider_token: PAYMENT_PROVIDER_TOKEN,
           currency: "RUB",
