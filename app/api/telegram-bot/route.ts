@@ -584,7 +584,7 @@ export async function POST(req: Request) {
         body: JSON.stringify({
           chat_id: chatId,
           text: `💰 *Ваш баланс:* ${profile.balance} 🍌\n\n` +
-                `_Нажимая кнопку «Пополнить», вы принимаете условия_ [Публичной оферты](https://klex.pro/terms) _и_ [Политики конфиденциальности](https://klex.pro/privacy).`,
+                `_Нажимая кнопку «Пополнить», вы принимаете условия_ [Публичной оферты](https://telegra.ph/PUBLICHNAYA-OFERTA-03-06-6) _и_ [Политики конфиденциальности](https://telegra.ph/Politika-konfidencialnosti-03-06-35).`,
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [[{ text: "💳 Пополнить баланс", callback_data: "start_payment" }]]
@@ -620,11 +620,11 @@ export async function POST(req: Request) {
     if (text === "❓ Помощь") {
       const helpText = 
         `🚀 *Шпаргалка по KLEX.PRO*\n\n` +
-        `• *🎨 Создать картинку* — создание картинки по тексту.\n` +
-        `• *🖼 Сгенерировать по фото* — изменение вашего фото или создание похожего.\n` +
-        `• *💰 Баланс* — проверка счета и пополнение через ЮKassa.\n\n` +
-        `📸 *Как менять формат:* просто напиши в конце запроса \`21:9\`, \`16:9\` или \`9:16\`. Бот сам настроит размер!\n\n` +
-        `⚖️ [Юридическая информация и оферта](https://klex.pro/terms)`;
+        `• *🎨 Создать картинку* — генерация по тексту.\n` +
+        `• *🖼 Сгенерировать по фото* — изменение фото.\n` +
+        `• *💰 Баланс* — пополнение счета.\n\n` +
+        `⚖️ [Публичная оферта](https://telegra.ph/PUBLICHNAYA-OFERTA-03-06-6)\n` +
+        `🔒 [Политика конфиденциальности](https://telegra.ph/Politika-konfidencialnosti-03-06-35)`;
       
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
@@ -1067,7 +1067,7 @@ export async function POST(req: Request) {
         body: JSON.stringify({
           chat_id: chatId,
           title: "Пополнение баланса KLEX",
-          description: `Зачисление ${amount} 🍌 на аккаунт. Условия: klex.pro/terms`,
+          description: `Зачисление ${amount} 🍌. Условия: telegra.ph/PUBLICHNAYA-OFERTA-03-06-6`,
           payload: `topup_${amount}_${profile.id}`,
           provider_token: PAYMENT_PROVIDER_TOKEN,
           currency: "RUB",
