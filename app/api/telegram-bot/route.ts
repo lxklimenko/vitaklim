@@ -571,7 +571,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ================== ИЗМЕНЕНИЕ 1: Баланс с ссылками на оферту и политику ==================
+    // ================== Баланс с ссылками на оферту и политику (и отключенным превью) ==================
     if (text === "💰 Баланс") {
       await supabase
         .from("profiles")
@@ -586,6 +586,7 @@ export async function POST(req: Request) {
           text: `💰 *Ваш баланс:* ${profile.balance} 🍌\n\n` +
                 `_Нажимая кнопку «Пополнить», вы принимаете условия_ [Публичной оферты](https://telegra.ph/PUBLICHNAYA-OFERTA-03-06-6) _и_ [Политики конфиденциальности](https://telegra.ph/Politika-konfidencialnosti-03-06-35).`,
           parse_mode: "Markdown",
+          link_preview_options: { is_disabled: true },
           reply_markup: {
             inline_keyboard: [[{ text: "💳 Пополнить баланс", callback_data: "start_payment" }]]
           },
@@ -616,7 +617,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ================== ИЗМЕНЕНИЕ 3: Помощь с ссылкой на юридическую информацию ==================
+    // ================== Помощь с ссылкой на юридическую информацию (и отключенным превью) ==================
     if (text === "❓ Помощь") {
       const helpText = 
         `🚀 *Шпаргалка по KLEX.PRO*\n\n` +
@@ -633,6 +634,7 @@ export async function POST(req: Request) {
           chat_id: chatId,
           text: helpText,
           parse_mode: "Markdown",
+          link_preview_options: { is_disabled: true },
         }),
       });
       return NextResponse.json({ ok: true });
@@ -1060,7 +1062,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // ================== ИЗМЕНЕНИЕ 2: Инвойс с ссылкой на условия ==================
+      // Инвойс с ссылкой на условия
       const invoiceResponse = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendInvoice`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
