@@ -1019,7 +1019,10 @@ export async function POST(req: Request) {
       const paymentResponse = await fetch(`${SITE_URL}/api/payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount }),
+        body: JSON.stringify({
+          amount,
+          telegramUserId: telegramId
+        }),
       });
 
       const paymentData = await paymentResponse.json();

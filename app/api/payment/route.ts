@@ -32,25 +32,16 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { amount, telegramUserId } = body;
 
-    // Получаем авторизованного пользователя через Supabase или по telegram_id
     const supabase = await createClient();
     let userId: string | null = null;
 
+    // 1️⃣ Если пришёл Telegram пользователь
     if (telegramUserId) {
-      // Ищем профиль по telegram_id
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('id')
         .eq('telegram_id', telegramUserId)
         .maybeSingle();
-
-      if (profileError) {
-        console.error('Error fetching profile by telegram_id:', profileError);
-        return NextResponse.json(
-          { error: 'Database error' },
-          { status: 500 }
-        );
-      }
 
       if (!profile) {
         return NextResponse.json(
@@ -60,8 +51,10 @@ export async function POST(req: Request) {
       }
 
       userId = profile.id;
-    } else {
-      // Обычный вход через сайт
+    }
+
+    // 2️⃣ Если обычный сайт
+    else {
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -111,7 +104,7 @@ export async function POST(req: Request) {
         },
         confirmation: {
           type: 'redirect',
-          return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/profile`, // Make configurable if needed
+          return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/profile`,
         },
         capture: true,
         description: `Пополнение баланса пользователем ${userId}`,
@@ -121,12 +114,8 @@ export async function POST(req: Request) {
         // Чек согласно 54-ФЗ с обязательными полями payment_subject и payment_mode
         receipt: {
           customer: {
-            // email берётся из профиля пользователя – в случае telegramUserId у нас нет email,
-            // но receipt требует email, поэтому можно либо запросить email у пользователя,
-            // либо использовать фиктивный (но это может нарушать 54-ФЗ).
-            // Здесь мы оставляем email из тела запроса (если передан) или пустую строку.
-            // Рекомендуется передавать email вместе с telegramUserId из бота.
-            email: body.email || '', // добавим возможность передавать email
+            // Для Telegram пользователей email нужно передавать отдельно (например, из тела запроса)
+            email: body.email || '',
           },
           items: [
             {
