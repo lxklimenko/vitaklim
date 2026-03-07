@@ -118,7 +118,7 @@ export async function POST(req: Request) {
         },
         confirmation: {
           type: 'redirect',
-          return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/profile`,
+          return_url: `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}`, // изменено на Telegram бота
         },
         capture: true,
         description: `Пополнение баланса пользователем ${userId}`,

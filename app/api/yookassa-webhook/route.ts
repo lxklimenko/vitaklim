@@ -68,6 +68,34 @@ export async function POST(req: Request) {
       }
 
       console.log('✅ Balance updated for user:', userId);
+
+      // --- Отправка уведомления в Telegram ---
+      try {
+        const profileRes = await supabase
+          .from('profiles')
+          .select('telegram_id')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (profileRes.data?.telegram_id) {
+          await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: profileRes.data.telegram_id,
+              text: `✅ Оплата прошла успешно!\n\nНа ваш баланс зачислено ${amount} 🍌`
+            }),
+          });
+          console.log(`📨 Telegram notification sent to user ${userId}`);
+        } else {
+          console.log(`ℹ️ No telegram_id for user ${userId}`);
+        }
+      } catch (telegramError) {
+        // Логируем ошибку, но не прерываем обработку вебхука
+        console.error('⚠️ Failed to send Telegram notification:', telegramError);
+      }
+      // --- Конец блока уведомления ---
+
       return NextResponse.json({ success: true });
     }
 
