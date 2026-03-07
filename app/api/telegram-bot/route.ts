@@ -330,36 +330,52 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ========== 2. ОБРАБОТКА УСПЕШНОГО ПЛАТЕЖА (до получения message) ==========
+    // ========== 2. ОБРАБОТКА УСПЕШНОГО ПЛАТЕЖА (безопасная версия с защитой от дублей) ==========
     if (body.message?.successful_payment) {
       const payment = body.message.successful_payment;
-      const payload = payment.invoice_payload; // 'topup_100_uuid'
-      const amount = payment.total_amount / 100; // из копеек в рубли
-      const userId = payload.split('_')[2]; // извлекаем userId
+      const payload = payment.invoice_payload;
+      const amount = payment.total_amount / 100;
+      const userId = payload.split('_')[2];
 
-      console.log(`💳 PAYMENT SUCCESS: User ${userId}, Amount ${amount}`);
+      const telegramChargeId = payment.telegram_payment_charge_id;
 
-      // Начисляем баланс через RPC (Используем имена, которые помнит кэш Supabase)
-      const { error: rpcError } = await supabase.rpc('increment_balance', { 
+      // Проверяем — не обрабатывали ли уже этот платеж
+      const { data: existing } = await supabase
+        .from('telegram_payments')
+        .select('id')
+        .eq('telegram_payment_charge_id', telegramChargeId)
+        .maybeSingle();
+
+      if (existing) {
+        console.log("⚠️ Payment already processed");
+        return NextResponse.json({ ok: true });
+      }
+
+      // Сохраняем платеж
+      const { error: insertError } = await supabase
+        .from('telegram_payments')
+        .insert({
+          telegram_payment_charge_id: telegramChargeId,
+          user_id: userId,
+          amount
+        });
+
+      if (insertError) {
+        console.error("Insert payment error:", insertError);
+        return NextResponse.json({ ok: true });
+      }
+
+      // Начисляем баланс
+      await supabase.rpc('increment_balance', {
         user_id: userId,
         amount_to_add: amount
       });
 
-      if (rpcError) {
-        console.error("RPC ERROR:", rpcError);
-        await sendMessage(body.message.chat.id, "⚠️ Платеж прошёл, но возникла ошибка при начислении. Свяжитесь с поддержкой.");
-      } else {
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: body.message.chat.id,
-            text: `✅ *Оплата прошла успешно!*\n\nНа ваш баланс зачислено ${amount} 🍌.`,
-            parse_mode: "Markdown"
-          }),
-        });
-      }
-      
+      await sendMessage(
+        body.message.chat.id,
+        `✅ Оплата прошла успешно!\n\nЗачислено ${amount} 🍌`
+      );
+
       return NextResponse.json({ ok: true });
     }
 
