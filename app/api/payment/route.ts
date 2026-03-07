@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { YooCheckout } from '@a2seven/yoo-checkout';
 import { randomUUID } from 'crypto';
-import { createClient } from '@/app/lib/supabase-server';
+import { createClient } from '@supabase/supabase-js';
+
+// Инициализация Supabase с сервисным ключом (для доступа к профилям)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(req: Request) {
   // Allow only POST method
@@ -32,15 +38,14 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { amount, telegramUserId } = body;
 
-    const supabase = await createClient();
     let userId: string | null = null;
 
-    // 1️⃣ Если пришёл Telegram пользователь
+    // 1️⃣ Если пришёл Telegram пользователь — ищем по telegram_id
     if (telegramUserId) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("id")
-        .eq("username", `telegram_${telegramUserId}`)
+        .eq("telegram_id", telegramUserId)   // ищем точно по telegram_id
         .maybeSingle();
 
       if (!profile) {
@@ -55,9 +60,15 @@ export async function POST(req: Request) {
 
     // 2️⃣ Если обычный сайт
     else {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      // Здесь мы не можем использовать сервисный ключ для getUser, потому что это требует сессию.
+      // Вместо этого мы должны получать пользователя из сессии, переданной в куках.
+      // Для этого используем стандартный способ получения сессии (например, через next/headers).
+      // Ниже приведён пример получения текущего пользователя через куки.
+      // Если ваш проект использует другой способ, адаптируйте.
+      const { createRouteHandlerClient } = require('@supabase/auth-helpers-nextjs');
+      const { cookies } = require('next/headers');
+      const supabaseRoute = createRouteHandlerClient({ cookies });
+      const { data: { user } } = await supabaseRoute.auth.getUser();
 
       if (!user) {
         return NextResponse.json(
