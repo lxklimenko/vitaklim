@@ -38,14 +38,14 @@ export async function POST(req: Request) {
     // 1️⃣ Если пришёл Telegram пользователь
     if (telegramUserId) {
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('telegram_id', String(telegramUserId))
+        .from("profiles")
+        .select("id")
+        .eq("username", `telegram_${telegramUserId}`)
         .maybeSingle();
 
       if (!profile) {
         return NextResponse.json(
-          { error: 'User not found' },
+          { error: "User not found" },
           { status: 404 }
         );
       }
