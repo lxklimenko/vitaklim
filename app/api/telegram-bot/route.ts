@@ -5,7 +5,7 @@ import { generateImageCore } from "@/app/lib/generateCore";
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const PAYMENT_PROVIDER_TOKEN = process.env.PAYMENT_PROVIDER_TOKEN!;
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL!; // URL вашего сайта для API оплаты
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -304,82 +304,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("UPDATE RECEIVED:", JSON.stringify(body, null, 2));
 
-    // ========== 1. ОБРАБОТКА PRE_CHECKOUT (ПОДТВЕРЖДЕНИЕ ПЛАТЕЖА) ==========
-    if (body.pre_checkout_query) {
-      console.log("=== 🛠 DEBUG PAYMENT START ===");
-      console.log("HANDLING PRE_CHECKOUT ID:", body.pre_checkout_query.id);
-      
-      const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerPreCheckoutQuery`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pre_checkout_query_id: body.pre_checkout_query.id,
-          ok: true
-        }),
-      });
-
-      const result = await response.json();
-      
-      if (!result.ok) {
-        console.error("❌ Telegram answerPreCheckoutQuery ERROR:", result);
-      } else {
-        console.log("✅ Telegram confirmed pre_checkout. Waiting for user's bank confirmation...");
-      }
-      console.log("=== 🛠 DEBUG PAYMENT END ===");
-      
-      return NextResponse.json({ ok: true });
-    }
-
-    // ========== 2. ОБРАБОТКА УСПЕШНОГО ПЛАТЕЖА (безопасная версия с защитой от дублей) ==========
-    if (body.message?.successful_payment) {
-      const payment = body.message.successful_payment;
-      const payload = payment.invoice_payload;
-      const amount = payment.total_amount / 100;
-      const userId = payload.split('_')[2];
-
-      const telegramChargeId = payment.telegram_payment_charge_id;
-
-      // Проверяем — не обрабатывали ли уже этот платеж
-      const { data: existing } = await supabase
-        .from('telegram_payments')
-        .select('id')
-        .eq('telegram_payment_charge_id', telegramChargeId)
-        .maybeSingle();
-
-      if (existing) {
-        console.log("⚠️ Payment already processed");
-        return NextResponse.json({ ok: true });
-      }
-
-      // Сохраняем платеж
-      const { error: insertError } = await supabase
-        .from('telegram_payments')
-        .insert({
-          telegram_payment_charge_id: telegramChargeId,
-          user_id: userId,
-          amount
-        });
-
-      if (insertError) {
-        console.error("Insert payment error:", insertError);
-        return NextResponse.json({ ok: true });
-      }
-
-      // Начисляем баланс
-      await supabase.rpc('increment_balance', {
-        user_id: userId,
-        amount_to_add: amount
-      });
-
-      await sendMessage(
-        body.message.chat.id,
-        `✅ Оплата прошла успешно!\n\nЗачислено ${amount} 🍌`
-      );
-
-      return NextResponse.json({ ok: true });
-    }
-
-    // ========== 3. ОБРАБОТКА CALLBACK_QUERY (нажатие inline-кнопок) ==========
+    // ========== ОБРАБОТКА CALLBACK_QUERY (нажатие inline-кнопок) ==========
     if (body.callback_query) {
       const cb = body.callback_query;
       const cbChatId = cb.message.chat.id;
@@ -1081,7 +1006,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ====== СОСТОЯНИЕ ОЖИДАНИЯ СУММЫ ПОПОЛНЕНИЯ ======
+    // ====== СОСТОЯНИЕ ОЖИДАНИЯ СУММЫ ПОПОЛНЕНИЯ (НОВАЯ ЛОГИКА) ======
     if (currentState === "awaiting_payment_amount") {
       const amount = parseInt(text || "");
       
@@ -1090,52 +1015,41 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // 🛒 Формируем данные для чека (Фискализация)
-      const providerData = {
-  receipt: {
-    tax_system_code: 2,
-    items: [
-      {
-        description: `Пополнение баланса KLEX (${amount} 🍌)`,
-        quantity: "1.00",
-        amount: {
-          value: amount.toFixed(2),
-          currency: "RUB"
-        },
-        vat_code: 1,
-        payment_subject: "service",
-        payment_mode: "full_payment"
-      }
-    ]
-  }
-};
+      // Вызываем ТВОЙ существующий API оплаты (как на сайте)
+      const paymentResponse = await fetch(`${SITE_URL}/api/payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
+      });
 
-      const invoiceResponse = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendInvoice`, {
+      const paymentData = await paymentResponse.json();
+
+      if (!paymentResponse.ok || !paymentData.confirmationUrl) {
+        console.error("Payment API error:", paymentData);
+        await sendMessage(chatId, "❌ Ошибка создания платежа. Попробуйте позже.");
+        return NextResponse.json({ ok: true });
+      }
+
+      const confirmationUrl = paymentData.confirmationUrl;
+
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          title: "Пополнение баланса KLEX",
-          description: `Зачисление ${amount} 🍌.`,
-          payload: `topup_${amount}_${profile.id}`,
-          provider_token: PAYMENT_PROVIDER_TOKEN,
-          currency: "RUB",
-          prices: [{ label: "Пополнение баланса", amount: Math.floor(amount * 100) }],
-          start_parameter: "topup-balance",
-          // 💎 НОВЫЕ ПОЛЯ ДЛЯ ЮKASSA:
-          provider_data: JSON.stringify(providerData),
-          need_email: true,             // Telegram попросит пользователя ввести email
-          send_email_to_provider: true,  // Telegram передаст email в ЮKassa для чека
+          text: `💳 Пополнение на ${amount} ₽`,
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: "🔗 Перейти к оплате",
+                  url: confirmationUrl
+                }
+              ]
+            ]
+          }
         }),
       });
-
-      const invoiceData = await invoiceResponse.json();
-      
-      if (!invoiceData.ok) {
-        console.error("Ошибка выставления счета:", invoiceData);
-        await sendMessage(chatId, `❌ Ошибка: ${invoiceData.description}`);
-        return NextResponse.json({ ok: true });
-      }
 
       await supabase
         .from("profiles")

@@ -30,22 +30,51 @@ export async function POST(req: Request) {
     const checkout = new YooCheckout({ shopId, secretKey });
 
     const body = await req.json();
-    const { amount } = body;
+    const { amount, telegramUserId } = body;
 
-    // Получаем авторизованного пользователя через Supabase
+    // Получаем авторизованного пользователя через Supabase или по telegram_id
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    let userId: string | null = null;
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    if (telegramUserId) {
+      // Ищем профиль по telegram_id
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('telegram_id', telegramUserId)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('Error fetching profile by telegram_id:', profileError);
+        return NextResponse.json(
+          { error: 'Database error' },
+          { status: 500 }
+        );
+      }
+
+      if (!profile) {
+        return NextResponse.json(
+          { error: 'User not found' },
+          { status: 404 }
+        );
+      }
+
+      userId = profile.id;
+    } else {
+      // Обычный вход через сайт
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+
+      userId = user.id;
     }
-
-    const userId = user.id;
 
     if (!amount) {
       return NextResponse.json(
@@ -92,7 +121,12 @@ export async function POST(req: Request) {
         // Чек согласно 54-ФЗ с обязательными полями payment_subject и payment_mode
         receipt: {
           customer: {
-            email: user.email ?? undefined, // теперь email берётся из профиля пользователя
+            // email берётся из профиля пользователя – в случае telegramUserId у нас нет email,
+            // но receipt требует email, поэтому можно либо запросить email у пользователя,
+            // либо использовать фиктивный (но это может нарушать 54-ФЗ).
+            // Здесь мы оставляем email из тела запроса (если передан) или пустую строку.
+            // Рекомендуется передавать email вместе с telegramUserId из бота.
+            email: body.email || '', // добавим возможность передавать email
           },
           items: [
             {
