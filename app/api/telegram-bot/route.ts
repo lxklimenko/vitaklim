@@ -306,8 +306,10 @@ export async function POST(req: Request) {
 
     // ========== 1. ОБРАБОТКА PRE_CHECKOUT (ПОДТВЕРЖДЕНИЕ ПЛАТЕЖА) ==========
     if (body.pre_checkout_query) {
-      console.log("HANDLING PRE_CHECKOUT:", body.pre_checkout_query.id);
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerPreCheckoutQuery`, {
+      console.log("=== 🛠 DEBUG PAYMENT START ===");
+      console.log("HANDLING PRE_CHECKOUT ID:", body.pre_checkout_query.id);
+      
+      const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerPreCheckoutQuery`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -315,6 +317,16 @@ export async function POST(req: Request) {
           ok: true
         }),
       });
+
+      const result = await response.json();
+      
+      if (!result.ok) {
+        console.error("❌ Telegram answerPreCheckoutQuery ERROR:", result);
+      } else {
+        console.log("✅ Telegram confirmed pre_checkout. Waiting for user's bank confirmation...");
+      }
+      console.log("=== 🛠 DEBUG PAYMENT END ===");
+      
       return NextResponse.json({ ok: true });
     }
 
