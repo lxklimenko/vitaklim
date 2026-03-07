@@ -44,6 +44,8 @@ export default function ProfileClient({
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
+  // Состояние для суммы пополнения
+  const [topUpAmount, setTopUpAmount] = useState<number>(100); // По умолчанию 100
 
   // НОВАЯ ВЕРСИЯ useEffect (без интервала, с более агрессивной проверкой)
   useEffect(() => {
@@ -152,6 +154,12 @@ export default function ProfileClient({
       return;
     }
 
+    // Проверка перед отправкой
+    if (topUpAmount < 50) {
+      toast.error('Минимальная сумма — 50 ₽');
+      return;
+    }
+
     try {
       setIsTopUpLoading(true);
 
@@ -161,7 +169,7 @@ export default function ProfileClient({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: 100,
+          amount: topUpAmount, // Используем значение из поля ввода
           userId: user.id,
         }),
       });
@@ -325,12 +333,40 @@ export default function ProfileClient({
                 </div>
               </div>
 
-              <div className="bg-black/20 rounded-xl p-4 flex items-center justify-between mb-4">
+              {/* Блок баланса и выбора суммы пополнения */}
+              <div className="bg-black/20 rounded-xl p-4 flex flex-col gap-4 mb-4">
                 <div>
                   <p className="text-white/40 text-xs mb-1">Баланс кредитов</p>
-                  <p className="text-2xl font-bold font-mono">{balance}</p>
+                  <p className="text-2xl font-bold font-mono">{balance} 🍌</p>
                 </div>
-                <CreditCard className="text-white/20" />
+                
+                {/* Новое поле ввода суммы */}
+                <div className="space-y-2">
+                  <p className="text-white/40 text-xs">Сумма пополнения (₽)</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="50"
+                      max="10000"
+                      value={topUpAmount}
+                      onChange={(e) => setTopUpAmount(Number(e.target.value))}
+                      className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-white/30"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    {[100, 500, 1000].map((val) => (
+                      <button
+                        key={val}
+                        onClick={() => setTopUpAmount(val)}
+                        className={`flex-1 py-1 px-2 rounded-md text-xs border transition ${
+                          topUpAmount === val ? 'bg-white text-black border-white' : 'border-white/10 text-white/60 hover:border-white/30'
+                        }`}
+                      >
+                        {val} ₽
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               <button
