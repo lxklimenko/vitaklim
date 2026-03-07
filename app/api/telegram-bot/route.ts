@@ -1092,21 +1092,23 @@ export async function POST(req: Request) {
 
       // 🛒 Формируем данные для чека (Фискализация)
       const providerData = {
-        receipt: {
-          tax_system_code: 2, // 👈 Твой код для УСН Доход (6%)
-          items: [
-            {
-              description: `Пополнение баланса KLEX (${amount} 🍌)`,
-              quantity: "1.00",
-              amount: {
-                value: amount.toFixed(2),
-                currency: "RUB"
-              },
-              vat_code: 1 // 1 — Без НДС (обязательно для УСН)
-            }
-          ]
-        }
-      };
+  receipt: {
+    tax_system_code: 2,
+    items: [
+      {
+        description: `Пополнение баланса KLEX (${amount} 🍌)`,
+        quantity: "1.00",
+        amount: {
+          value: amount.toFixed(2),
+          currency: "RUB"
+        },
+        vat_code: 1,
+        payment_subject: "service",
+        payment_mode: "full_payment"
+      }
+    ]
+  }
+};
 
       const invoiceResponse = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendInvoice`, {
         method: "POST",
