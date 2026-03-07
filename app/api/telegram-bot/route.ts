@@ -42,7 +42,8 @@ type UserState =
   | "awaiting_prompt"
   | "awaiting_photo"
   | "awaiting_photo_prompt"
-  | "awaiting_payment_amount";
+  | "awaiting_payment_email"      // новое состояние для ввода email
+  | "awaiting_payment_amount";     // состояние для ввода суммы (после email)
 
 /**
  * Ищет в тексте формат (например, 21:9, 9 на 16 или 1:1).
@@ -289,6 +290,50 @@ async function handleBackNavigation(chatId: number, profile: any) {
       });
       break;
 
+    // Новые состояния для пополнения баланса
+    case "awaiting_payment_email":
+      // Назад из ввода email -> возврат в меню баланса (inline-кнопка)
+      await supabase
+        .from("profiles")
+        .update({ bot_state: "idle", bot_selected_model: null })
+        .eq("id", profile.id);
+      // Показываем баланс с кнопкой пополнения (как при нажатии "💰 Баланс")
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `💰 *Ваш баланс:* ${profile.balance} 🍌\n\n` +
+                `_Нажимая кнопку «Пополнить», вы принимаете условия_ [Публичной оферты](https://telegra.ph/PUBLICHNAYA-OFERTA-03-06-6) _и_ [Политики конфиденциальности](https://telegra.ph/Politika-konfidencialnosti-03-06-35).`,
+          parse_mode: "Markdown",
+          link_preview_options: { is_disabled: true },
+          reply_markup: {
+            inline_keyboard: [[{ text: "💳 Пополнить баланс", callback_data: "start_payment" }]]
+          },
+        }),
+      });
+      break;
+
+    case "awaiting_payment_amount":
+      // Назад из ввода суммы -> возврат к вводу email
+      await supabase
+        .from("profiles")
+        .update({ bot_state: "awaiting_payment_email", bot_selected_model: null })
+        .eq("id", profile.id);
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: "Введите ваш email для получения чека:",
+          reply_markup: {
+            keyboard: [[{ text: "⬅️ Назад" }]],
+            resize_keyboard: true,
+          },
+        }),
+      });
+      break;
+
     default:
       // Если состояние неизвестно или idle, просто показываем главное меню
       await supabase
@@ -337,9 +382,13 @@ export async function POST(req: Request) {
 
       // Обработка нажатия кнопки "Пополнить баланс"
       if (cbData === "start_payment") {
+        // Переходим в состояние запроса email
         await supabase
           .from("profiles")
-          .update({ bot_state: "awaiting_payment_amount" })
+          .update({
+            bot_state: "awaiting_payment_email",
+            bot_selected_model: null, // очищаем возможный предыдущий email
+          })
           .eq("id", cbProfile.id);
 
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -347,7 +396,11 @@ export async function POST(req: Request) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             chat_id: cbChatId,
-            text: "Введите сумму пополнения в рублях ✍️\n(Например: 100, 200 или 500)",
+            text: "Введите ваш email для получения чека:",
+            reply_markup: {
+              keyboard: [[{ text: "⬅️ Назад" }]],
+              resize_keyboard: true,
+            },
           }),
         });
 
@@ -1006,12 +1059,70 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ====== СОСТОЯНИЕ ОЖИДАНИЯ СУММЫ ПОПОЛНЕНИЯ (НОВАЯ ЛОГИКА) ======
+    // ====== СОСТОЯНИЕ ОЖИДАНИЯ EMAIL (НОВОЕ) ======
+    if (currentState === "awaiting_payment_email") {
+      // Проверяем, что введённый текст похож на email
+      const email = text?.trim();
+      if (!email || !email.includes('@') || !email.includes('.')) {
+        await sendMessage(chatId, "❌ Пожалуйста, введите корректный email (например, example@domain.com).");
+        return NextResponse.json({ ok: true });
+      }
+
+      // Сохраняем email в bot_selected_model (временно)
+      await supabase
+        .from("profiles")
+        .update({
+          bot_state: "awaiting_payment_amount",
+          bot_selected_model: email, // сохраняем email
+        })
+        .eq("id", profile.id);
+
+      // Запрашиваем сумму
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: "Введите сумму пополнения в рублях ✍️\n(Например: 100, 200 или 500)",
+          reply_markup: {
+            keyboard: [[{ text: "⬅️ Назад" }]],
+            resize_keyboard: true,
+          },
+        }),
+      });
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // ====== СОСТОЯНИЕ ОЖИДАНИЯ СУММЫ ПОПОЛНЕНИЯ ======
     if (currentState === "awaiting_payment_amount") {
       const amount = parseInt(text || "");
       
       if (isNaN(amount) || amount < 100) {
         await sendMessage(chatId, "❌ Минимальная сумма пополнения — 100 рублей.");
+        return NextResponse.json({ ok: true });
+      }
+
+      // Получаем сохранённый email из bot_selected_model
+      const userEmail = profile.bot_selected_model;
+      if (!userEmail) {
+        // Если email почему-то не сохранился, возвращаем к его вводу
+        await supabase
+          .from("profiles")
+          .update({ bot_state: "awaiting_payment_email", bot_selected_model: null })
+          .eq("id", profile.id);
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "Пожалуйста, введите ваш email заново:",
+            reply_markup: {
+              keyboard: [[{ text: "⬅️ Назад" }]],
+              resize_keyboard: true,
+            },
+          }),
+        });
         return NextResponse.json({ ok: true });
       }
 
@@ -1021,7 +1132,8 @@ export async function POST(req: Request) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount,
-          telegramUserId: telegramId
+          telegramUserId: telegramId,
+          email: userEmail, // передаём email
         }),
       });
 
@@ -1054,9 +1166,10 @@ export async function POST(req: Request) {
         }),
       });
 
+      // Сбрасываем состояние и временные данные
       await supabase
         .from("profiles")
-        .update({ bot_state: "idle" })
+        .update({ bot_state: "idle", bot_selected_model: null })
         .eq("id", profile.id);
 
       return NextResponse.json({ ok: true });
