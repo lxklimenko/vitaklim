@@ -161,7 +161,7 @@ export default function ProfileClient({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: 10,
+          amount: 100,
           userId: user.id,
         }),
       });

@@ -107,7 +107,7 @@ export async function POST(req: Request) {
               payment_mode: 'full_payment',    // признак способа расчета — полный расчет
             },
           ],
-          tax_system_code: 1, // ОСН (общая система налогообложения)
+          tax_system_code: 2, // ОСН (общая система налогообложения)
         },
       },
       idempotenceKey
