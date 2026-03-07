@@ -124,10 +124,6 @@ export async function POST(req: Request) {
         },
         // Чек согласно 54-ФЗ с обязательными полями payment_subject и payment_mode
         receipt: {
-          customer: {
-            // Для Telegram пользователей email нужно передавать отдельно (например, из тела запроса)
-            email: body.email || '',
-          },
           items: [
             {
               description: 'Пополнение баланса',
