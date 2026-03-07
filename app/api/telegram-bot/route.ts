@@ -1077,6 +1077,7 @@ export async function POST(req: Request) {
       // 🛒 Формируем данные для чека (Фискализация)
       const providerData = {
         receipt: {
+          tax_system_code: 2, // 👈 Твой код для УСН Доход (6%)
           items: [
             {
               description: `Пополнение баланса KLEX (${amount} 🍌)`,
@@ -1085,7 +1086,7 @@ export async function POST(req: Request) {
                 value: amount.toFixed(2),
                 currency: "RUB"
               },
-              vat_code: 1 // 1 — без НДС (самый частый вариант для ИП/самозанятых)
+              vat_code: 1 // 1 — Без НДС (обязательно для УСН)
             }
           ]
         }
