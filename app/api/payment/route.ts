@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       const { data: profile } = await supabase
         .from('profiles')
         .select('id')
-        .eq('telegram_id', telegramUserId)
+        .eq('telegram_id', String(telegramUserId))
         .maybeSingle();
 
       if (!profile) {
