@@ -44,8 +44,8 @@ export default function ProfileClient({
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
-  // Состояние для суммы пополнения
-  const [topUpAmount, setTopUpAmount] = useState<number>(100); // По умолчанию 100
+  // Состояние для суммы пополнения – теперь строка, чтобы удобно стирать
+  const [topUpAmount, setTopUpAmount] = useState<string>("100");
 
   // НОВАЯ ВЕРСИЯ useEffect (без интервала, с более агрессивной проверкой)
   useEffect(() => {
@@ -149,13 +149,14 @@ export default function ProfileClient({
   };
 
   const handleTopUp = async () => {
+    const numericAmount = parseInt(topUpAmount); // Превращаем строку в число
+
     if (!user) {
       toast.error('Нужно войти в аккаунт');
       return;
     }
 
-    // Проверка перед отправкой
-    if (topUpAmount < 50) {
+    if (!numericAmount || numericAmount < 50) {
       toast.error('Минимальная сумма — 50 ₽');
       return;
     }
@@ -169,7 +170,7 @@ export default function ProfileClient({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: topUpAmount, // Используем значение из поля ввода
+          amount: numericAmount, // Отправляем число
           userId: user.id,
         }),
       });
@@ -340,16 +341,21 @@ export default function ProfileClient({
                   <p className="text-2xl font-bold font-mono">{balance} 🍌</p>
                 </div>
                 
-                {/* Новое поле ввода суммы */}
+                {/* Поле ввода суммы */}
                 <div className="space-y-2">
                   <p className="text-white/40 text-xs">Сумма пополнения (₽)</p>
                   <div className="flex gap-2">
                     <input
                       type="number"
-                      min="50"
-                      max="10000"
+                      placeholder="Введите сумму"
                       value={topUpAmount}
-                      onChange={(e) => setTopUpAmount(Number(e.target.value))}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        // Разрешаем вводить только цифры и пустую строку
+                        if (val === "" || /^\d+$/.test(val)) {
+                          setTopUpAmount(val);
+                        }
+                      }}
                       className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-white/30"
                     />
                   </div>
@@ -357,9 +363,9 @@ export default function ProfileClient({
                     {[100, 500, 1000].map((val) => (
                       <button
                         key={val}
-                        onClick={() => setTopUpAmount(val)}
+                        onClick={() => setTopUpAmount(val.toString())}
                         className={`flex-1 py-1 px-2 rounded-md text-xs border transition ${
-                          topUpAmount === val ? 'bg-white text-black border-white' : 'border-white/10 text-white/60 hover:border-white/30'
+                          topUpAmount === val.toString() ? 'bg-white text-black border-white' : 'border-white/10 text-white/60 hover:border-white/30'
                         }`}
                       >
                         {val} ₽
