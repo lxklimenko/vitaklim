@@ -1070,23 +1070,43 @@ export async function POST(req: Request) {
       const amount = parseInt(text || "");
       
       if (isNaN(amount) || amount < 100) {
-        await sendMessage(chatId, "❌ Минимальная сумма пополнения — 100 рублей (ограничение платежной системы).");
+        await sendMessage(chatId, "❌ Минимальная сумма пополнения — 100 рублей.");
         return NextResponse.json({ ok: true });
       }
 
-      // Инвойс с ссылкой на условия
+      // 🛒 Формируем данные для чека (Фискализация)
+      const providerData = {
+        receipt: {
+          items: [
+            {
+              description: `Пополнение баланса KLEX (${amount} 🍌)`,
+              quantity: "1.00",
+              amount: {
+                value: amount.toFixed(2),
+                currency: "RUB"
+              },
+              vat_code: 1 // 1 — без НДС (самый частый вариант для ИП/самозанятых)
+            }
+          ]
+        }
+      };
+
       const invoiceResponse = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendInvoice`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
           title: "Пополнение баланса KLEX",
-          description: `Зачисление ${amount} 🍌. Условия: telegra.ph/PUBLICHNAYA-OFERTA-03-06-6`,
+          description: `Зачисление ${amount} 🍌.`,
           payload: `topup_${amount}_${profile.id}`,
           provider_token: PAYMENT_PROVIDER_TOKEN,
           currency: "RUB",
           prices: [{ label: "Пополнение баланса", amount: Math.floor(amount * 100) }],
           start_parameter: "topup-balance",
+          // 💎 НОВЫЕ ПОЛЯ ДЛЯ ЮKASSA:
+          provider_data: JSON.stringify(providerData),
+          need_email: true,             // Telegram попросит пользователя ввести email
+          send_email_to_provider: true,  // Telegram передаст email в ЮKassa для чека
         }),
       });
 
