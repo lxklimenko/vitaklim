@@ -1,85 +1,80 @@
-export const runtime = 'nodejs'
+export const runtime = 'nodejs';
 
-import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import crypto from 'crypto'
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { YooCheckout } from '@a2seven/yoo-checkout';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+);
+
+// Инициализируем ЮKassa для проверки статуса
+const checkout = new YooCheckout({
+  shopId: process.env.YOOKASSA_SHOP_ID!,
+  secretKey: process.env.YOOKASSA_SECRET_KEY!,
+});
 
 export async function POST(req: Request) {
   try {
-    const rawBody = await req.text()
-    const signature = req.headers.get('content-hmac')
+    const body = await req.json();
+    console.log('📦 Webhook received:', body.event);
 
-    if (!signature) {
-      return NextResponse.json({ error: 'No signature' }, { status: 401 })
+    // Берем ID платежа из уведомления
+    const paymentId = body.object?.id;
+
+    if (!paymentId) {
+      return NextResponse.json({ error: 'No payment ID' }, { status: 400 });
     }
 
-    const secret = process.env.YOOKASSA_WEBHOOK_SECRET!
+    // 🛡 ПРОВЕРКА ПОДЛИННОСТИ: Запрашиваем статус напрямую у ЮKassa
+    const payment = await checkout.getPayment(paymentId);
 
-    const hash = crypto
-      .createHmac('sha256', secret)
-      .update(rawBody)
-      .digest('hex')
+    // Если ЮKassa подтверждает, что статус 'succeeded'
+    if (payment.status === 'succeeded') {
+      const userId = payment.metadata?.userId;
+      const amount = Number(payment.amount?.value);
 
-    if (hash !== signature) {
-      console.error('Invalid webhook signature')
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-    }
-
-    const body = JSON.parse(rawBody)
-
-    // Более строгая проверка: событие должно быть payment.succeeded И статус платежа должен быть succeeded
-    if (
-      body.event !== 'payment.succeeded' ||
-      body.object?.status !== 'succeeded'
-    ) {
-      return NextResponse.json({ ok: true })
-    }
-
-    const payment = body.object
-    const userId = payment.metadata?.userId
-    const amount = Number(payment.amount?.value)
-    const yookassaId = payment.id
-
-    if (!userId || !amount || !yookassaId) {
-      return NextResponse.json({ error: 'Invalid metadata' }, { status: 400 })
-    }
-
-    const { data: existingPayment } = await supabase
-      .from('payments')
-      .select('id')
-      .eq('yookassa_id', yookassaId)
-      .maybeSingle()
-
-    if (existingPayment) {
-      return NextResponse.json({ ok: true })
-    }
-
-    const { error: rpcError } = await supabase.rpc(
-      'process_successful_payment',
-      {
-        p_user_id: userId,
-        p_amount: amount,
-        p_yookassa_id: yookassaId
+      if (!userId || !amount) {
+        console.error('❌ Metadata missing in payment');
+        return NextResponse.json({ error: 'Invalid metadata' }, { status: 400 });
       }
-    )
 
-    if (rpcError) {
-      console.error('RPC payment error:', rpcError)
-      return NextResponse.json(
-        { error: 'Payment processing failed' },
-        { status: 500 }
-      )
+      // Проверяем, не обрабатывали ли мы этот платеж ранее
+      const { data: existingPayment } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('yookassa_id', paymentId)
+        .maybeSingle();
+
+      if (existingPayment) {
+        console.log('⚠️ Payment already processed');
+        return NextResponse.json({ ok: true });
+      }
+
+      // Начисляем баланс через твою RPC функцию
+      const { error: rpcError } = await supabase.rpc(
+        'process_successful_payment',
+        {
+          p_user_id: userId,
+          p_amount: amount,
+          p_yookassa_id: paymentId
+        }
+      );
+
+      if (rpcError) {
+        console.error('❌ RPC error:', rpcError);
+        return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
+      }
+
+      console.log('✅ Balance updated for user:', userId);
+      return NextResponse.json({ success: true });
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ ok: true });
 
   } catch (error) {
-    console.error('Webhook error:', error)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    console.error('🚨 Webhook fatal error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
