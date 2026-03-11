@@ -325,6 +325,6 @@ export async function generateImageCore({
 
   return {
     imageUrl: publicUrl,
-    generationId: processingRecord.id
+    generationId: processingRecord.id //х
   };
 }
