@@ -600,20 +600,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ================== Баланс с ссылками на оферту и политику (и отключенным превью) ==================
+    // 💰 Баланс + 👥 Рефералы (Всё в одном!)
     if (text === "💰 Баланс") {
       await supabase
         .from("profiles")
         .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
         .eq("id", profile.id);
 
+      // Генерируем ссылку (как мы делали раньше)
+      const refCode = profile.referral_code || username;
+      const botUsername = "vitaklim_test_bot"; // 👈 ЗАМЕНИ НА ЮЗЕРНЕЙМ ТВОЕГО ТЕСТОВОГО БОТА
+      const refLink = `https://t.me/${botUsername}?start=${refCode}`;
+
+      const balanceText = 
+        `💰 *Ваш баланс:* ${profile.balance} 🍌\n\n` +
+        `👥 *Приглашено друзей:* ${profile.referrals_count || 0}\n` +
+        `🎁 За каждого друга вы получаете *10 🍌*\n\n` +
+        `🔗 *Ваша ссылка для приглашения:* \n\`${refLink}\` \n\n` +
+        `_Нажимая кнопку «Пополнить», вы принимаете условия_ [Оферты](https://telegra.ph/PUBLICHNAYA-OFERTA-03-06-6).`;
+
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `💰 *Ваш баланс:* ${profile.balance} 🍌\n\n` +
-                `_Нажимая кнопку «Пополнить», вы принимаете условия_ [Публичной оферты](https://telegra.ph/PUBLICHNAYA-OFERTA-03-06-6) _и_ [Политики конфиденциальности](https://telegra.ph/Politika-konfidencialnosti-03-06-35).`,
+          text: balanceText,
           parse_mode: "Markdown",
           link_preview_options: { is_disabled: true },
           reply_markup: {
