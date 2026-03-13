@@ -477,6 +477,7 @@ export async function POST(req: Request) {
           bot_state: "idle",
           bot_selected_model: null,
           bot_reference_url: null,
+          referrer_id: null, // для нового пользователя поле пригласившего отсутствует
         })
         .select()
         .single();
@@ -500,15 +501,37 @@ export async function POST(req: Request) {
 
     // ================== ОБРАБОТКА КОМАНД ==================
 
-    if (text === "/start") {
+    // ================== ОБРАБОТКА КОМАНДЫ /START ==================
+    if (text?.startsWith("/start")) {
+      const parts = text.split(" ");
+      // Если ссылка была t.me/bot?start=Alex, то parts[1] будет "Alex"
+      const refCodeFromUrl = parts.length > 1 ? parts[1] : null;
+
+      // Обновляем профиль: ставим статус idle и привязываем красивый код (username)
       await supabase
         .from("profiles")
-        .update({
+        .update({ 
           bot_state: "idle",
-          bot_selected_model: null,
-          bot_reference_url: null,
+          referral_code: username // Твой ник становится твоим кодом для друзей
         })
         .eq("id", profile.id);
+
+      // Проверяем: это новый пользователь или "старичок"?
+      // (если у него еще нет referrer_id и он создан только что)
+      const isNewUser = !profile.referrer_id; 
+
+      if (refCodeFromUrl && isNewUser) {
+        // Вызываем нашу функцию в Supabase, которую мы создали через SQL
+        const { error: refError } = await supabase.rpc('handle_referral', {
+          new_user_id: profile.id,
+          ref_code: refCodeFromUrl
+        });
+
+        if (!refError) {
+          console.log(`🎁 Реферал сработал! Код: ${refCodeFromUrl}`);
+          await sendMessage(chatId, "🎁 Привет! Вы зашли по приглашению. Вашему другу начислено 10 🍌!");
+        }
+      }
 
       await sendMessage(
         chatId,
