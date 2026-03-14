@@ -6,7 +6,7 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL!; // URL вашего сайта для API оплаты
-const ADMIN_ID = 323655436; // 👈 ID администратора для уведомлений
+const ADMIN_ID = 323655436; // 👈 ID администратора для уведомлений и админ‑панели
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -77,8 +77,23 @@ async function sendMessage(chatId: number, text: string) {
   });
 }
 
-// Обновлённое главное меню с новыми кнопками
+// ==================== ОБНОВЛЁННОЕ ГЛАВНОЕ МЕНЮ ====================
 async function sendMainMenu(chatId: number) {
+  // 1. Проверяем: админ или обычный пользователь
+  const isAdmin = chatId === Number(ADMIN_ID);
+
+  // 2. Базовый набор кнопок для всех
+  const keyboard = [
+    [{ text: "🎨 Создать картинку" }, { text: "🖼 Сгенерировать по фото" }],
+    [{ text: "💰 Баланс" }, { text: "📜 История" }],
+    [{ text: "⚙️ Настройки" }, { text: "❓ Помощь" }],
+  ];
+
+  // 3. Если админ – добавляем кнопку админ‑панели в конец
+  if (isAdmin) {
+    keyboard.push([{ text: "🔐 Админ-панель" }]);
+  }
+
   await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -86,11 +101,7 @@ async function sendMainMenu(chatId: number) {
       chat_id: chatId,
       text: "Выберите действие:",
       reply_markup: {
-        keyboard: [
-          [{ text: "🎨 Создать картинку" }, { text: "🖼 Сгенерировать по фото" }],
-          [{ text: "💰 Баланс" }, { text: "📜 История" }],
-          [{ text: "⚙️ Настройки" }, { text: "❓ Помощь" }],
-        ],
+        keyboard: keyboard,
         resize_keyboard: true,
       },
     }),
@@ -291,7 +302,6 @@ async function handleBackNavigation(chatId: number, profile: any) {
       });
       break;
 
-    // Новые состояния для пополнения баланса
     case "awaiting_payment_email":
       // Назад из ввода email -> возврат в меню баланса (inline-кнопка)
       await supabase
@@ -701,6 +711,38 @@ export async function POST(req: Request) {
           chat_id: chatId,
           text: "⚙️ *Настройки*\n\nСкоро здесь можно будет выбрать модель по умолчанию и настроить авто-улучшение лиц.",
           parse_mode: "Markdown",
+        }),
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    // ================== НОВЫЙ ОБРАБОТЧИК АДМИН-ПАНЕЛИ ==================
+    if (text === "🔐 Админ-панель" && telegramId === Number(ADMIN_ID)) {
+      const userEmail = `telegram_${telegramId}@klex.pro`;
+      
+      // Генерируем ссылку для входа без пароля (Magic Link)
+      const { data, error } = await supabase.auth.admin.generateLink({
+        type: 'magiclink',
+        email: userEmail,
+        options: { redirectTo: `${SITE_URL}/admin` } 
+      });
+
+      if (error) {
+        console.error("Magic link error:", error);
+        await sendMessage(chatId, "❌ Ошибка генерации доступа.");
+        return NextResponse.json({ ok: true });
+      }
+
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `🚀 *Вход в Dashboard*\n\nНажми кнопку ниже, чтобы авторизоваться в админке без пароля. Ссылка активна один раз.`,
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [[{ text: "🔑 Войти как Админ", url: data.properties.action_link }]]
+          },
         }),
       });
       return NextResponse.json({ ok: true });
