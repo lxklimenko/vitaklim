@@ -1,7 +1,7 @@
 import { createClient } from '@/app/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import Chart from './Chart'
-import UsersChart from './UsersChart' // <-- добавлен импорт
+import UsersChart from './UsersChart'
 
 export default async function AdminPage() {
   const supabase = await createClient()
@@ -10,7 +10,20 @@ export default async function AdminPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user || user.email !== 'klim93@bk.ru') {
+  // 1. Если вообще не залогинен — 404
+  if (!user) {
+    notFound()
+  }
+
+  // 2. Ищем профиль в таблице, чтобы проверить статус админа
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', user.id)
+    .single()
+
+  // 3. Если в базе не стоит галочка is_admin — 404
+  if (!profile?.is_admin) {
     notFound()
   }
 
