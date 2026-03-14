@@ -6,6 +6,7 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL!; // URL вашего сайта для API оплаты
+const ADMIN_ID = 323655436; // 👈 ID администратора для уведомлений
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -530,6 +531,8 @@ export async function POST(req: Request) {
         if (!refError) {
           if (result === 'success') {
             await sendMessage(chatId, "🎁 Привет! Вы зашли по приглашению. Вашему другу начислено 10 🍌!");
+            // Уведомление администратору о новом реферале
+            await sendMessage(ADMIN_ID, `🔔 *Реферал!* \nКто-то только что пришел по ссылке. Пригласившему начислено 10 🍌`);
           } else if (result === 'self_referral') {
             await sendMessage(chatId, "🍌 Это ваша собственная ссылка. Приглашайте друзей, чтобы получать бонусы!");
           }
