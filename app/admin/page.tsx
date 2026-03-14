@@ -15,15 +15,18 @@ export default async function AdminPage() {
     notFound()
   }
 
-  // 2. Ищем профиль в таблице, чтобы проверить статус админа
+  // 2. ПРОВЕРКА ТВОЕГО ID (Вставляем сюда твой UUID)
+  const MY_ADMIN_ID = '0ec2da81-c1d4-46d8-bedc-6b65e0e6f4b4';
+
+  // Проверяем статус в базе
   const { data: profile } = await supabase
     .from('profiles')
     .select('is_admin')
     .eq('id', user.id)
     .single()
 
-  // 3. Если в базе не стоит галочка is_admin — 404
-  if (!profile?.is_admin) {
+  // Если это не твой ID И в базе нет галочки админа — тогда 404
+  if (user.id !== MY_ADMIN_ID && !profile?.is_admin) {
     notFound()
   }
 
