@@ -1,106 +1,32 @@
 import { createClient } from '@/app/lib/supabase-server'
-import { notFound } from 'next/navigation'
-import Chart from './Chart'
-import UsersChart from './UsersChart'
 
 export default async function AdminPage() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  // 1. Если вообще не залогинен — 404
   if (!user) {
-    notFound()
+    return <div className="p-20 bg-red-900 text-white">❌ Ошибка: Вы не авторизованы. Сессия не найдена.</div>
   }
 
-  // 2. ПРОВЕРКА ТВОЕГО ID (Вставляем сюда твой UUID)
-  const MY_ADMIN_ID = '0ec2da81-c1d4-46d8-bedc-6b65e0e6f4b4';
-
-  // Проверяем статус в базе
   const { data: profile } = await supabase
     .from('profiles')
-    .select('is_admin')
+    .select('*')
     .eq('id', user.id)
     .single()
 
-  // Если это не твой ID И в базе нет галочки админа — тогда 404
-  if (user.id !== MY_ADMIN_ID && !profile?.is_admin) {
-    notFound()
-  }
-
-  const { data: stats } = await supabase
-    .from('today_dashboard')
-    .select('*')
-    .single()
-
-  if (!stats) {
-    return <div className="p-10 text-white">Нет данных за сегодня</div>
-  }
-
-  const { data: chart7 } = await supabase
-    .from('last_7_days_stats')
-    .select('*')
-
-  const { data: chart30 } = await supabase
-    .from('last_30_days_stats')
-    .select('*')
-
-  // Запрос данных ежедневно активных пользователей
-  const { data: dau } = await supabase
-    .from('daily_active_users')
-    .select('*')
-
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white p-10">
-      <h1 className="text-3xl font-bold mb-10">Admin Dashboard</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card title="Генерации" value={stats.total_generations} />
-        <Card title="Успешные" value={stats.completed} />
-        <Card title="Ошибки" value={stats.failed} />
-
-        <Card title="Выручка" value={stats.total_revenue ?? 0} />
-        <Card title="Ultra" value={stats.ultra_count} />
-        <Card title="Ultra выручка" value={stats.ultra_revenue ?? 0} />
-
-        <Card title="Активные пользователи" value={stats.active_users} />
-        <Card
-          title="Среднее время (сек)"
-          value={
-            stats.avg_generation_time_ms
-              ? (stats.avg_generation_time_ms / 1000).toFixed(2)
-              : 0
-          }
-        />
-        <Card title="ARPU" value={Number(stats.arpu).toFixed(2)} />
-        <Card title="Refunds" value={stats.refund_count} />
-      </div>
-
-      {(chart7 || chart30) && (
-        <div className="mt-16">
-          <h2 className="text-2xl font-bold mb-6">Статистика за периоды</h2>
-          <Chart chart7={chart7} chart30={chart30} />
-        </div>
+    <div className="p-20 bg-slate-900 text-white font-mono">
+      <h1 className="text-2xl mb-4">🔍 Диагностика доступа</h1>
+      <p>Твой текущий ID: <span className="text-yellow-400">{user.id}</span></p>
+      <p>Твой Email: <span className="text-yellow-400">{user.email}</span></p>
+      <hr className="my-4 opacity-20" />
+      <p>Статус в таблице profiles:</p>
+      <pre className="bg-black p-4 mt-2">
+        {JSON.stringify(profile, null, 2)}
+      </pre>
+      {!profile?.is_admin && (
+        <p className="mt-4 text-red-500">🛑 ВНИМАНИЕ: В колонке is_admin стоит false или пусто!</p>
       )}
-
-      {/* Блок с активными пользователями */}
-      {dau && (
-        <div className="mt-16">
-          <h2 className="text-2xl font-bold mb-6">Активные пользователи</h2>
-          <UsersChart data={dau} />
-        </div>
-      )}
-    </div>
-  )
-}
-
-function Card({ title, value }: { title: string; value: any }) {
-  return (
-    <div className="bg-[#141414] border border-white/10 rounded-2xl p-6">
-      <div className="text-white/50 text-sm mb-2">{title}</div>
-      <div className="text-2xl font-semibold">{value}</div>
     </div>
   )
 }
