@@ -521,15 +521,19 @@ export async function POST(req: Request) {
       const isNewUser = !profile.referrer_id; 
 
       if (refCodeFromUrl && isNewUser) {
-        // Вызываем нашу функцию в Supabase, которую мы создали через SQL
-        const { error: refError } = await supabase.rpc('handle_referral', {
+        // Вызываем обновленную функцию
+        const { data: result, error: refError } = await supabase.rpc('handle_referral', {
           new_user_id: profile.id,
           ref_code: refCodeFromUrl
         });
 
         if (!refError) {
-          console.log(`🎁 Реферал сработал! Код: ${refCodeFromUrl}`);
-          await sendMessage(chatId, "🎁 Привет! Вы зашли по приглашению. Вашему другу начислено 10 🍌!");
+          if (result === 'success') {
+            await sendMessage(chatId, "🎁 Привет! Вы зашли по приглашению. Вашему другу начислено 10 🍌!");
+          } else if (result === 'self_referral') {
+            await sendMessage(chatId, "🍌 Это ваша собственная ссылка. Приглашайте друзей, чтобы получать бонусы!");
+          }
+          // Остальные случаи (уже приглашен или код не найден) просто игнорируем, чтобы не спамить
         }
       }
 
