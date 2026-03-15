@@ -8,18 +8,15 @@ import { notFound } from "next/navigation";
 export default async function AdminUsersPage() {
   const supabase = await createClient();
   const {
-    data: { user: authUser },
+    data: { user },
   } = await supabase.auth.getUser();
 
-  // 1. Защита: только администраторы
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", authUser?.id)
-    .single();
-
-  if (!profile?.is_admin) {
-    notFound(); // 404, если не админ
+  // 1. Защита: только определённые пользователи
+  if (
+    user?.email !== "admin@klex.pro" &&
+    user?.id !== "0ec2da81-c1d4-46d8-bedc-6b65e0e6f4b4"
+  ) {
+    notFound(); // 404, если доступ запрещён
   }
 
   // 2. Запрос данных через сервисную роль (обходит RLS)
