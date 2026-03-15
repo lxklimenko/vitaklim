@@ -1,4 +1,5 @@
 import { createClient } from '@/app/lib/supabase-server'
+import Link from 'next/link'
 import Chart from './Chart'
 import UsersChart from './UsersChart'
 
@@ -102,7 +103,16 @@ export default async function AdminPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-10">
-      <h1 className="text-3xl font-bold mb-10">Admin Dashboard</h1>
+      {/* Навигационная панель */}
+      <nav className="flex gap-6 mb-12 bg-[#141414] p-4 rounded-2xl border border-white/5">
+        <Link href="/admin" className="text-white hover:text-blue-400 font-medium">📈 Дашборд</Link>
+        <Link href="/admin/users" className="text-white/60 hover:text-blue-400 transition">👥 Пользователи</Link>
+        <Link href="/admin/promos" className="text-white/20 cursor-not-allowed transition">🎟 Промокоды (скоро)</Link>
+      </nav>
+
+      <div className="flex justify-between items-center mb-10">
+        <h1 className="text-3xl font-bold">Admin Dashboard 🍌</h1>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card title="Генерации" value={stats.total_generations} />

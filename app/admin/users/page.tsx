@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic"
 
+import Link from 'next/link'
 import { supabaseAdmin } from '@/app/lib/supabase-admin'
 
 export default async function AdminUsersPage() {
@@ -41,6 +42,12 @@ export default async function AdminUsersPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-10">
+      {/* Навигационная панель */}
+      <nav className="flex gap-6 mb-12 bg-[#141414] p-4 rounded-2xl border border-white/5">
+        <Link href="/admin" className="text-white/60 hover:text-blue-400 transition">📈 Дашборд</Link>
+        <Link href="/admin/users" className="text-white hover:text-blue-400 font-medium">👥 Пользователи</Link>
+        <Link href="/admin/promos" className="text-white/20 cursor-not-allowed transition">🎟 Промокоды (скоро)</Link>
+      </nav>
 
       <h1 className="text-3xl font-bold mb-10">
         Users <span className="text-white/40">({count})</span>
@@ -50,7 +57,7 @@ export default async function AdminUsersPage() {
       <div className="bg-[#141414] border border-white/10 rounded-2xl p-6 overflow-x-auto scrollbar-thin">
 
         {/* Таблица с минимальной шириной для корректного скролла на мобильных */}
-        <table className="min-w-[1000px] w-full text-left">
+        <table className="min-w-250 w-full text-left">
 
           <thead>
             <tr className="text-white/50">
