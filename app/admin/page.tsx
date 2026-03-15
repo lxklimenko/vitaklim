@@ -1,5 +1,4 @@
 import { createClient } from '@/app/lib/supabase-server'
-import { notFound } from 'next/navigation'
 import Chart from './Chart'
 import UsersChart from './UsersChart'
 
@@ -10,9 +9,13 @@ export default async function AdminPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // 1. Если вообще не залогинен — 404
+  // 1. Если вообще не залогинен — показываем сообщение
   if (!user) {
-    notFound()
+    return (
+      <div style={{ color: "white", padding: 40 }}>
+        USER NOT AUTHORIZED
+      </div>
+    )
   }
 
   // Проверяем что пользователь админ
@@ -23,7 +26,11 @@ export default async function AdminPage() {
     .single()
 
   if (!profile?.is_admin) {
-    notFound()
+    return (
+      <div style={{ color: "white", padding: 40 }}>
+        NOT ADMIN
+      </div>
+    )
   }
 
   const { data: stats } = await supabase
