@@ -2,36 +2,59 @@
 
 console.log('ADMIN LOGIN PAGE')
 
-import { useState } from 'react'
+import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 
 export default function AdminLogin() {
   const router = useRouter()
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  // Validate environment variables early
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Missing Supabase environment variables')
+  }
+
+  const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleLogin = async (e: any) => {
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setError('')
+    setIsLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    })
-
-    if (error) {
-      setError(error.message)
+    // Simple validation
+    if (!email.trim() || !password.trim()) {
+      setError('Email and password are required')
+      setIsLoading(false)
       return
     }
 
-    router.push('/admin')
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
+
+      if (error) {
+        setError(error.message)
+        return
+      }
+
+      router.push('/admin')
+      router.refresh() // Ensure the layout updates if needed
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.')
+      console.error(err)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -44,9 +67,12 @@ export default function AdminLogin() {
 
         <input
           className="w-full p-3 mb-4 bg-black border border-white/20 rounded"
+          type="email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          disabled={isLoading}
+          required
         />
 
         <input
@@ -55,13 +81,19 @@ export default function AdminLogin() {
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          disabled={isLoading}
+          required
         />
 
-        <button className="w-full bg-white text-black p-3 rounded">
-          Войти
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full bg-white text-black p-3 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? 'Logging in...' : 'Login'}
         </button>
 
-        {error && <div className="text-red-400 mt-3">{error}</div>}
+        {error && <div className="text-red-400 mt-3 text-sm">{error}</div>}
       </form>
     </div>
   )
