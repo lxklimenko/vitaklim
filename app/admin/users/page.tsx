@@ -8,20 +8,25 @@ export default async function AdminUsersPage() {
 
   const supabase = supabaseAdmin
 
-  const { data: users } = await supabase
+  // Заменённый запрос: получаем все поля из таблицы profiles
+  const { data: users, error } = await supabase
     .from('profiles')
-    .select(`
-      id,
-      telegram_username,
-      telegram_first_name,
-      telegram_avatar_url,
-      balance,
-      referrals_count,
-      created_at
-    `)
-    .order('created_at', { ascending: false })
+    .select('*')
 
   console.log("ADMIN USERS:", users)
+  console.log("ADMIN ERROR:", error)
+
+  // Если произошла ошибка, показываем сообщение
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] text-white p-10">
+        <h1 className="text-3xl font-bold mb-4">Ошибка загрузки пользователей</h1>
+        <pre className="bg-red-900/20 p-4 rounded border border-red-500/30">
+          {JSON.stringify(error, null, 2)}
+        </pre>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-10">
@@ -47,21 +52,20 @@ export default async function AdminUsersPage() {
 
           <tbody>
 
-            {users?.map((u:any) => (
+            {users?.map((u: any) => (
 
               <tr key={u.id} className="border-t border-white/10">
 
                 <td className="py-3">
-
                   {u.telegram_avatar_url ? (
                     <img
                       src={u.telegram_avatar_url}
                       className="w-8 h-8 rounded-full"
+                      alt="avatar"
                     />
                   ) : (
                     "👤"
                   )}
-
                 </td>
 
                 <td className="py-3">
