@@ -47,6 +47,32 @@ export default async function AdminUserPage({ params }: { params: Promise<{ id: 
     .order("created_at", { ascending: false })
     .limit(20);
 
+  // Генерируем временные подписанные ссылки для изображений (срок действия 1 час)
+  const generationsWithSignedUrls = await Promise.all((generations || []).map(async (g) => {
+    if (!g.image_url) return g;
+
+    // Извлекаем имя файла из URL (отбрасываем параметры, если есть)
+    let fileName: string | undefined;
+    try {
+      // Пытаемся получить путь из полного URL
+      const urlObj = new URL(g.image_url);
+      const pathParts = urlObj.pathname.split('/');
+      fileName = pathParts[pathParts.length - 1];
+    } catch {
+      // Если не URL, то, возможно, это просто имя файла
+      fileName = g.image_url.split('/').pop()?.split('?')[0];
+    }
+
+    if (!fileName) return g;
+
+    const { data } = await supabaseAdmin
+      .storage
+      .from('generations') // Убедитесь, что имя бакета совпадает с вашим проектом
+      .createSignedUrl(fileName, 3600); // 3600 секунд = 1 час
+
+    return { ...g, signedUrl: data?.signedUrl };
+  }));
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-10">
       <Link href="/admin/users" className="text-white/40 hover:text-white mb-6 inline-block">← Назад к списку</Link>
@@ -65,10 +91,10 @@ export default async function AdminUserPage({ params }: { params: Promise<{ id: 
       <div className="bg-[#141414] border border-white/10 rounded-3xl p-8">
         <h2 className="text-xl font-bold mb-8 text-white/60 uppercase tracking-widest">Последние генерации</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {generations?.map((g: any) => (
+          {generationsWithSignedUrls?.map((g: any) => (
             <div key={g.id} className="aspect-square relative group">
-              {g.image_url ? (
-                <img src={g.image_url} className="w-full h-full object-cover rounded-xl" alt="" />
+              {g.signedUrl ? (
+                <img src={g.signedUrl} className="w-full h-full object-cover rounded-xl" alt="" />
               ) : (
                 <div className="w-full h-full bg-white/5 rounded-xl flex items-center justify-center text-xs text-white/20">Нет фото</div>
               )}
