@@ -1,8 +1,8 @@
-import { createClient } from '@/app/lib/supabase-server'
+import { supabaseAdmin } from '@/app/lib/supabase-admin'
 
 export default async function AdminUsersPage() {
 
-  const supabase = await createClient()
+  const supabase = supabaseAdmin
 
   const { data: users } = await supabase
     .from('profiles')
@@ -16,6 +16,8 @@ export default async function AdminUsersPage() {
       created_at
     `)
     .order('created_at', { ascending: false })
+
+  console.log("ADMIN USERS:", users)
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-10">
