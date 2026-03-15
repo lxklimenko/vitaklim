@@ -1,129 +1,78 @@
-import { createClient } from '@/app/lib/supabase-server'
+export const dynamic = "force-dynamic"
+
+import { supabaseAdmin } from '@/app/lib/supabase-admin'
 
 export default async function AdminUserPage({ params }: any) {
 
-  const supabase = await createClient()
+  const supabase = supabaseAdmin
   const userId = params.id
 
-  const { data: profile } = await supabase
+  const { data: user } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
     .single()
+
+  const { count: totalGenerations } = await supabase
+    .from('generations')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+
+  const { count: todayGenerations } = await supabase
+    .from('generations')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', new Date().toISOString().split('T')[0])
+
+  const { data: spent } = await supabase
+    .from('generations')
+    .select('cost')
+    .eq('user_id', userId)
+
+  const spentBananas =
+    spent?.reduce((sum: number, g: any) => sum + (g.cost || 0), 0) || 0
 
   const { data: generations } = await supabase
     .from('generations')
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-
-  const totalGenerations = generations?.length || 0
-
-  const todayGenerations =
-    generations?.filter((g:any) =>
-      new Date(g.created_at).toDateString() ===
-      new Date().toDateString()
-    ).length || 0
+    .limit(20)
 
   return (
-
     <div className="min-h-screen bg-[#0a0a0a] text-white p-10">
 
       <h1 className="text-3xl font-bold mb-10">
-        User profile
+        @{user?.telegram_username}
       </h1>
 
-      {profile && (
+      <div className="grid md:grid-cols-4 gap-6 mb-10">
 
-        <div className="bg-[#141414] border border-white/10 rounded-2xl p-6 mb-10">
+        <Card title="Balance" value={`${user?.balance} 🍌`} />
 
-          <div className="flex items-center gap-4">
+        <Card title="Generations today" value={todayGenerations || 0} />
 
-            {profile.telegram_avatar_url && (
-              <img
-                src={profile.telegram_avatar_url}
-                className="w-14 h-14 rounded-full"
-              />
-            )}
+        <Card title="Total generations" value={totalGenerations || 0} />
 
-            <div>
+        <Card title="Spent bananas" value={`${spentBananas} 🍌`} />
 
-              <div className="text-xl font-semibold">
-                {profile.telegram_first_name}
-              </div>
-
-              <div className="text-white/50">
-                @{profile.telegram_username}
-              </div>
-
-            </div>
-
-          </div>
-
-          <div className="grid grid-cols-3 gap-6 mt-6">
-
-            <Stat title="Balance" value={`${profile.balance} 🍌`} />
-
-            <Stat title="Generations today" value={todayGenerations} />
-
-            <Stat title="Generations total" value={totalGenerations} />
-
-          </div>
-
-        </div>
-
-      )}
-
-      <h2 className="text-2xl font-bold mb-6">
-        Generations
-      </h2>
+      </div>
 
       <div className="bg-[#141414] border border-white/10 rounded-2xl p-6">
 
-        <table className="w-full text-left">
+        <h2 className="text-xl mb-6">Last generations</h2>
 
-          <thead>
+        <div className="grid md:grid-cols-4 gap-4">
 
-            <tr className="text-white/50">
+          {generations?.map((g:any) => (
+            <img
+              key={g.id}
+              src={g.image_url}
+              className="rounded-lg"
+            />
+          ))}
 
-              <th className="pb-3">Prompt</th>
-              <th className="pb-3">Cost</th>
-              <th className="pb-3">Status</th>
-              <th className="pb-3">Date</th>
-
-            </tr>
-
-          </thead>
-
-          <tbody>
-
-            {generations?.map((g:any) => (
-
-              <tr key={g.id} className="border-t border-white/10">
-
-                <td className="py-2 max-w-[400px] truncate">
-                  {g.prompt}
-                </td>
-
-                <td className="py-2">
-                  {g.cost} 🍌
-                </td>
-
-                <td className="py-2">
-                  {g.status}
-                </td>
-
-                <td className="py-2">
-                  {new Date(g.created_at).toLocaleString()}
-                </td>
-
-              </tr>
-
-            ))}
-
-          </tbody>
-
-        </table>
+        </div>
 
       </div>
 
@@ -131,11 +80,11 @@ export default async function AdminUserPage({ params }: any) {
   )
 }
 
-function Stat({ title, value }: any) {
+function Card({ title, value }: any) {
   return (
-    <div className="bg-[#0f0f0f] border border-white/10 rounded-xl p-4">
-      <div className="text-white/50 text-sm">{title}</div>
-      <div className="text-lg font-semibold">{value}</div>
+    <div className="bg-[#141414] border border-white/10 rounded-2xl p-6">
+      <div className="text-white/50 text-sm mb-2">{title}</div>
+      <div className="text-2xl font-semibold">{value}</div>
     </div>
   )
 }

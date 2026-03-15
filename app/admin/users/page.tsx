@@ -35,9 +35,11 @@ export default async function AdminUsersPage() {
         Users
       </h1>
 
-      <div className="bg-[#141414] border border-white/10 rounded-2xl p-6">
+      {/* Контейнер с overflow-x-auto и тонким скроллом */}
+      <div className="bg-[#141414] border border-white/10 rounded-2xl p-6 overflow-x-auto scrollbar-thin">
 
-        <table className="w-full text-left">
+        {/* Таблица с минимальной шириной для корректного скролла на мобильных */}
+        <table className="min-w-[700px] w-full text-left">
 
           <thead>
             <tr className="text-white/50">
