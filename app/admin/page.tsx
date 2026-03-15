@@ -16,7 +16,7 @@ export default async function AdminPage() {
   }
 
   // 2. ПРОВЕРКА ТВОЕГО ID (Вставляем сюда твой UUID)
-  const MY_ADMIN_ID = 'ce2e3420-0112-40f9-ba06-9dcf6baaf0c5';
+  const MY_ADMIN_ID = 'e239b385-5492-47d4-be71-a293f6fe2bc4';
 
   // Проверяем статус в базе
   const { data: profile } = await supabase
