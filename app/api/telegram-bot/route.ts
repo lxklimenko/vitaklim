@@ -716,35 +716,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ================== НОВЫЙ ОБРАБОТЧИК АДМИН-ПАНЕЛИ ==================
+    // ================== АДМИН ПАНЕЛЬ ==================
     if (text === "🔐 Админ-панель" && telegramId === Number(ADMIN_ID)) {
-      const userEmail = `telegram_${telegramId}@klex.pro`;
-      
-      // Генерируем ссылку для входа без пароля (Magic Link)
-      const { data, error } = await supabase.auth.admin.generateLink({
-        type: 'magiclink',
-        email: userEmail,
-        options: { redirectTo: `${SITE_URL}/admin` } 
-      });
-
-      if (error) {
-        console.error("Magic link error:", error);
-        await sendMessage(chatId, "❌ Ошибка генерации доступа.");
-        return NextResponse.json({ ok: true });
-      }
 
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `🚀 *Вход в Dashboard*\n\nНажми кнопку ниже, чтобы авторизоваться в админке без пароля. Ссылка активна один раз.`,
-          parse_mode: "Markdown",
+          text: "🔐 Открыть админ-панель:",
           reply_markup: {
-            inline_keyboard: [[{ text: "🔑 Войти как Админ", url: data.properties.action_link }]]
-          },
+            inline_keyboard: [
+              [
+                {
+                  text: "🚀 Открыть админку",
+                  url: "https://klex.pro/admin/login"
+                }
+              ]
+            ]
+          }
         }),
       });
+
       return NextResponse.json({ ok: true });
     }
 
