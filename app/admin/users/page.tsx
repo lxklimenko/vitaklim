@@ -59,7 +59,12 @@ export default async function AdminUsersPage() {
                 </td>
 
                 <td className="py-3">
-                  @{u.telegram_username}
+                  <a
+                    href={`/admin/users/${u.id}`}
+                    className="hover:underline text-blue-400"
+                  >
+                    @{u.telegram_username}
+                  </a>
                 </td>
 
                 <td className="py-3">
