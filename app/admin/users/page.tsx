@@ -50,7 +50,7 @@ export default async function AdminUsersPage() {
       <div className="bg-[#141414] border border-white/10 rounded-2xl p-6 overflow-x-auto scrollbar-thin">
 
         {/* Таблица с минимальной шириной для корректного скролла на мобильных */}
-        <table className="min-w-[900px] w-full text-left">
+        <table className="min-w-[1000px] w-full text-left">
 
           <thead>
             <tr className="text-white/50">
@@ -58,9 +58,9 @@ export default async function AdminUsersPage() {
               <th className="pb-4">Username</th>
               <th className="pb-4">Name</th>
               <th className="pb-4">Balance</th>
-              <th className="pb-4">Referrals</th>
               <th className="pb-4">Generations</th>
               <th className="pb-4">Spent</th>
+              <th className="pb-4">Referrals</th>
               <th className="pb-4">Created</th>
             </tr>
           </thead>
@@ -88,7 +88,7 @@ export default async function AdminUsersPage() {
                     href={`/admin/users/${u.id}`}
                     className="hover:underline text-blue-400"
                   >
-                    @{u.telegram_username}
+                    @{u.telegram_username || "no_username"}
                   </a>
                 </td>
 
@@ -101,19 +101,21 @@ export default async function AdminUsersPage() {
                 </td>
 
                 <td className="py-3">
+                  {u.generations || 0}
+                </td>
+
+                <td className="py-3 font-semibold">
+                  {u.spent || 0} 🍌
+                </td>
+
+                <td className="py-3">
                   {u.referrals_count}
                 </td>
 
                 <td className="py-3">
-                  {u.generations}
-                </td>
-
-                <td className="py-3 font-semibold">
-                  {u.spent} 🍌
-                </td>
-
-                <td className="py-3">
-                  {new Date(u.created_at).toLocaleDateString()}
+                  {u.created_at
+                    ? new Date(u.created_at).toLocaleDateString()
+                    : "-"}
                 </td>
 
               </tr>
