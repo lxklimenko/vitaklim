@@ -85,6 +85,7 @@ export default async function AdminPage() {
 
     if (!spendingMap[user.id]) {
       spendingMap[user.id] = {
+        id: user.id,
         username: user.telegram_username,
         name: user.telegram_first_name,
         avatar: user.telegram_avatar_url,
@@ -200,7 +201,14 @@ export default async function AdminPage() {
                       "👤"
                     )}
                   </td>
-                  <td className="py-2">@{u.username || "unknown"}</td>
+                  <td className="py-2">
+                    <a
+                      href={`/admin/users/${u.id}`}
+                      className="hover:underline"
+                    >
+                      @{u.username || "unknown"}
+                    </a>
+                  </td>
                   <td className="py-2">{u.name || "—"}</td>
                   <td className="py-2 font-semibold">{u.total} 🍌</td>
                 </tr>
