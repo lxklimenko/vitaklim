@@ -1,5 +1,7 @@
 'use client'
 
+console.log('ADMIN LOGIN PAGE')
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
