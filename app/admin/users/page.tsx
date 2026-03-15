@@ -8,10 +8,19 @@ export default async function AdminUsersPage() {
 
   const supabase = supabaseAdmin
 
-  // Заменённый запрос: получаем все поля из таблицы profiles
-  const { data: users, error } = await supabase
+  // Запрос с выборкой нужных полей, подсчётом общего количества и сортировкой
+  const { data: users, error, count } = await supabase
     .from('profiles')
-    .select('*')
+    .select(`
+      id,
+      telegram_username,
+      telegram_first_name,
+      telegram_avatar_url,
+      balance,
+      referrals_count,
+      created_at
+    `, { count: "exact" })
+    .order('created_at', { ascending: false })
 
   console.log("ADMIN USERS:", users)
   console.log("ADMIN ERROR:", error)
@@ -32,7 +41,7 @@ export default async function AdminUsersPage() {
     <div className="min-h-screen bg-[#0a0a0a] text-white p-10">
 
       <h1 className="text-3xl font-bold mb-10">
-        Users
+        Users <span className="text-white/40">({count})</span>
       </h1>
 
       {/* Контейнер с overflow-x-auto и тонким скроллом */}
