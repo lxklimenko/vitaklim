@@ -2,6 +2,8 @@ import { supabaseAdmin } from '@/app/lib/supabase-admin'
 
 export default async function AdminUsersPage() {
 
+  console.log("SERVICE ROLE:", process.env.SUPABASE_SERVICE_ROLE_KEY)
+
   const supabase = supabaseAdmin
 
   const { data: users } = await supabase
