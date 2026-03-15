@@ -7,14 +7,6 @@ export default async function AdminPage() {
   if (!user) {
     return <div className="p-20 bg-red-900 text-white">❌ Ошибка: Вы не авторизованы. Сессия не найдена.</div>
   }
-
-<<<<<<< HEAD
-  // 2. ПРОВЕРКА ТВОЕГО ID (Вставляем сюда твой UUID)
-  const MY_ADMIN_ID = 'e239b385-5492-47d4-be71-a293f6fe2bc4';
-
-  // Проверяем статус в базеt
-=======
->>>>>>> 18762ebbd0533e878485ce8657476592e5bff90d
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
