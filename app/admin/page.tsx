@@ -171,7 +171,7 @@ export default async function AdminPage() {
               {generations?.map((g: any) => (
                 <tr key={g.created_at} className="border-t border-white/10">
                   <td className="py-2">{g.user_id}</td>
-                  <td className="py-2 max-w-[300px] truncate">{g.prompt}</td>
+                  <td className="py-2 max-w-75 truncate">{g.prompt}</td>
                   <td className="py-2">{g.cost} 🍌</td>
                   <td className="py-2">{g.status}</td>
                   <td className="py-2">{new Date(g.created_at).toLocaleString()}</td>
