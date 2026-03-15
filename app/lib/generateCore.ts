@@ -317,7 +317,8 @@ export async function generateImageCore({
       status: "completed",
       image_url: publicUrl,
       storage_path: fileName,
-      generation_time_ms: generationTime
+      generation_time_ms: generationTime,
+      cost: cost  // добавлено поле стоимости
     })
     .eq("id", processingRecord.id);
 
