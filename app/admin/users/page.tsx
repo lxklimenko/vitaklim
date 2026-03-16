@@ -5,7 +5,13 @@ import { createClient } from "@/app/lib/supabase-server";
 import { supabaseAdmin } from "@/app/lib/supabase-admin";
 import { notFound } from "next/navigation";
 
-export default async function AdminUsersPage() {
+// В Next.js 15 searchParams — это Promise
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string }>;
+}) {
+  const { filter } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -19,11 +25,38 @@ export default async function AdminUsersPage() {
     notFound(); // 404, если доступ запрещён
   }
 
-  // 2. Запрос данных через сервисную роль (обходит RLS)
-  const { data: users, error, count } = await supabaseAdmin
+  // 2. Готовим запрос через сервисную роль (обходит RLS)
+  let query = supabaseAdmin
     .from("admin_users_view")
-    .select("*", { count: "exact" })
-    .order("created_at", { ascending: false });
+    .select("*", { count: "exact" });
+
+  // ЛОГИКА ФИЛЬТРАЦИИ "АКТИВНЫЕ СЕГОДНЯ"
+  if (filter === "active_today") {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Получаем ID всех пользователей, у которых были генерации сегодня
+    const { data: activeTodayData } = await supabaseAdmin
+      .from("generations")
+      .select("user_id")
+      .gte("created_at", today.toISOString());
+
+    // Извлекаем уникальные ID
+    const activeIds = Array.from(
+      new Set(activeTodayData?.map((item) => item.user_id) || [])
+    );
+
+    // Применяем фильтр или делаем заведомо пустой результат
+    if (activeIds.length > 0) {
+      query = query.in("id", activeIds);
+    } else {
+      // UUID, которого точно нет в базе
+      query = query.eq("id", "00000000-0000-0000-0000-000000000000");
+    }
+  }
+
+  // 3. Выполняем запрос
+  const { data: users, error, count } = await query.order("created_at", { ascending: false });
 
   if (error) {
     return (
@@ -34,6 +67,9 @@ export default async function AdminUsersPage() {
       </div>
     );
   }
+
+  // Определяем заголовок в зависимости от фильтра
+  const pageTitle = filter === "active_today" ? "Активные сегодня" : "Все пользователи";
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-10">
@@ -59,11 +95,25 @@ export default async function AdminUsersPage() {
         </Link>
       </nav>
 
-      <h1 className="text-3xl font-bold mb-10">
-        Пользователи{" "}
-        <span className="text-white/40">({count})</span>
-      </h1>
+      {/* Заголовок и сброс фильтра */}
+      <div className="flex justify-between items-end mb-10">
+        <div>
+          <h1 className="text-3xl font-bold">
+            {pageTitle}{" "}
+            <span className="text-white/40">({count})</span>
+          </h1>
+        </div>
+        {filter === "active_today" && (
+          <Link
+            href="/admin/users"
+            className="text-sm bg-white/5 hover:bg-white/10 px-4 py-2 rounded-xl transition"
+          >
+            ✕ Сбросить фильтр
+          </Link>
+        )}
+      </div>
 
+      {/* Таблица пользователей */}
       <div className="bg-[#141414] border border-white/10 rounded-2xl p-6 overflow-x-auto">
         <table className="w-full text-left min-w-200">
           <thead>

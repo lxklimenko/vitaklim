@@ -123,7 +123,11 @@ export default async function AdminPage() {
         <Card title="Ultra" value={stats.ultra_count} />
         <Card title="Ultra выручка" value={stats.ultra_revenue ?? 0} />
 
-        <Card title="Активные пользователи" value={stats.active_users} />
+        {/* Карточка активных пользователей обёрнута в Link */}
+        <Link href="/admin/users?filter=active_today" className="block hover:scale-[1.02] transition-transform">
+          <Card title="Активные пользователи" value={stats.active_users} />
+        </Link>
+
         <Card
           title="Среднее время (сек)"
           value={
