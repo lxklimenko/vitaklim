@@ -48,27 +48,39 @@ export default async function AdminUserPage({ params }: { params: Promise<{ id: 
     .limit(20);
 
   // Генерируем временные подписанные ссылки для изображений (срок действия 1 час)
+  // Используем улучшенный метод извлечения пути из URL
   const generationsWithSignedUrls = await Promise.all((generations || []).map(async (g) => {
     if (!g.image_url) return g;
 
-    // Извлекаем имя файла из URL (отбрасываем параметры, если есть)
-    let fileName: string | undefined;
+    let filePath: string | undefined;
+
     try {
-      // Пытаемся получить путь из полного URL
-      const urlObj = new URL(g.image_url);
-      const pathParts = urlObj.pathname.split('/');
-      fileName = pathParts[pathParts.length - 1];
-    } catch {
-      // Если не URL, то, возможно, это просто имя файла
-      fileName = g.image_url.split('/').pop()?.split('?')[0];
+      // Находим точное начало пути после названия бакета
+      const bucketName = 'generations-private'; // Убедитесь, что имя бакета совпадает с вашим проектом
+      const marker = `/object/sign/${bucketName}/`;
+      
+      if (g.image_url.includes(marker)) {
+        // Вырезаем всё, что ПОСЛЕ bucketName/ и ДО знака ?
+        filePath = g.image_url.split(marker)[1].split('?')[0];
+      } else {
+        // Запасной вариант, если в базе вдруг лежит другой формат ссылки
+        filePath = g.image_url.split(`${bucketName}/`)[1]?.split('?')[0];
+      }
+    } catch (e) {
+      console.error("Ошибка парсинга пути:", e);
     }
 
-    if (!fileName) return g;
+    if (!filePath) return g;
 
-    const { data } = await supabaseAdmin
+    // Генерируем НОВУЮ чистую ссылку через наш сервис-ключ
+    const { data, error: signedError } = await supabaseAdmin
       .storage
-      .from('generations') // Убедитесь, что имя бакета совпадает с вашим проектом
-      .createSignedUrl(fileName, 3600); // 3600 секунд = 1 час
+      .from('generations-private') // 👈 Название бакета
+      .createSignedUrl(filePath, 3600); // 3600 секунд = 1 час
+
+    if (signedError) {
+      console.log("ОШИБКА SUPABASE:", signedError.message, "для файла:", filePath);
+    }
 
     return { ...g, signedUrl: data?.signedUrl };
   }));
