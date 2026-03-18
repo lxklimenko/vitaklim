@@ -5,28 +5,43 @@ export async function POST(req: Request) {
 
   console.log("MAX UPDATE:", data);
 
-  const text = data?.message?.text || "";
-  const userId = data?.message?.from?.id;
+  const chatId = data.chat_id;
 
-  if (!userId) {
+  // 👉 Если пользователь нажал Start (через ссылку или просто)
+  if (data.update_type === "bot_started") {
+    await fetch("https://platform-api.max.ru/messages", {
+      method: "POST",
+      headers: {
+        "Authorization": "ТВОЙ_ТОКЕН",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: "🚀 Добро пожаловать в KLEX AI!\nНапиши промпт для генерации"
+      })
+    });
+
     return NextResponse.json({ ok: true });
   }
 
-  if (text.startsWith("/start")) {
-    return NextResponse.json({
-      method: "sendMessage",
-      params: {
-        user_id: userId,
-        text: "🚀 Добро пожаловать в KLEX AI!\nНапиши промпт для генерации"
-      }
+  // 👉 Если пришло обычное сообщение
+  if (data.update_type === "message_created") {
+    const text = data.message?.text || "";
+
+    await fetch("https://platform-api.max.ru/messages", {
+      method: "POST",
+      headers: {
+        "Authorization": "ТВОЙ_ТОКЕН",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: "Ты написал: " + text
+      })
     });
+
+    return NextResponse.json({ ok: true });
   }
 
-  return NextResponse.json({
-    method: "sendMessage",
-    params: {
-      user_id: userId,
-      text: "Я получил сообщение: " + text
-    }
-  });
+  return NextResponse.json({ ok: true });
 }
