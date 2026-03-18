@@ -29,17 +29,16 @@ export async function POST(req: Request) {
     const text = data.message?.text || "";
 
     await fetch("https://platform-api.max.ru/messages", {
-      method: "POST",
-      headers: {
-        "Authorization": "ТВОЙ_ТОКЕН",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: "Ты написал: " + text
-      })
-    });
-
+  method: "POST",
+  headers: {
+    "Authorization": `${"ТВОЙ_ТОКЕН"}`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    chat_id: chatId,
+    text: "🚀 Добро пожаловать в KLEX AI!\nНапиши промпт"
+  })
+});
     return NextResponse.json({ ok: true });
   }
 
