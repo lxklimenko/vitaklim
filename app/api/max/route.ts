@@ -6,10 +6,10 @@ export async function POST(req: Request) {
 
     console.log("MAX UPDATE:", data);
 
-    const userId = data.message?.sender?.user_id;
+    const chatId = data.message?.recipient?.chat_id;
     const userText = data.message?.body?.text || "";
 
-    if (!userId) {
+    if (!chatId) {
       return NextResponse.json({ ok: true });
     }
 
@@ -20,9 +20,7 @@ export async function POST(req: Request) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        recipient: {
-          user_id: userId
-        },
+        chat_id: chatId,
         text: userText === "/start"
           ? "Hello! MAX bot works 🚀"
           : `You wrote: ${userText}`
