@@ -6,10 +6,11 @@ export async function POST(req: Request) {
 
     console.log("MAX UPDATE:", data);
 
+    const chatId = data.message?.recipient?.chat_id;
     const userId = data.message?.sender?.user_id;
     const userText = data.message?.body?.text || "";
 
-    if (!userId) {
+    if (!chatId || !userId) {
       return NextResponse.json({ ok: true });
     }
 
@@ -21,6 +22,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         recipient: {
+          chat_id: chatId,
           user_id: userId
         },
         text: userText === "/start"
