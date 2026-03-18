@@ -31,12 +31,12 @@ export async function POST(req: Request) {
     await fetch("https://platform-api.max.ru/messages", {
   method: "POST",
   headers: {
-    "Authorization": `${"ТВОЙ_ТОКЕН"}`,
+    "Authorization": "ТВОЙ_ТОКЕН",
     "Content-Type": "application/json"
   },
   body: JSON.stringify({
     chat_id: chatId,
-    text: "🚀 Добро пожаловать в KLEX AI!\nНапиши промпт"
+    text: decodeURIComponent(encodeURIComponent("🚀 Добро пожаловать в KLEX AI!\nНапиши промпт"))
   })
 });
     return NextResponse.json({ ok: true });
