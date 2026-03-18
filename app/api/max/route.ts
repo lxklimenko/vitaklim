@@ -6,8 +6,12 @@ export async function POST(req: Request) {
 
     console.log("MAX UPDATE:", data);
 
-    const chatId = data.message?.recipient?.chat_id;
+    const recipient = data.message?.recipient;
     const userText = data.message?.body?.text || "";
+
+    if (!recipient) {
+      return NextResponse.json({ ok: true });
+    }
 
     const res = await fetch("https://platform-api.max.ru/messages", {
       method: "POST",
@@ -16,11 +20,9 @@ export async function POST(req: Request) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        recipient: {
-          chat_id: chatId
-        },
+        recipient: recipient,
         text: userText === "/start"
-          ? "Hello! Welcome 🚀"
+          ? "Hello! MAX bot works 🚀"
           : `You wrote: ${userText}`
       })
     });
