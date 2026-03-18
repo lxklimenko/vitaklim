@@ -16,13 +16,16 @@ export async function POST(req: Request) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        chat_id: chatId,
-        text: "TEST MESSAGE"
+        recipient: {
+          chat_id: chatId
+        },
+        text: userText === "/start"
+          ? "Hello! Welcome 🚀"
+          : `You wrote: ${userText}`
       })
     });
 
     const responseText = await res.text();
-
     console.log("MAX RESPONSE:", responseText);
 
     return NextResponse.json({ ok: true });
