@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     .eq("id", profile.id)
 
   return NextResponse.json({
-    success: true,
-    userId: profile.id,
-  })
+  success: true,
+  telegramId: profile.telegram_id,
+})
 }
