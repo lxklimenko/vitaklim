@@ -643,7 +643,7 @@ export async function POST(req: Request) {
         .eq("id", profile.id);
 
       // ссылка для входа в Max
-      const maxLink = `https://klex.pro/auth?token=${loginToken}`;
+      const maxLink = `https://vitaklim-git-dev-lxklimenkos-projects.vercel.app/auth?token=${loginToken}`;
 
       const balanceText = 
         `💰 *Ваш баланс:* ${profile.balance} 🍌\n\n` +
