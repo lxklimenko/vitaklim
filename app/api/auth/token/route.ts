@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
   success: true,
-  telegramId: profile.telegram_id,//l
+  telegramId: profile.telegram_id,
+  debug: "NEW VERSION"
 })
 }
