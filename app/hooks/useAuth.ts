@@ -81,6 +81,36 @@ export function useAuth() {
 
   useEffect(() => {
     const initSession = async () => {
+      // 🔥 ВСТАВЛЕННЫЙ БЛОК: аутентификация по токену из URL
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get("token");
+
+      if (token) {
+        const res = await fetch("/api/auth/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token })
+        });
+
+        const data = await res.json();
+
+        if (data.userId) {
+          const email = `telegram_${data.userId}@telegram.local`;
+          const password = `secure_${data.userId}`;
+
+          const { data: authData } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+          if (authData?.user) {
+            setUser(authData.user);
+            loadAllUserData(authData.user.id);
+          }
+        }
+      }
+
+      // Далее идёт оригинальная логика
       if (typeof window !== 'undefined' && (window as any).Telegram) {
         const tg = (window as any).Telegram.WebApp;
 

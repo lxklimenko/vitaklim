@@ -631,11 +631,26 @@ export async function POST(req: Request) {
       const refCode = profile.referral_code || username;
       const refLink = `https://t.me/${botUsername}?start=${refCode}`;
 
+      // создаём токен для входа в Max
+      const loginToken = crypto.randomUUID();
+
+      await supabase
+        .from("profiles")
+        .update({
+          login_token: loginToken,
+          login_token_expires: new Date(Date.now() + 5 * 60 * 1000) // 5 минут
+        })
+        .eq("id", profile.id);
+
+      // ссылка для входа в Max
+      const maxLink = `https://klex.pro/auth?token=${loginToken}`;
+
       const balanceText = 
         `💰 *Ваш баланс:* ${profile.balance} 🍌\n\n` +
         `👥 *Приглашено друзей:* ${profile.referrals_count || 0}\n` +
         `🎁 За каждого друга: *30 🍌*\n\n` +
-        `🔗 *Ваша ссылка для приглашения:* \n\`${refLink}\` \n\n` +
+        `🔗 *Ваша ссылка для приглашения:* \n\`${refLink}\`\n\n` +
+        `🌐 *Открыть в Max:* \n${maxLink}\n\n` +
         `───\n` +
         `⚖️ [Публичная оферта](https://telegra.ph/PUBLICHNAYA-OFERTA-03-06-6)\n` +
         `🔒 [Политика конфиденциальности](https://telegra.ph/Politika-konfidencialnosti-03-06-35)\n\n` +
@@ -716,35 +731,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ================== НОВЫЙ ОБРАБОТЧИК АДМИН-ПАНЕЛИ ==================
+    // ================== АДМИН ПАНЕЛЬ ==================
     if (text === "🔐 Админ-панель" && telegramId === Number(ADMIN_ID)) {
-      const userEmail = `telegram_${telegramId}@klex.pro`;
-      
-      // Генерируем ссылку для входа без пароля (Magic Link)
-      const { data, error } = await supabase.auth.admin.generateLink({
-        type: 'magiclink',
-        email: userEmail,
-        options: { redirectTo: `${SITE_URL}/admin` } 
-      });
-
-      if (error) {
-        console.error("Magic link error:", error);
-        await sendMessage(chatId, "❌ Ошибка генерации доступа.");
-        return NextResponse.json({ ok: true });
-      }
 
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `🚀 *Вход в Dashboard*\n\nНажми кнопку ниже, чтобы авторизоваться в админке без пароля. Ссылка активна один раз.`,
-          parse_mode: "Markdown",
+          text: "🔐 Открыть админ-панель:",
           reply_markup: {
-            inline_keyboard: [[{ text: "🔑 Войти как Админ", url: data.properties.action_link }]]
-          },
+            inline_keyboard: [
+              [
+                {
+                  text: "🚀 Открыть админку",
+                  url: "https://klex.pro/admin/login"
+                }
+              ]
+            ]
+          }
         }),
       });
+
       return NextResponse.json({ ok: true });
     }
 
