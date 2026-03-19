@@ -1,18 +1,34 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 
 export default function AuthPage() {
-  const router = useRouter()
-
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      router.replace('/')
-    }, 1500) // 1.5 секунды
+    const run = async () => {
+      await new Promise(res => setTimeout(res, 1500))
 
-    return () => clearTimeout(timeout)
+      const userId = localStorage.getItem("userId")
+
+      if (!userId) {
+        window.location.href = '/'
+        return
+      }
+
+      const res = await fetch('/api/auth/max-auto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      })
+
+      const data = await res.json()
+
+      if (data.url) {
+        window.location.href = data.url
+      }
+    }
+
+    run()
   }, [])
 
-  return <div style={{ padding: 20 }}>Вход...</div>
+  return <div>Переход в Max...</div>
 }

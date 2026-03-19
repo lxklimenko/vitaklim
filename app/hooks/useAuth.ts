@@ -107,6 +107,7 @@ export function useAuth() {
 
           if (authData?.user) {
             setUser(authData.user);
+            localStorage.setItem("userId", authData.user.id); // ✅ добавлено
             loadAllUserData(authData.user.id);
           }
         }
@@ -140,6 +141,7 @@ export function useAuth() {
 
             if (data?.user) {
               setUser(data.user);
+              localStorage.setItem("userId", data.user.id); // ✅ добавлено
               loadAllUserData(data.user.id);
             }
           }
@@ -153,6 +155,7 @@ export function useAuth() {
 
       if (session?.user) {
         setUser(session.user);
+        localStorage.setItem("userId", session.user.id); // ✅ добавлено (для уже активной сессии)
         loadAllUserData(session.user.id);
       }
 
@@ -171,11 +174,13 @@ export function useAuth() {
         setPurchases([]);
         setProfileReady(false);
         setBalance(0);
+        localStorage.removeItem("userId"); // ✅ очищаем при выходе
         return;
       }
 
       if (_event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
+        localStorage.setItem("userId", session.user.id); // ✅ добавлено (на всякий случай)
         loadAllUserData(session.user.id);
 
         if (typeof window !== 'undefined' && (window as any).Telegram) {
