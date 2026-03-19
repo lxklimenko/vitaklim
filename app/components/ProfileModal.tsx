@@ -257,6 +257,30 @@ export function ProfileModal({
                 )}
               </div>
 
+              {/* 🔥 Кнопка перехода в Max (добавлена перед выходом) */}
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/auth/max-link', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ userId: user.id })
+                    });
+
+                    const data = await res.json();
+
+                    if (data.url) {
+                      window.location.href = data.url;
+                    }
+                  } catch (e) {
+                    alert('Ошибка перехода в Max');
+                  }
+                }}
+                className="w-full py-3 bg-white text-black rounded-xl text-sm font-medium hover:bg-white/90 transition"
+              >
+                🚀 Открыть в Max
+              </button>
+
               {/* Кнопка выхода */}
               <button
                 onClick={handleLogout}
