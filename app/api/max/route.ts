@@ -5,11 +5,11 @@ export async function POST(req: Request) {
     const data = await req.json();
     console.log("MAX UPDATE:", data);
 
-    // Берем ID того, КТО прислал сообщение (Sender)
-    const senderUserId = data.message?.sender?.user_id;
+    // Берем chat_id из объекта recipient входящего сообщения
+    const chatId = data.message?.recipient?.chat_id;
     const userText = data.message?.body?.text || "";
 
-    if (!senderUserId) {
+    if (!chatId) {
       return NextResponse.json({ ok: true });
     }
 
@@ -20,18 +20,19 @@ export async function POST(req: Request) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        // В мессенджере Max для лички достаточно указать user_id отправителя
+        // Отправляем ТОЛЬКО chat_id, без user_id
         recipient: {
-          user_id: senderUserId 
+          chat_id: chatId
         },
         text: userText === "/start"
-          ? "Привет! Бот на платформе MAX работает 🚀"
+          ? "Привет! Бот на платформе MAX официально работает! 🚀"
           : `Вы написали: ${userText}`
       })
     });
 
-    const responseData = await res.json();
-    console.log("MAX RESPONSE:", responseData);
+    // Читаем ответ текстом, чтобы не падало, если сервер вернет не JSON
+    const responseText = await res.text();
+    console.log("MAX RESPONSE:", responseText);
 
     return NextResponse.json({ ok: true });
 
