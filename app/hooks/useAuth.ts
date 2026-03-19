@@ -93,7 +93,8 @@ export function useAuth() {
         });
 
         const data = await res.json();
-        console.log("TOKEN LOGIN RESPONSE:", data)
+        alert(JSON.stringify(data));                // ← ДОБАВЛЕННЫЙ ALERT
+        console.log("TOKEN LOGIN RESPONSE:", data);
 
         // 🔁 ЗАМЕНЕНО: userId -> telegramId
         if (data.telegramId) {
