@@ -94,9 +94,10 @@ export function useAuth() {
 
         const data = await res.json();
 
-        if (data.userId) {
-          const email = `telegram_${data.userId}@telegram.local`;
-          const password = `secure_${data.userId}`;
+        // 🔁 ЗАМЕНЕНО: userId -> telegramId
+        if (data.telegramId) {
+          const email = `telegram_${data.telegramId}@telegram.local`;
+          const password = `secure_${data.telegramId}`;
 
           const { data: authData } = await supabase.auth.signInWithPassword({
             email,
