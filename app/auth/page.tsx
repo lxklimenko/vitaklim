@@ -7,9 +7,12 @@ export default function AuthPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // просто редиректим на главную
-    router.replace('/')
+    const timeout = setTimeout(() => {
+      router.replace('/')
+    }, 1500) // 1.5 секунды
+
+    return () => clearTimeout(timeout)
   }, [])
 
-  return <div>Вход...</div>
+  return <div style={{ padding: 20 }}>Вход...</div>
 }
