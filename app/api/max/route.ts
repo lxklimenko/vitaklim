@@ -3,14 +3,13 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const data = await req.json();
-
     console.log("MAX UPDATE:", data);
 
-    const chatId = data.message?.recipient?.chat_id;
-    const userId = data.message?.sender?.user_id;
+    // Берем ID того, КТО прислал сообщение (Sender)
+    const senderUserId = data.message?.sender?.user_id;
     const userText = data.message?.body?.text || "";
 
-    if (!chatId || !userId) {
+    if (!senderUserId) {
       return NextResponse.json({ ok: true });
     }
 
@@ -21,18 +20,18 @@ export async function POST(req: Request) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
+        // В мессенджере Max для лички достаточно указать user_id отправителя
         recipient: {
-          chat_id: chatId,
-          user_id: userId
+          user_id: senderUserId 
         },
         text: userText === "/start"
-          ? "Hello! MAX bot works 🚀"
-          : `You wrote: ${userText}`
+          ? "Привет! Бот на платформе MAX работает 🚀"
+          : `Вы написали: ${userText}`
       })
     });
 
-    const responseText = await res.text();
-    console.log("MAX RESPONSE:", responseText);
+    const responseData = await res.json();
+    console.log("MAX RESPONSE:", responseData);
 
     return NextResponse.json({ ok: true });
 
