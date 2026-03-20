@@ -40,9 +40,11 @@ export async function POST(req: Request) {
         .eq("id", profile.id)
 
       return NextResponse.json({
-        message: {
-          text: "✅ Аккаунт успешно подключен!"
-        }
+        messages: [
+          {
+            text: "✅ Аккаунт успешно подключен!"
+          }
+        ]
       })
     }
 
@@ -60,9 +62,11 @@ export async function POST(req: Request) {
 
   if (!profile) {
     return NextResponse.json({
-      message: {
-        text: "❌ Аккаунт не найден. Зайдите через Telegram."
-      }
+      messages: [
+        {
+          text: "❌ Аккаунт не найден. Зайдите через Telegram."
+        }
+      ]
     })
   }
 
@@ -71,9 +75,11 @@ export async function POST(req: Request) {
   // =====================
   if (text === "💰 Баланс") {
     return NextResponse.json({
-      message: {
-        text: `💰 Баланс: ${profile.balance} 🍌`
-      }
+      messages: [
+        {
+          text: `💰 Баланс: ${profile.balance} 🍌`
+        }
+      ]
     })
   }
 
@@ -87,9 +93,11 @@ export async function POST(req: Request) {
       .eq("id", profile.id)
 
     return NextResponse.json({
-      message: {
-        text: "✍️ Напиши описание картинки"
-      }
+      messages: [
+        {
+          text: "✍️ Напиши описание картинки"
+        }
+      ]
     })
   }
 
@@ -101,9 +109,11 @@ export async function POST(req: Request) {
 
     if (!prompt) {
       return NextResponse.json({
-        message: {
-          text: "❌ Напиши текст"
-        }
+        messages: [
+          {
+            text: "❌ Напиши текст"
+          }
+        ]
       })
     }
 
@@ -125,16 +135,20 @@ export async function POST(req: Request) {
         .eq("id", profile.id)
 
       return NextResponse.json({
-        message: {
-          text: `✅ Готово:\n${result.imageUrl}`
-        }
+        messages: [
+          {
+            text: `✅ Готово:\n${result.imageUrl}`
+          }
+        ]
       })
 
     } catch (e) {
       return NextResponse.json({
-        message: {
-          text: "❌ Ошибка генерации"
-        }
+        messages: [
+          {
+            text: "❌ Ошибка генерации"
+          }
+        ]
       })
     }
   }
@@ -145,9 +159,11 @@ export async function POST(req: Request) {
   if (text === "📜 История") {
     const url = `https://klex.pro/history?u=${profile.id}`
     return NextResponse.json({
-      message: {
-        text: `📂 История:\n${url}`
-      }
+      messages: [
+        {
+          text: `📂 История:\n${url}`
+        }
+      ]
     })
   }
 
@@ -156,15 +172,19 @@ export async function POST(req: Request) {
   // =====================
   if (text === "❓ Помощь") {
     return NextResponse.json({
-      message: {
-        text: "Используй команды:\n🎨 Создать картинку\n💰 Баланс"
-      }
+      messages: [
+        {
+          text: "Используй команды:\n🎨 Создать картинку\n💰 Баланс"
+        }
+      ]
     })
   }
 
   return NextResponse.json({
-    message: {
-      text: "Неизвестная команда"
-    }
+    messages: [
+      {
+        text: "Неизвестная команда"
+      }
+    ]
   })
 }
