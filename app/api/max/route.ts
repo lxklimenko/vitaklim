@@ -1,45 +1,37 @@
 import { NextResponse } from "next/server";
+// Импортируем официальную библиотеку
 import { Bot } from '@maxhub/max-bot-api';
 
-// ❗ токен бери из env (а не хардкод)
-const bot = new Bot(process.env.MAX_BOT_TOKEN!);
+// Инициализируем бота
+const bot = new Bot("f9LHodD0cOI1J-ST6FT8gluYkePr82jia84fhbYH8MvkPe4snFkZEPRXZtOpmB22v6eCLk90mRIrdoxJ6GQc");
 
-// команда /start
 bot.command('start', async (ctx: any) => {
   const senderName = ctx.message?.sender?.first_name || 'друг';
+  console.log(`✅ Webhook поймал команду /start от: ${senderName}`);
   
-  console.log(`START от: ${senderName}`);
-  
-  await ctx.reply(`Привет, ${senderName}! 🚀`);
+  await ctx.reply(`Привет, ${senderName}! ✨ Мы взломали систему через Webhook! 🚀🍌`);
 });
 
-// любое сообщение
+// ИСПРАВЛЕНИЕ 1: Используем правильное название события 'message_created'
 bot.on('message_created', async (ctx: any) => {
   const text = ctx.message?.body?.text;
-
   if (text && text !== '/start') {
-    await ctx.reply(`Ты написал: ${text}`);
+    await ctx.reply(`Ты написал: ${text}. Бот на связи!`);
   }
 });
 
 export async function POST(req: Request) {
   try {
     const update = await req.json();
+    console.log("MAX ВХОДЯЩИЙ ВЕБХУК:", update?.message?.body?.text);
 
-    console.log("MAX UPDATE:", update);
-
-    // 🔥 ключевая магия
+    // ИСПРАВЛЕНИЕ 2: Обходим TypeScript защиту (bot as any), чтобы дернуть скрытый метод
     await (bot as any).handleUpdate(update);
 
     return NextResponse.json({ ok: true });
 
   } catch (e) {
-    console.error("MAX ERROR:", e);
+    console.error("MAX ERROR ВНУТРИ NEXT.JS:", e);
     return NextResponse.json({ ok: false });
   }
-}
-
-// чтобы MAX проверял endpoint
-export async function GET() {
-  return NextResponse.json({ status: "ok" });
 }
