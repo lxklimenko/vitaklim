@@ -7,21 +7,20 @@ const supabase = createClient(
 )
 
 async function sendMessage(userId: string, text: string) {
-  await fetch("https://botapi.max.ru/messages", {
+  const res = await fetch("https://botapi.max.ru/message", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${process.env.MAX_BOT_TOKEN}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      recipient: {
-        user_id: userId
-      },
-      message: {
-        text: text
-      }
+      chat_id: userId,
+      text: text
     })
   })
+
+  const data = await res.json()
+  console.log("MAX SEND RESPONSE:", data)
 }
 
 export async function POST(req: Request) {
