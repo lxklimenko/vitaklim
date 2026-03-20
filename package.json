@@ -11,6 +11,7 @@
   "dependencies": {
     "@a2seven/yoo-checkout": "^1.1.4",
     "@fontsource/inter": "^5.2.8",
+    "@maxhub/max-bot-api": "^0.2.2",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.91.1",
@@ -34,6 +35,7 @@
     "eslint-config-next": "16.1.4",
     "supabase": "^2.72.9",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   },
   "browserslist": [
