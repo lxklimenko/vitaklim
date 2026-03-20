@@ -1,64 +1,45 @@
 import { NextResponse } from "next/server";
+import { Bot } from '@maxhub/max-bot-api';
 
-const MAX_TOKEN = process.env.MAX_BOT_TOKEN!;
+// ❗ токен бери из env (а не хардкод)
+const bot = new Bot(process.env.MAX_BOT_TOKEN!);
+
+// команда /start
+bot.command('start', async (ctx: any) => {
+  const senderName = ctx.message?.sender?.first_name || 'друг';
+  
+  console.log(`START от: ${senderName}`);
+  
+  await ctx.reply(`Привет, ${senderName}! 🚀`);
+});
+
+// любое сообщение
+bot.on('message_created', async (ctx: any) => {
+  const text = ctx.message?.body?.text;
+
+  if (text && text !== '/start') {
+    await ctx.reply(`Ты написал: ${text}`);
+  }
+});
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const update = await req.json();
 
-    console.log("MAX UPDATE:", body);
+    console.log("MAX UPDATE:", update);
 
-    // ✅ правильный разбор данных из MAX
-    const text = body.message?.body?.text;
-    const chatId = body.message?.recipient?.chat_id;
-
-    if (!chatId) {
-      console.log("❌ No chat_id");
-      return NextResponse.json({});
-    }
-
-    // если нет текста (например, стикер или что-то другое)
-    if (!text) {
-      await sendMessage(chatId, "Напиши текст ✍️");
-      return NextResponse.json({ ok: true });
-    }
-
-    // простая логика ответа
-    await sendMessage(chatId, `Ты написал: ${text}`);
+    // 🔥 ключевая магия
+    await (bot as any).handleUpdate(update);
 
     return NextResponse.json({ ok: true });
 
-  } catch (error) {
-    console.error("MAX ERROR:", error);
-    return NextResponse.json({});
+  } catch (e) {
+    console.error("MAX ERROR:", e);
+    return NextResponse.json({ ok: false });
   }
 }
 
-// 👇 функция отправки сообщения в MAX
-async function sendMessage(chatId: number, text: string) {
-  try {
-    const res = await fetch("https://platform-api.max.ru/messages", {
-      method: "POST",
-      headers: {
-        "Authorization": MAX_TOKEN, // 🔥 важно!
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-      }),
-    });
-
-    const data = await res.text();
-
-    console.log("MAX SEND RESPONSE:", res.status, data);
-
-  } catch (error) {
-    console.error("SEND MESSAGE ERROR:", error);
-  }
-}
-
-// 👇 чтобы MAX мог проверять endpoint
+// чтобы MAX проверял endpoint
 export async function GET() {
   return NextResponse.json({ status: "ok" });
 }
