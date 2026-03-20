@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { Bot } from '@maxhub/max-bot-api';
 
 // Инициализируем бота
-const bot = new Bot("f9LHodD0cOI1J-ST6FT8gluYkePr82jia84fhbYH8MvkPe4snFkZEPRXZtOpmB22v6eCLk90mRIrdoxJ6GQc");
+const bot = new Bot(process.env.BOT_TOKEN!);
 
 bot.command('start', async (ctx: any) => {
   const senderName = ctx.message?.sender?.first_name || 'друг';
