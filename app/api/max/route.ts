@@ -7,19 +7,12 @@ const supabase = createClient(
 )
 
 export async function POST(req: Request) {
+  console.log("🔥 MAX HIT")
+
   return new Response(
     JSON.stringify({
-      messages: [
-        {
-          text: "🔥 WEBHOOK РАБОТАЕТ"
-        }
-      ]
+      messages: [{ text: "🔥 MAX OK" }]
     }),
-    {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json"
-      }
-    }
+    { headers: { "Content-Type": "application/json" } }
   )
 }
