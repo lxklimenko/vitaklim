@@ -40,7 +40,7 @@ async function sendMessage(chatId: number, text: string) {
     const res = await fetch("https://platform-api.max.ru/messages", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${MAX_TOKEN}`, // 🔥 важно!
+        "Authorization": MAX_TOKEN, // 🔥 важно!
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
