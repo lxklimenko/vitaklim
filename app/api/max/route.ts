@@ -6,37 +6,25 @@ export async function POST(req: Request) {
 
     console.log("MAX UPDATE:", body);
 
-    const userId = body.user?.id;
-    const text = body.message?.text;
+    // ✅ правильный путь к данным из MAX
+    const text = body.message?.body?.text;
+    const chatId = body.message?.recipient?.chat_id;
 
-    if (!text) {
-      return NextResponse.json({
-        messages: [{ text: "Напиши что-нибудь 👀" }]
-      });
+    if (!chatId) {
+      return NextResponse.json({});
     }
 
-    // простая логика
-    if (text === "/start") {
-      return NextResponse.json({
-        messages: [
-          { text: "🔥 Добро пожаловать в Max-бот!" },
-          { text: "Напиши что угодно — я отвечу 😄" }
-        ]
-      });
-    }
-
-    // echo
     return NextResponse.json({
       messages: [
-        { text: `Ты написал: ${text}` }
+        {
+          chat_id: chatId,
+          text: `Ты написал: ${text}`
+        }
       ]
     });
 
   } catch (error) {
     console.error("MAX ERROR:", error);
-
-    return NextResponse.json({
-      messages: [{ text: "Ошибка 😢" }]
-    });
+    return NextResponse.json({});
   }
 }
