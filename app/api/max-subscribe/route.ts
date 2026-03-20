@@ -3,6 +3,9 @@ import { NextResponse } from "next/server"
 export async function GET() {
   console.log("🔥 TRY SUBSCRIBE")
 
+  // 👇 ВОТ СЮДА ДОБАВЬ
+  console.log("TOKEN:", process.env.MAX_BOT_TOKEN_DEV)
+
   const res = await fetch("https://platform-api.max.ru/subscriptions", {
     method: "POST",
     headers: {
