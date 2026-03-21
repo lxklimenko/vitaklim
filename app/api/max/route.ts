@@ -3,10 +3,14 @@ import { Bot, Keyboard } from '@maxhub/max-bot-api';
 import { supabaseAdmin } from "@/app/lib/supabase-admin";
 import { generateImageCore } from "@/app/lib/generateCore";
 
-const MAX_TOKEN = process.env.BOT_TOKEN!;
-if (!MAX_TOKEN) console.error("ОШИБКА: Не задан BOT_TOKEN в .env!");
+// Исправляем здесь название переменной
+const MAX_TOKEN = process.env.MAX_BOT_TOKEN!; 
+if (!MAX_TOKEN) {
+    console.error("ОШИБКА: Переменная MAX_BOT_TOKEN не найдена! Проверь настройки Vercel.");
+}
 
 const bot = new Bot(MAX_TOKEN);
+// ... остальной код моделей ...
 
 const MODELS = {
   NANO2: "🍌 Nano Banano 2 (Gemini 3.1 Flash) — 5 🍌",
