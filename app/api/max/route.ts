@@ -259,6 +259,44 @@ bot.action('action_back', async (ctx: any) => {
   }
 });
 
+// ==================== КНОПКИ "ДОМОЙ" И "ПОВТОРИТЬ" ====================
+bot.action('action_home', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  if (!maxUserId) return;
+  await updateBotState(maxUserId, "idle");
+  await sendMaxMainMenu(ctx, false);
+});
+
+bot.action('action_repeat_generation', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  if (!maxUserId) return;
+
+  const { data: profile } = await supabaseAdmin.from("profiles").select("*").eq("max_user_id", maxUserId).maybeSingle();
+  if (!profile) return;
+
+  const currentState = profile.bot_state;
+  const savedModelStr = profile.bot_selected_model || "";
+  const parts = savedModelStr.split('|');
+  
+  // Если частей меньше 3, значит промпт еще не сохранялся
+  if (parts.length < 3) {
+     await ctx.reply("К сожалению, предыдущий запрос не сохранился. Пожалуйста, напишите его текстом.");
+     return;
+  }
+
+  // Склеиваем текст обратно (на случай, если юзер сам использовал символ "|" в промпте)
+  const prompt = parts.slice(2).join('|'); 
+
+  // Запускаем нужную генерацию заново!
+  if (currentState === "awaiting_prompt") {
+     await handleTextGeneration(ctx, profile, prompt);
+  } else if (currentState === "awaiting_photo_prompt") {
+     await handlePhotoGeneration(ctx, profile, prompt);
+  } else {
+     await ctx.reply("Сессия устарела. Начните новую генерацию из Главного меню.");
+  }
+});
+
 // ==================== ОБРАБОТКА СООБЩЕНИЙ ====================
 bot.on('message_created', async (ctx: any) => {
   const maxUserId = getUserId(ctx);
@@ -360,7 +398,10 @@ bot.on('message_created', async (ctx: any) => {
 async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
   const maxUserId = profile.max_user_id;
   const savedModelStr = profile.bot_selected_model || `${MODELS.NANO2}|1:1`;
-  const [modelDisplayName, formatFromDb] = savedModelStr.split('|');
+  const parts = savedModelStr.split('|');
+  const modelDisplayName = parts[0];
+  const formatFromDb = parts[1] || "1:1";
+  
   const cost = PRICES[modelDisplayName] || 5;
   const modelId = MODEL_NAME_TO_ID[modelDisplayName] || "gemini-3.1-flash-image-preview";
 
@@ -370,6 +411,10 @@ async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
     await sendMaxMainMenu(ctx, false);
     return;
   }
+
+  // 1. СОХРАНЯЕМ ПРОМПТ В БАЗУ ДЛЯ ПОВТОРА (Модель|Формат|Промпт)
+  const newModelStr = `${modelDisplayName}|${formatFromDb}|${prompt}`;
+  await supabaseAdmin.from('profiles').update({ bot_selected_model: newModelStr }).eq('max_user_id', maxUserId);
 
   await ctx.reply("🎨 Генерация запущена. Рисуем шедевр...");
 
@@ -397,21 +442,33 @@ async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
     await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
     await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
 
+    // 2. ВЫВОДИМ КНОПКИ ПОВТОРА И МЕНЮ
+    const keyboard = Keyboard.inlineKeyboard([
+      [Keyboard.button.callback("🔄 Повторить так же", "action_repeat_generation")],
+      [Keyboard.button.callback("🏠 В главное меню", "action_home")]
+    ]);
+    await ctx.reply(`Вы можете нажать **«Повторить так же»** 🔄, отправить **новый текст** для изменения ✍️ или вернуться в меню:`, {
+      format: 'markdown',
+      attachments: [keyboard]
+    });
+
   } catch (error: any) {
     console.error("ОШИБКА ГЕНЕРАЦИИ MAX:", error);
     await supabaseAdmin.rpc('increment_balance', { user_id: profile.id, amount_to_add: cost });
     await ctx.reply("Хьюстон, у нас проблемы! 🛑 Не удалось отправить картинку. Бананы мы тебе вернули!");
+    await updateBotState(maxUserId, "idle");
+    await sendMaxMainMenu(ctx, false);
   }
-
-  await updateBotState(maxUserId, "idle");
-  await sendMaxMainMenu(ctx, false);
 }
 
 // --- ГЕНЕРАЦИЯ ПО ФОТО ---
 async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
   const maxUserId = profile.max_user_id;
   const savedModelStr = profile.bot_selected_model || `${MODELS.NANO2}|1:1`;
-  const [modelDisplayName, formatFromDb] = savedModelStr.split('|');
+  const parts = savedModelStr.split('|');
+  const modelDisplayName = parts[0];
+  const formatFromDb = parts[1] || "1:1";
+  
   const cost = PRICES[modelDisplayName] || 5;
   const modelId = MODEL_NAME_TO_ID[modelDisplayName] || "gemini-3.1-flash-image-preview";
 
@@ -430,23 +487,25 @@ async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
     return;
   }
 
+  // 1. СОХРАНЯЕМ ПРОМПТ В БАЗУ ДЛЯ ПОВТОРА
+  const newModelStr = `${modelDisplayName}|${formatFromDb}|${prompt}`;
+  await supabaseAdmin.from('profiles').update({ bot_selected_model: newModelStr }).eq('max_user_id', maxUserId);
+
   await ctx.reply("🎨 Генерация по фото запущена. Обрабатываем...");
 
   try {
-    // 1. Скачиваем оригинальное фото юзера из MAX по сохраненному URL
     console.log("Скачиваем фото пользователя по URL:", referenceUrls[0]);
     const refResponse = await fetch(referenceUrls[0]);
     const refArrayBuffer = await refResponse.arrayBuffer();
     const userImageBuffer = Buffer.from(refArrayBuffer);
 
-    // 2. Вызываем генерацию
     const result = await generateImageCore({
       userId: profile.id,
       prompt: prompt,
       modelId,
       aspectRatio: formatFromDb || "1:1",
       supabase: supabaseAdmin,
-      imageBuffers: [userImageBuffer] // Передаем буфер фото пользователя
+      imageBuffers: [userImageBuffer]
     });
 
     console.log("Успешная генерация по фото! Скачиваем результат...");
@@ -463,14 +522,23 @@ async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
     await ctx.reply(`✨ Ваша генерация по фото готова!`, { attachments: [imageAttachment.toJson()] });
     await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
 
+    // 2. ВЫВОДИМ КНОПКИ ПОВТОРА И МЕНЮ
+    const keyboard = Keyboard.inlineKeyboard([
+      [Keyboard.button.callback("🔄 Повторить так же", "action_repeat_generation")],
+      [Keyboard.button.callback("🏠 В главное меню", "action_home")]
+    ]);
+    await ctx.reply(`Вы можете нажать **«Повторить так же»** 🔄, написать **новый промпт** для этого же фото ✍️ или вернуться в меню:`, {
+      format: 'markdown',
+      attachments: [keyboard]
+    });
+
   } catch (error: any) {
     console.error("ОШИБКА ГЕНЕРАЦИИ ПО ФОТО MAX:", error);
     await supabaseAdmin.rpc('increment_balance', { user_id: profile.id, amount_to_add: cost });
     await ctx.reply("Хьюстон, у нас проблемы! 🛑 Не удалось сгенерировать картинку. Бананы мы тебе вернули!");
+    await updateBotState(maxUserId, "idle");
+    await sendMaxMainMenu(ctx, false);
   }
-
-  await updateBotState(maxUserId, "idle");
-  await sendMaxMainMenu(ctx, false);
 }
 
 // ==================== NEXT.JS ВЕБХУК ====================
