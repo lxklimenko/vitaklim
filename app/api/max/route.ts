@@ -251,14 +251,15 @@ bot.on('message_created', async (ctx: any) => {
       
       fs.writeFileSync(tempFilePath, buffer);
 
-      console.log("Отправляем локальный файл в MAX через потоковое чтение...");
+      console.log("Создаем поток файла и загружаем в MAX...");
 
-      // 7. ЗАГРУЖАЕМ ФАЙЛ В MAX (Используем ключ photos и ReadStream)
+      // 7. ЗАГРУЖАЕМ ФАЙЛ В MAX (Передаем ПОТОК в ключ source)
+      const fileStream = fs.createReadStream(tempFilePath);
       const imageAttachment = await ctx.api.uploadImage({ 
-        photos: fs.createReadStream(tempFilePath) 
+        source: fileStream 
       });
       
-      // 8. УДАЛЯЕМ ВРЕМЕННЫЙ ФАЙЛ (чтобы сервер Vercel не забивался)
+      // 8. УДАЛЯЕМ ВРЕМЕННЫЙ ФАЙЛ (Только после того, как загрузка завершилась)
       fs.unlinkSync(tempFilePath);
 
       // 9. ОТПРАВЛЯЕМ КАРТИНКУ В ЧАТ
@@ -275,7 +276,7 @@ bot.on('message_created', async (ctx: any) => {
         amount_to_add: cost
       });
 
-      await ctx.reply("Хьюстон, у нас проблемы! 🛑 Не удалось отправить картинку или сработали фильтры. Бананы мы тебе вернули!");
+      await ctx.reply("Хьюстон, у нас проблемы! 🛑 Не удалось отправить картинку. Бананы мы тебе вернули!");
     }
 
     // 7. Возвращаем бота в исходное состояние и показываем меню
