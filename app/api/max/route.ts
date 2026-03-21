@@ -114,9 +114,8 @@ bot.action('action_balance', async (ctx: any) => {
 bot.action('action_history', async (ctx: any) => ctx.reply("📂 История генераций скоро появится!", { format: 'markdown' }));
 bot.action('action_help', async (ctx: any) => ctx.reply("🚀 *Помощь*\n\nВсё очень просто: жми на кнопки!", { format: 'markdown' }));
 bot.action('action_settings', async (ctx: any) => ctx.reply("⚙️ Настройки в разработке.", { format: 'markdown' }));
-bot.action('action_create_photo', async (ctx: any) => ctx.reply("🖼 Генерация по фото скоро появится!"));
 
-// ==================== МАШИНА СОСТОЯНИЙ ====================
+// ==================== МАШИНА СОСТОЯНИЙ: ОБЫЧНЫЙ ФЛОУ (Text-to-Image) ====================
 async function sendModelSelection(ctx: any, maxUserId: string) {
   await updateBotState(maxUserId, "choosing_model");
   const buttons = [
@@ -151,32 +150,107 @@ async function handleFormatSelection(ctx: any, maxUserId: string, selectedFormat
   await ctx.reply(`✅ Формат *${selectedFormat}* выбран!\n\nНапишите текстом, что нужно создать ✍️`, { format: 'markdown', attachments: [keyboard] });
 }
 
+// ==================== МАШИНА СОСТОЯНИЙ: ФОТО-ФЛОУ (Image-to-Image) ====================
+async function sendPhotoModelSelection(ctx: any, maxUserId: string) {
+  await updateBotState(maxUserId, "choosing_photo_model");
+  const buttons = [
+    [Keyboard.button.callback(MODELS.NANO2, "photo_model_nano2")],
+    [Keyboard.button.callback(MODELS.PRO, "photo_model_pro")],
+    [Keyboard.button.callback(MODELS.PRO4K, "photo_model_pro4k")],
+    [Keyboard.button.callback("⬅️ Назад", "action_back")]
+  ];
+  await ctx.reply("🖼 *Генерация по фото*\n\nВыберите модель:", { format: 'markdown', attachments: [Keyboard.inlineKeyboard(buttons)] });
+}
+
+async function sendPhotoFormatSelection(ctx: any, maxUserId: string, modelDisplayName: string) {
+  await updateBotState(maxUserId, "choosing_photo_format", modelDisplayName);
+  const buttons = [
+    [Keyboard.button.callback("⬛ 1:1 (Квадрат)", "photo_format_1:1")],
+    [
+      Keyboard.button.callback("📱 9:16 (Верт.)", "photo_format_9:16"),
+      Keyboard.button.callback("🖥 16:9 (Гориз.)", "photo_format_16:9")
+    ],
+    [Keyboard.button.callback("⬅️ Назад", "action_back")]
+  ];
+  await ctx.reply(`Модель: *${modelDisplayName}*\n\nВыберите формат:`, { format: 'markdown', attachments: [Keyboard.inlineKeyboard(buttons)] });
+}
+
+async function handlePhotoFormatSelection(ctx: any, maxUserId: string, selectedFormat: string) {
+  const { data: profile } = await supabaseAdmin.from('profiles').select('bot_selected_model').eq('max_user_id', maxUserId).maybeSingle();
+  const oldModelName = profile?.bot_selected_model || MODELS.NANO2;
+  const newModelStr = `${oldModelName}|${selectedFormat}`;
+
+  await updateBotState(maxUserId, "awaiting_photo", newModelStr);
+  const keyboard = Keyboard.inlineKeyboard([[Keyboard.button.callback("⬅️ Назад", "action_back")]]);
+  await ctx.reply(`✅ Формат *${selectedFormat}* выбран!\n\nТеперь, пожалуйста, **пришвартуйте (прикрепите) ваше фото** 📸`, { 
+    format: 'markdown', 
+    attachments: [keyboard] 
+  });
+}
+
+// ==================== ЛОГИКА КНОПОК ====================
+
+// --- ОБЫЧНЫЙ ФЛОУ (Text-to-Image) ---
 bot.action('action_create_image', async (ctx: any) => { const id = getUserId(ctx); if (id) await sendModelSelection(ctx, id); });
+
 bot.action('model_nano2', async (ctx: any) => { const id = getUserId(ctx); if (id) await sendFormatSelection(ctx, id, MODELS.NANO2); });
 bot.action('model_pro', async (ctx: any) => { const id = getUserId(ctx); if (id) await sendFormatSelection(ctx, id, MODELS.PRO); });
 bot.action('model_pro4k', async (ctx: any) => { const id = getUserId(ctx); if (id) await sendFormatSelection(ctx, id, MODELS.PRO4K); });
+
 bot.action('format_1:1', async (ctx: any) => { const id = getUserId(ctx); if (id) await handleFormatSelection(ctx, id, '1:1'); });
 bot.action('format_9:16', async (ctx: any) => { const id = getUserId(ctx); if (id) await handleFormatSelection(ctx, id, '9:16'); });
 bot.action('format_16:9', async (ctx: any) => { const id = getUserId(ctx); if (id) await handleFormatSelection(ctx, id, '16:9'); });
 
+// --- ФОТО ФЛОУ (Image-to-Image) ---
+bot.action('action_create_photo', async (ctx: any) => { 
+  const id = getUserId(ctx); 
+  if (id) await sendPhotoModelSelection(ctx, id); 
+});
+
+bot.action('photo_model_nano2', async (ctx: any) => { const id = getUserId(ctx); if (id) await sendPhotoFormatSelection(ctx, id, MODELS.NANO2); });
+bot.action('photo_model_pro', async (ctx: any) => { const id = getUserId(ctx); if (id) await sendPhotoFormatSelection(ctx, id, MODELS.PRO); });
+bot.action('photo_model_pro4k', async (ctx: any) => { const id = getUserId(ctx); if (id) await sendPhotoFormatSelection(ctx, id, MODELS.PRO4K); });
+
+bot.action('photo_format_1:1', async (ctx: any) => { const id = getUserId(ctx); if (id) await handlePhotoFormatSelection(ctx, id, '1:1'); });
+bot.action('photo_format_9:16', async (ctx: any) => { const id = getUserId(ctx); if (id) await handlePhotoFormatSelection(ctx, id, '9:16'); });
+bot.action('photo_format_16:9', async (ctx: any) => { const id = getUserId(ctx); if (id) await handlePhotoFormatSelection(ctx, id, '16:9'); });
+
+// ==================== УМНАЯ КНОПКА "НАЗАД" ====================
 bot.action('action_back', async (ctx: any) => {
   const maxUserId = getUserId(ctx);
   if (!maxUserId) return;
+
   const { data: profile } = await supabaseAdmin.from("profiles").select("bot_state, bot_selected_model").eq("max_user_id", maxUserId).maybeSingle();
   const currentState = profile?.bot_state || "idle";
+  const savedModelStr = profile?.bot_selected_model || "";
+  const [modelName] = savedModelStr.split('|');
 
   switch (currentState) {
+    // --- Обычный флоу Назад ---
     case "awaiting_prompt": {
-      const savedModelStr = profile?.bot_selected_model || "";
-      const [modelName] = savedModelStr.split('|');
       await sendFormatSelection(ctx, maxUserId, modelName || MODELS.NANO2);
       break;
     }
-    case "choosing_format":
-    case "choosing_photo_format": {
+    case "choosing_format": {
       await sendModelSelection(ctx, maxUserId);
       break;
     }
+
+    // --- ФОТО флоу Назад ---
+    case "awaiting_photo": {
+      // От просьбы фото к выбору формата
+      await sendPhotoFormatSelection(ctx, maxUserId, modelName || MODELS.NANO2);
+      break;
+    }
+    case "choosing_photo_format": {
+      // От формата к выбору модели
+      await sendPhotoModelSelection(ctx, maxUserId);
+      break;
+    }
+
+    // --- Дефолт (Главное меню) ---
+    case "choosing_model":
+    case "choosing_photo_model":
     default: {
       await updateBotState(maxUserId, "idle");
       await sendMaxMainMenu(ctx, false);
@@ -185,16 +259,11 @@ bot.action('action_back', async (ctx: any) => {
   }
 });
 
-
-// ==================== МАГИЯ: ОБРАБОТКА ТЕКСТА И ГЕНЕРАЦИЯ ====================
+// ==================== ОБРАБОТКА СООБЩЕНИЙ ====================
 bot.on('message_created', async (ctx: any) => {
-  const text = ctx.message?.body?.text;
-  if (!text || text.startsWith('/start')) return;
-
   const maxUserId = getUserId(ctx);
   if (!maxUserId) return;
 
-  // Ищем профиль пользователя в базе
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("*")
@@ -204,88 +273,197 @@ bot.on('message_created', async (ctx: any) => {
   if (!profile) return;
 
   const currentState = profile.bot_state || "idle";
+  const text = ctx.message?.body?.text;
+  const attachments = ctx.message?.attachments;
 
-  // Если бот ждет промпт (пользователь выбрал модель и формат)
-  if (currentState === "awaiting_prompt") {
-    
-    // 1. Достаем настройки генерации
-    const savedModelStr = profile.bot_selected_model || `${MODELS.NANO2}|1:1`;
-    const [modelDisplayName, formatFromDb] = savedModelStr.split('|');
-    const cost = PRICES[modelDisplayName] || 5;
-    const modelId = MODEL_NAME_TO_ID[modelDisplayName] || "gemini-3.1-flash-image-preview";
-
-    // 2. Проверяем баланс
-    if (profile.balance < cost) {
-      await ctx.reply(`❌ Недостаточно средств.\n\nВы выбрали модель за ${cost} 🍌, а у вас всего ${profile.balance} 🍌.`);
-      await updateBotState(maxUserId, "idle");
-      await sendMaxMainMenu(ctx, false);
+  // --- ШАГ 4 (ФОТО): Юзер прислал фото ---
+  if (currentState === "awaiting_photo") {
+    if (!attachments || attachments.length === 0) {
+      await ctx.reply("Пожалуйста, пришвартуйте изображение 📸 или нажмите 'Назад'.");
       return;
     }
 
-    // 3. Отправляем сообщение-заглушку "в процессе"
-    await ctx.reply("🎨 Генерация запущена. Рисуем шедевр...");
+    const photoAttachment = attachments.find((a: any) => a.type === 'image');
+    if (!photoAttachment) {
+      await ctx.reply("Это не похоже на изображение. Пожалуйста, отправьте фото.");
+      return;
+    }
 
     try {
-      // 4. ВЫЗЫВАЕМ ИИ-ЯДРО
-      const result = await generateImageCore({
-        userId: profile.id, 
-        prompt: text,
-        modelId: modelId,
-        aspectRatio: formatFromDb || "1:1",
-        supabase: supabaseAdmin,
-        imageBuffers: undefined
-      });
-
-      console.log("Успешная генерация! Скачиваем картинку...");
-
-      // 5. СКАЧИВАЕМ КАРТИНКУ В ОПЕРАТИВНУЮ ПАМЯТЬ
-      const imageResponse = await fetch(result.imageUrl);
-      const arrayBuffer = await imageResponse.arrayBuffer();
+      // 1. Получаем ссылку на скачивание файла из MAX
+      const fileInfo = await ctx.api.getFile(photoAttachment.payload.token); 
       
-      // 6. НАШ УСПЕШНЫЙ "ТРОЯНСКИЙ БУФЕР"
-      const buffer: any = Buffer.from(arrayBuffer);
-      buffer.path = "klex_image.jpg"; 
-      buffer.name = "klex_image.jpg"; 
+      // 2. Сохраняем URL картинки в базу (в массив bot_reference_url)
+      const currentUrls = profile.bot_reference_url || [];
+      const updatedUrls = [...currentUrls, fileInfo.url];
 
-      console.log("Загружаем в MAX...");
+      await supabaseAdmin
+        .from("profiles")
+        .update({ 
+          bot_state: "awaiting_photo_prompt", // Переводим на следующий шаг
+          bot_reference_url: updatedUrls 
+        })
+        .eq("max_user_id", maxUserId);
 
-      // 7. ЗАГРУЖАЕМ КАК КАРТИНКУ (для красивого превью в чате)
-      const imageAttachment = await ctx.api.uploadImage({ source: buffer });
-      
-      // 8. ЗАГРУЖАЕМ КАК ФАЙЛ (для скачивания без потери качества)
-      const fileAttachment = await ctx.api.uploadFile({ source: buffer });
-
-      // 9. ОТПРАВЛЯЕМ КАРТИНКУ 
-      await ctx.reply(`✨ Ваша генерация готова!`, {
-        attachments: [imageAttachment.toJson()]
-      });
-
-      // 10. ОТПРАВЛЯЕМ ФАЙЛ СЛЕДОМ
-      await ctx.reply(`📁 Оригинал в максимальном качестве:`, {
-        attachments: [fileAttachment.toJson()]
+      const keyboard = Keyboard.inlineKeyboard([[Keyboard.button.callback("⬅️ Назад", "action_back")]]);
+      await ctx.reply("📸 Фото принято!\n\nТеперь **напишите описание** (промпт) для генерации 🎨", {
+        format: 'markdown',
+        attachments: [keyboard]
       });
 
     } catch (error: any) {
-      console.error("ОШИБКА ГЕНЕРАЦИИ MAX:", error);
-      
-      // ВОЗВРАТ СРЕДСТВ
-      await supabaseAdmin.rpc('increment_balance', { 
-        user_id: profile.id, 
-        amount_to_add: cost
-      });
-
-      await ctx.reply("Хьюстон, у нас проблемы! 🛑 Не удалось отправить картинку. Бананы мы тебе вернули!");
+      console.error("Ошибка загрузки фото из MAX:", error);
+      await ctx.reply("Не удалось обработать фото. Попробуйте еще раз.");
     }
+    return;
+  }
 
-    // 7. Возвращаем бота в исходное состояние и показываем меню
+  // --- ШАГ 5 (ФОТО): Юзер прислал промпт после фото ---
+  if (currentState === "awaiting_photo_prompt") {
+    if (!text || text.startsWith('/start')) {
+      await ctx.reply("Пожалуйста, напишите текстовое описание для вашего фото ✍️");
+      return;
+    }
+    await handlePhotoGeneration(ctx, profile, text);
+    return;
+  }
+
+  // --- ШАГ 3 (ТЕКСТ): Юзер прислал промпт (Обычный флоу) ---
+  if (currentState === "awaiting_prompt") {
+    if (!text || text.startsWith('/start')) {
+      await ctx.reply("Пожалуйста, напишите, что нужно создать ✍️");
+      return;
+    }
+    await handleTextGeneration(ctx, profile, text);
+    return;
+  }
+
+  // --- ОШИБКА: Защита от спама ---
+  if (text && !text.startsWith('/start')) {
+    await ctx.reply(`Я пока понимаю только нажатия на кнопки меню. Вызови /start, чтобы открыть меню!`);
+  } else if (attachments && attachments.length > 0) {
+    await ctx.reply("Сначала выберите действие \"🖼 Сгрен. по фото\" в меню.");
+  }
+});
+
+// ==================== ФУНКЦИИ ГЕНЕРАЦИИ ====================
+
+// --- ОБЫЧНАЯ ГЕНЕРАЦИЯ ---
+async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
+  const maxUserId = profile.max_user_id;
+  const savedModelStr = profile.bot_selected_model || `${MODELS.NANO2}|1:1`;
+  const [modelDisplayName, formatFromDb] = savedModelStr.split('|');
+  const cost = PRICES[modelDisplayName] || 5;
+  const modelId = MODEL_NAME_TO_ID[modelDisplayName] || "gemini-3.1-flash-image-preview";
+
+  if (profile.balance < cost) {
+    await ctx.reply(`❌ Недостаточно средств.\n\nВы выбрали модель за ${cost} 🍌, а у вас всего ${profile.balance} 🍌.`);
     await updateBotState(maxUserId, "idle");
     await sendMaxMainMenu(ctx, false);
     return;
   }
 
-  // Если пишут текст в любом другом состоянии
-  await ctx.reply(`Я пока понимаю только нажатия на кнопки меню. Вызови /start, чтобы открыть меню!`);
-});
+  await ctx.reply("🎨 Генерация запущена. Рисуем шедевр...");
+
+  try {
+    const result = await generateImageCore({
+      userId: profile.id,
+      prompt,
+      modelId,
+      aspectRatio: formatFromDb || "1:1",
+      supabase: supabaseAdmin,
+      imageBuffers: undefined
+    });
+
+    console.log("Успешная генерация! Скачиваем картинку...");
+
+    const imageResponse = await fetch(result.imageUrl);
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    const buffer: any = Buffer.from(arrayBuffer);
+    buffer.path = "klex_image.jpg";
+    buffer.name = "klex_image.jpg";
+
+    const imageAttachment = await ctx.api.uploadImage({ source: buffer });
+    const fileAttachment = await ctx.api.uploadFile({ source: buffer });
+
+    await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
+    await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
+
+  } catch (error: any) {
+    console.error("ОШИБКА ГЕНЕРАЦИИ MAX:", error);
+    await supabaseAdmin.rpc('increment_balance', { user_id: profile.id, amount_to_add: cost });
+    await ctx.reply("Хьюстон, у нас проблемы! 🛑 Не удалось отправить картинку. Бананы мы тебе вернули!");
+  }
+
+  await updateBotState(maxUserId, "idle");
+  await sendMaxMainMenu(ctx, false);
+}
+
+// --- ГЕНЕРАЦИЯ ПО ФОТО ---
+async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
+  const maxUserId = profile.max_user_id;
+  const savedModelStr = profile.bot_selected_model || `${MODELS.NANO2}|1:1`;
+  const [modelDisplayName, formatFromDb] = savedModelStr.split('|');
+  const cost = PRICES[modelDisplayName] || 5;
+  const modelId = MODEL_NAME_TO_ID[modelDisplayName] || "gemini-3.1-flash-image-preview";
+
+  const referenceUrls = profile.bot_reference_url;
+  if (!referenceUrls || referenceUrls.length === 0) {
+    await ctx.reply("Ошибка: не найдено ни одного фото. Начните заново.");
+    await updateBotState(maxUserId, "idle");
+    await sendMaxMainMenu(ctx, false);
+    return;
+  }
+
+  if (profile.balance < cost) {
+    await ctx.reply(`❌ Недостаточно средств.\n\nВы выбрали модель за ${cost} 🍌, а у вас всего ${profile.balance} 🍌.`);
+    await updateBotState(maxUserId, "idle");
+    await sendMaxMainMenu(ctx, false);
+    return;
+  }
+
+  await ctx.reply("🎨 Генерация по фото запущена. Обрабатываем...");
+
+  try {
+    // 1. Скачиваем оригинальное фото юзера из MAX по сохраненному URL
+    console.log("Скачиваем фото пользователя по URL:", referenceUrls[0]);
+    const refResponse = await fetch(referenceUrls[0]);
+    const refArrayBuffer = await refResponse.arrayBuffer();
+    const userImageBuffer = Buffer.from(refArrayBuffer);
+
+    // 2. Вызываем генерацию
+    const result = await generateImageCore({
+      userId: profile.id,
+      prompt: prompt,
+      modelId,
+      aspectRatio: formatFromDb || "1:1",
+      supabase: supabaseAdmin,
+      imageBuffers: [userImageBuffer] // Передаем буфер фото пользователя
+    });
+
+    console.log("Успешная генерация по фото! Скачиваем результат...");
+
+    const imageResponse = await fetch(result.imageUrl);
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    const buffer: any = Buffer.from(arrayBuffer);
+    buffer.path = "klex_image.jpg";
+    buffer.name = "klex_image.jpg";
+
+    const imageAttachment = await ctx.api.uploadImage({ source: buffer });
+    const fileAttachment = await ctx.api.uploadFile({ source: buffer });
+
+    await ctx.reply(`✨ Ваша генерация по фото готова!`, { attachments: [imageAttachment.toJson()] });
+    await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
+
+  } catch (error: any) {
+    console.error("ОШИБКА ГЕНЕРАЦИИ ПО ФОТО MAX:", error);
+    await supabaseAdmin.rpc('increment_balance', { user_id: profile.id, amount_to_add: cost });
+    await ctx.reply("Хьюстон, у нас проблемы! 🛑 Не удалось сгенерировать картинку. Бананы мы тебе вернули!");
+  }
+
+  await updateBotState(maxUserId, "idle");
+  await sendMaxMainMenu(ctx, false);
+}
 
 // ==================== NEXT.JS ВЕБХУК ====================
 export async function POST(req: Request) {
