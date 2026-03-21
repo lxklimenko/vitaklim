@@ -174,6 +174,62 @@ bot.action('action_create_image', async (ctx: any) => {
   });
 });
 
+// ==================== КНОПКА "НАЗАД" ====================
+bot.action('action_back', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  
+  if (maxUserId) {
+    // Сбрасываем все состояния в базе
+    await supabaseAdmin
+      .from("profiles")
+      .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
+      .eq("max_user_id", maxUserId);
+  }
+  
+  // Возвращаем главное меню
+  await sendMaxMainMenu(ctx, false);
+});
+
+// ==================== ВЫБОР МОДЕЛИ -> ПЕРЕХОД К ФОРМАТУ ====================
+// Универсальная функция, чтобы не писать один и тот же код три раза
+async function handleModelSelection(ctx: any, modelKey: keyof typeof MODELS) {
+  const maxUserId = getUserId(ctx);
+  if (!maxUserId) return;
+
+  const modelDisplayName = MODELS[modelKey];
+
+  // 1. Сохраняем выбранную модель в базу и переходим на шаг "choosing_format"
+  await supabaseAdmin
+    .from("profiles")
+    .update({
+      bot_state: "choosing_format",
+      bot_selected_model: modelDisplayName
+    })
+    .eq("max_user_id", maxUserId);
+
+  // 2. Рисуем клавиатуру с форматами
+  const buttons = [
+    [Keyboard.button.callback("⬛ 1:1 (Квадрат)", "format_1:1")],
+    [
+      Keyboard.button.callback("📱 9:16 (Верт.)", "format_9:16"),
+      Keyboard.button.callback("🖥 16:9 (Гориз.)", "format_16:9")
+    ],
+    [Keyboard.button.callback("⬅️ Назад", "action_back")]
+  ];
+
+  const keyboard = Keyboard.inlineKeyboard(buttons);
+
+  await ctx.reply(`Модель: *${modelDisplayName}*\n\nВыберите нужный формат изображения:`, {
+    format: 'markdown', // Включаем поддержку жирного текста
+    attachments: [keyboard]
+  });
+}
+
+// Слушаем нажатия на кнопки моделей и передаем их в функцию
+bot.action('model_nano2', (ctx: any) => handleModelSelection(ctx, 'NANO2'));
+bot.action('model_pro', (ctx: any) => handleModelSelection(ctx, 'PRO'));
+bot.action('model_pro4k', (ctx: any) => handleModelSelection(ctx, 'PRO4K'));
+
 bot.action('action_create_photo', async (ctx: any) => {
   await ctx.reply("Функция генерации по фото скоро будет перенесена сюда! 🖼🚀");
 });
