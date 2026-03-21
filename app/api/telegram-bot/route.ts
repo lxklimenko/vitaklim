@@ -425,6 +425,64 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
+      // =========================================================
+      // Обработка кнопки "Связать с MAX"
+      // =========================================================
+      if (cbData === "link_max") {
+        // 1. Генерируем токен (например, "A7X9K2") и время (15 минут)
+        const token = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const expires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+        // 2. Сохраняем токен в базу для этого юзера
+        const { error: linkError } = await supabase
+          .from("profiles")
+          .update({
+            max_link_token: token,
+            max_link_expires: expires
+          })
+          .eq("id", cbProfile.id);
+
+        if (linkError) {
+          console.error("LINK ERROR:", linkError);
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ callback_query_id: cb.id, text: "Ошибка генерации кода" }),
+          });
+          return NextResponse.json({ ok: true });
+        }
+
+        // 3. Формируем инструкцию
+        const linkMessage = 
+          `🔗 *Синхронизация с MAX*\n\n` +
+          `Твой уникальный код сгенерирован!\n\n` +
+          `**Что нужно сделать:**\n` +
+          `1. Открой нашего бота в мессенджере MAX.\n` +
+          `2. Скопируй команду ниже (нажми на неё) и отправь её боту:\n\n` +
+          `\`/start ${token}\`\n\n` +
+          `⏳ *Внимание: код сгорит через 15 минут!*`;
+
+        // 4. Отправляем инструкцию юзеру
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: cbChatId,
+            text: linkMessage,
+            parse_mode: "Markdown"
+          }),
+        });
+
+        // 5. Закрываем "часики" на кнопке, чтобы она не висела в загрузке
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ callback_query_id: cb.id }),
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
       // Если другие callback'и – можно добавить позже
     }
 
@@ -665,7 +723,10 @@ export async function POST(req: Request) {
           parse_mode: "Markdown",
           link_preview_options: { is_disabled: true },
           reply_markup: {
-            inline_keyboard: [[{ text: "💳 Пополнить баланс", callback_data: "start_payment" }]]
+            inline_keyboard: [
+              [{ text: "💳 Пополнить баланс", callback_data: "start_payment" }],
+              [{ text: "🔗 Связать с MAX", callback_data: "link_max" }] // <== НОВАЯ КНОПКА
+            ]
           },
         }),
       });

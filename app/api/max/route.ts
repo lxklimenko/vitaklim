@@ -76,11 +76,73 @@ bot.command('start', async (ctx: any) => {
   const maxUserId = getUserId(ctx);
   if (!maxUserId) return;
 
-  let { data: profile } = await supabaseAdmin.from('profiles').select('*').eq('max_user_id', maxUserId).maybeSingle();
+  console.log(`MAX /start от: ${senderName}, ID: ${maxUserId}`);
 
+  // 1. Проверяем, пришел ли юзер с токеном синхронизации (например, "/start 123456")
+  const text = ctx.message?.body?.text || "";
+  const parts = text.split(" ");
+  const token = parts.length > 1 ? parts[1] : null;
+
+  if (token) {
+    console.log(`Попытка синхронизации аккаунтов. Токен: ${token}`);
+    
+    // Ищем профиль с таким токеном, который еще не протух
+    const { data: syncProfile, error: syncError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, balance, max_link_expires')
+      .eq('max_link_token', token)
+      .maybeSingle();
+
+    if (syncProfile) {
+      // Проверяем срок действия токена
+      const now = new Date();
+      const expires = new Date(syncProfile.max_link_expires);
+      
+      if (now <= expires) {
+        // УСПЕХ! Токен валиден. Привязываем max_user_id к этому (старому) профилю.
+        console.log(`Синхронизация успешна! Привязываем MAX ID ${maxUserId} к профилю ${syncProfile.id}`);
+        
+        await supabaseAdmin
+          .from('profiles')
+          .update({
+            max_user_id: maxUserId,
+            bot_state: "idle",
+            // Очищаем токен, чтобы его нельзя было использовать дважды
+            max_link_token: null, 
+            max_link_expires: null
+          })
+          .eq('id', syncProfile.id);
+
+        await ctx.reply(`🎉 **Аккаунты успешно связаны!**\n\nТеперь у вас общий баланс с Telegram: **${syncProfile.balance} 🍌**`, { format: 'markdown' });
+        await sendMaxMainMenu(ctx, false);
+        return; // Завершаем выполнение, дальше идти не нужно
+      } else {
+        await ctx.reply("❌ Ссылка для привязки аккаунта устарела. Пожалуйста, сгенерируйте новую в Telegram-боте.");
+      }
+    } else {
+      await ctx.reply("❌ Неверная или устаревшая ссылка для привязки аккаунта.");
+    }
+  }
+
+  // =========================================================================
+  // 2. ОБЫЧНЫЙ ВХОД (если токена нет или он оказался недействительным)
+  // =========================================================================
+
+  // Ищем, есть ли уже профиль с таким MAX ID
+  let { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('*')
+    .eq('max_user_id', maxUserId)
+    .maybeSingle();
+
+  // Если профиля нет — создаем новый
   if (!profile) {
+    console.log("Создаем нового пользователя MAX...");
     const email = `max_${maxUserId}@klex.pro`;
-    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({ email, email_confirm: true });
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+    });
 
     if (!authError) {
       const { data: newProfile } = await supabaseAdmin
@@ -88,19 +150,29 @@ bot.command('start', async (ctx: any) => {
         .upsert({
           id: authUser.user.id,
           max_user_id: maxUserId,
-          telegram_first_name: senderName,
-          balance: 50,
+          telegram_first_name: senderName, // Сохраняем имя из MAX
+          balance: 50, // Даем бонус новичку
           bot_state: "idle",
-        }).select().single();
+        })
+        .select()
+        .single();
       
       profile = newProfile;
       await ctx.reply(`Привет, ${senderName}! ✨ ИИ-бот KLEX.PRO дарит тебе 50 🍌 для старта!`);
+    } else {
+      console.error("Ошибка создания auth-юзера:", authError);
+      await ctx.reply("Произошла ошибка при регистрации. Пожалуйста, попробуйте позже.");
+      return;
     }
   } else {
+    // Пользователь уже существует, просто здороваемся
     await ctx.reply(`С возвращением, ${senderName}! ✨`);
   }
 
+  // Сбрасываем статус при входе
   if (profile) await updateBotState(maxUserId, "idle");
+  
+  // Показываем меню
   await sendMaxMainMenu(ctx, false);
 });
 
