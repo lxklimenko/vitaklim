@@ -40,12 +40,13 @@ export async function POST(req: Request) {
 
     let userId: string | null = null;
 
-    // 1️⃣ Если пришёл Telegram пользователь — ищем по telegram_id
+    // 1️⃣ Если пришёл Telegram пользователь — ищем по telegram_id или max_user_id
     if (telegramUserId) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("id")
-        .eq("telegram_id", telegramUserId)
+        // Ищем совпадение либо в колонке telegram_id, либо в max_user_id
+        .or(`telegram_id.eq.${telegramUserId},max_user_id.eq.${telegramUserId}`)
         .maybeSingle();
 
       if (!profile) {

@@ -3,6 +3,7 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { YooCheckout } from '@a2seven/yoo-checkout';
+import { Bot } from '@maxhub/max-bot-api';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,6 +15,9 @@ const checkout = new YooCheckout({
   shopId: process.env.YOOKASSA_SHOP_ID!,
   secretKey: process.env.YOOKASSA_SECRET_KEY!,
 });
+
+// Инициализируем MAX бота
+const maxBot = new Bot(process.env.BOT_TOKEN!);
 
 export async function POST(req: Request) {
   try {
@@ -69,30 +73,36 @@ export async function POST(req: Request) {
 
       console.log('✅ Balance updated for user:', userId);
 
-      // --- Отправка уведомления в Telegram ---
+      // --- Умные уведомления (Telegram + MAX) ---
       try {
         const profileRes = await supabase
           .from('profiles')
-          .select('telegram_id')
+          .select('telegram_id, max_user_id')
           .eq('id', userId)
           .maybeSingle();
 
-        if (profileRes.data?.telegram_id) {
+        const profile = profileRes.data;
+        const msg = `✅ Оплата прошла успешно!\n\nНа ваш баланс зачислено ${amount} 🍌`;
+
+        // 1. Если есть Telegram ID — шлем в ТГ
+        if (profile?.telegram_id) {
           await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: profileRes.data.telegram_id,
-              text: `✅ Оплата прошла успешно!\n\nНа ваш баланс зачислено ${amount} 🍌`
-            }),
+            body: JSON.stringify({ chat_id: profile.telegram_id, text: msg }),
           });
-          console.log(`📨 Telegram notification sent to user ${userId}`);
-        } else {
-          console.log(`ℹ️ No telegram_id for user ${userId}`);
         }
-      } catch (telegramError) {
-        // Логируем ошибку, но не прерываем обработку вебхука
-        console.error('⚠️ Failed to send Telegram notification:', telegramError);
+
+        // 2. Если есть MAX ID — шлем в MAX
+        if (profile?.max_user_id) {
+          // Используем метод sendMessageToChat напрямую через API
+          await (maxBot.api as any).sendMessageToChat({
+            chat_id: profile.max_user_id,
+            text: msg
+          });
+        }
+      } catch (notifyError) {
+        console.error('⚠️ Ошибка отправки уведомления:', notifyError);
       }
       // --- Конец блока уведомления ---
 
