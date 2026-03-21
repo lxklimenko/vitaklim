@@ -70,13 +70,28 @@ async function sendMaxMainMenu(ctx: any, isAdmin: boolean = false) {
   });
 }
 
-// ==================== ИНФО-КНОПКИ ====================
+// ==================== ИНФО-КНОПКИ И БАЛАНС ====================
 bot.action('action_balance', async (ctx: any) => {
   const maxUserId = getUserId(ctx);
   if (!maxUserId) return;
-  const { data: profile } = await supabaseAdmin.from('profiles').select('balance').eq('max_user_id', maxUserId).maybeSingle();
-  if (profile) await ctx.reply(`💰 *Ваш баланс:* ${profile.balance} 🍌`, { format: 'markdown' });
+  
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('balance')
+    .eq('max_user_id', maxUserId)
+    .maybeSingle();
+    
+  if (profile) {
+    const keyboard = Keyboard.inlineKeyboard([
+      [Keyboard.button.callback("💳 Пополнить баланс", "action_start_payment")]
+    ]);
+    await ctx.reply(`💰 *Ваш баланс:* ${profile.balance} 🍌\n\nЗдесь вы можете пополнить счет.`, { 
+      format: 'markdown',
+      attachments: [keyboard]
+    });
+  }
 });
+
 bot.action('action_history', async (ctx: any) => ctx.reply("📂 История генераций скоро появится!", { format: 'markdown' }));
 bot.action('action_help', async (ctx: any) => ctx.reply("🚀 *Помощь*\n\nВсё очень просто: жми на кнопки!", { format: 'markdown' }));
 bot.action('action_settings', async (ctx: any) => ctx.reply("⚙️ Настройки в разработке.", { format: 'markdown' }));
@@ -181,6 +196,21 @@ bot.action('photo_format_1:1', async (ctx: any) => { const id = getUserId(ctx); 
 bot.action('photo_format_9:16', async (ctx: any) => { const id = getUserId(ctx); if (id) await handlePhotoFormatSelection(ctx, id, '9:16'); });
 bot.action('photo_format_16:9', async (ctx: any) => { const id = getUserId(ctx); if (id) await handlePhotoFormatSelection(ctx, id, '16:9'); });
 
+// --- НАЧАЛО ОПЛАТЫ ---
+bot.action('action_start_payment', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  if (!maxUserId) return;
+  
+  // Переводим в статус ожидания email
+  await updateBotState(maxUserId, "awaiting_payment_email", null);
+  
+  const keyboard = Keyboard.inlineKeyboard([[Keyboard.button.callback("⬅️ Назад", "action_back")]]);
+  await ctx.reply("Введите ваш email для получения чека ✍️:", { 
+    format: 'markdown', 
+    attachments: [keyboard] 
+  });
+});
+
 // ==================== УМНАЯ КНОПКА "НАЗАД" ====================
 bot.action('action_back', async (ctx: any) => {
   const maxUserId = getUserId(ctx);
@@ -211,6 +241,21 @@ bot.action('action_back', async (ctx: any) => {
     case "choosing_photo_format": {
       // От формата к выбору модели
       await sendPhotoModelSelection(ctx, maxUserId);
+      break;
+    }
+
+    // --- Оплата флоу Назад ---
+    case "awaiting_payment_email": {
+      // От ввода email возвращаемся в главное меню (или баланс)
+      await updateBotState(maxUserId, "idle");
+      await sendMaxMainMenu(ctx, false);
+      break;
+    }
+    case "awaiting_payment_amount": {
+      // От ввода суммы возвращаемся к вводу email
+      await updateBotState(maxUserId, "awaiting_payment_email", null);
+      const keyboard = Keyboard.inlineKeyboard([[Keyboard.button.callback("⬅️ Назад", "action_back")]]);
+      await ctx.reply("Пожалуйста, введите ваш email заново:", { attachments: [keyboard] });
       break;
     }
 
@@ -376,6 +421,85 @@ bot.on('message_created', async (ctx: any) => {
 
   if (!profile) return;
   const currentState = profile.bot_state || "idle";
+
+  // --- ШАГ ОПЛАТЫ 1: Юзер вводит Email ---
+  if (currentState === "awaiting_payment_email") {
+    const email = text?.trim();
+    if (!email || !email.includes('@') || !email.includes('.')) {
+      await ctx.reply("❌ Пожалуйста, введите корректный email (например, example@domain.com).");
+      return;
+    }
+
+    // Сохраняем email во временное хранилище (bot_selected_model)
+    await supabaseAdmin
+      .from("profiles")
+      .update({
+        bot_state: "awaiting_payment_amount",
+        bot_selected_model: email, 
+      })
+      .eq("max_user_id", maxUserId);
+
+    const keyboard = Keyboard.inlineKeyboard([[Keyboard.button.callback("⬅️ Назад", "action_back")]]);
+    await ctx.reply("Введите сумму пополнения в рублях ✍️\n(Например: 100, 200 или 500)", { 
+      attachments: [keyboard] 
+    });
+    return;
+  }
+
+  // --- ШАГ ОПЛАТЫ 2: Юзер вводит Сумму и получает ссылку ---
+  if (currentState === "awaiting_payment_amount") {
+    const amount = parseInt(text || "");
+    if (isNaN(amount) || amount < 100) {
+      await ctx.reply("❌ Минимальная сумма пополнения — 100 рублей.");
+      return;
+    }
+
+    const userEmail = profile.bot_selected_model;
+    if (!userEmail) {
+      await updateBotState(maxUserId, "awaiting_payment_email", null);
+      await ctx.reply("Произошла ошибка. Пожалуйста, введите email заново:");
+      return;
+    }
+
+    await ctx.reply("⏳ Генерируем ссылку на оплату...");
+
+    try {
+      const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://klex.pro";
+      
+      // Вызываем твой API оплаты
+      const paymentResponse = await fetch(`${SITE_URL}/api/payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount,
+          // Передаем telegram_id, если аккаунты связаны, иначе max_user_id
+          telegramUserId: profile.telegram_id || profile.max_user_id, 
+          email: userEmail,
+        }),
+      });
+
+      const paymentData = await paymentResponse.json();
+
+      if (!paymentResponse.ok || !paymentData.confirmationUrl) {
+        console.error("Payment API error:", paymentData);
+        await ctx.reply("❌ Ошибка создания платежа. Попробуйте позже.");
+      } else {
+        // Выдаем красивую ссылку в MAX
+        const confirmationUrl = paymentData.confirmationUrl;
+        await ctx.reply(`💳 **Пополнение на ${amount} ₽**\n\n🔗 [Нажмите сюда, чтобы перейти к оплате](${confirmationUrl})`, {
+          format: 'markdown'
+        });
+      }
+    } catch (err) {
+      console.error("Ошибка при генерации ссылки:", err);
+      await ctx.reply("❌ Произошла ошибка связи с сервером оплаты.");
+    }
+
+    // Сбрасываем статус
+    await updateBotState(maxUserId, "idle", null);
+    await sendMaxMainMenu(ctx, false);
+    return;
+  }
 
   // --- ШАГ 4 (ФОТО): Юзер прислал фото ---
   if (currentState === "awaiting_photo") {
