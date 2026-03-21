@@ -1,164 +1,136 @@
 import { NextResponse } from "next/server";
 import { Bot, Keyboard } from '@maxhub/max-bot-api';
-import { createClient } from "@supabase/supabase-js";
-import crypto from "crypto";
+import { supabaseAdmin } from "@/app/lib/supabase-admin";
 
-// Инициализируем Supabase
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const bot = new Bot("f9LHodD0cOLMc8UCrC62G1ec2CypSZR1hYdu5-DRyPm3Er_LKh5BjR-6NnnWiQqkDeviNqkKrxBsDsa-SK4V");
 
-// Инициализируем бота
-const bot = new Bot(process.env.MAX_BOT_TOKEN!);
+// ==================== ВЫВОД МЕНЮ ====================
+async function sendMaxMainMenu(ctx: any, isAdmin: boolean = false) {
+  // Используем callback-кнопки: первый аргумент — текст на кнопке, второй — скрытый сигнал (payload)
+  const buttons = [
+    [
+      Keyboard.button.callback("🎨 Создать картинку", "action_create_image"),
+      Keyboard.button.callback("🖼 Сгрен. по фото", "action_create_photo") // Немного сократил текст для ровности
+    ],
+    [
+      Keyboard.button.callback("💰 Баланс", "action_balance"),
+      Keyboard.button.callback("📜 История", "action_history")
+    ],
+    [
+      Keyboard.button.callback("⚙️ Настройки", "action_settings"),
+      Keyboard.button.callback("❓ Помощь", "action_help")
+    ]
+  ];
 
-/**
- * Создаёт (при необходимости) пользователя в auth и профиль в таблице profiles
- * @param maxUserId - идентификатор пользователя в Max
- * @returns объект профиля (с id, max_user_id и другими полями)
- */
-async function ensureProfile(maxUserId: number) {
-  // 1. Проверяем, существует ли уже профиль
-  const { data: existing } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("max_user_id", maxUserId)
-    .maybeSingle();
-
-  if (existing) return existing;
-
-  console.log("Создаём нового пользователя Max:", maxUserId);
-
-  const email = `max_${maxUserId}@max.local`;
-  let userId: string;
-
-  // 🔍 сначала проверяем — есть ли уже пользователь
-  const { data: existingUsers } = await supabase.auth.admin.listUsers();
-
-  const existingUser = existingUsers.users.find(
-    (u) => u.email === email
-  );
-
-  if (existingUser) {
-    console.log("Пользователь уже существует:", email);
-    userId = existingUser.id;
-  } else {
-    const { data: authUser, error: authError } =
-      await supabase.auth.admin.createUser({
-        email,
-        email_confirm: true,
-      });
-
-    if (authError || !authUser?.user) {
-      console.error("Ошибка создания пользователя в auth:", authError);
-      throw new Error(`Auth create failed: ${authError?.message || 'unknown'}`);
-    }
-
-    userId = authUser.user.id;
+  if (isAdmin) {
+    buttons.push([Keyboard.button.callback("🔐 Админ-панель", "action_admin")]);
   }
 
-  // Создаём профиль (upsert на случай повторного вызова)
-  const { data: newProfile, error: profileError } = await supabase
-    .from("profiles")
-    .upsert({
-      id: userId,
-      max_user_id: maxUserId,
-      telegram_id: null,
-      telegram_username: null,
-      balance: 50,
-    }, {
-      onConflict: "id"
-    })
-    .select()
-    .single();
+  const keyboard = Keyboard.inlineKeyboard(buttons);
 
-  if (profileError) {
-    console.error("Ошибка создания профиля:", profileError);
-    throw new Error(`Profile create failed: ${profileError.message}`);
-  }
-
-  return newProfile;
+  await ctx.reply("Выберите действие:", {
+    attachments: [keyboard]
+  });
 }
 
-// Обработчик команды /start
+// ==================== КОМАНДА /START ====================
 bot.command('start', async (ctx: any) => {
-  const maxUserId = ctx.user?.user_id;
+  const senderName = ctx.message?.sender?.first_name || 'друг';
+  const maxUserId = ctx.message?.sender?.user_id?.toString();
+
   if (!maxUserId) return;
 
-  try {
-    // Гарантируем существование профиля
-    await ensureProfile(maxUserId);
+  console.log(`MAX /start от: ${senderName}, ID: ${maxUserId}`);
 
-    // Генерируем токен для авторизации
-    const loginToken = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 минут
+  let { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('*')
+    .eq('max_user_id', maxUserId)
+    .maybeSingle();
 
-    // Обновляем токен в профиле
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        login_token: loginToken,
-        login_token_expires: expiresAt,
-      })
-      .eq("max_user_id", maxUserId);
+  if (!profile) {
+    console.log("Создаем нового пользователя MAX...");
+    const email = `max_${maxUserId}@klex.pro`;
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+    });
 
-    if (error) throw error;
-
-    const link = `https://vitaklim-git-main-lxklimenkos-projects.vercel.app/auth?token=${loginToken}`;
-
-    const keyboard = Keyboard.inlineKeyboard([
-      [
-        Keyboard.button.link(
-          "🔗 Войти",
-          link
-        )
-      ]
-    ]);
-
-    await ctx.reply(
-      "🔐 Войди, чтобы синхронизировать аккаунт 👇",
-      {
-        attachments: [keyboard]
-      }
-    );
-  } catch (err) {
-    console.error("Ошибка в /start:", err);
-    await ctx.reply("⚠️ Произошла ошибка. Попробуй позже.");
+    if (!authError) {
+      const { data: newProfile } = await supabaseAdmin
+        .from("profiles")
+        .upsert({
+          id: authUser.user.id,
+          max_user_id: maxUserId,
+          telegram_first_name: senderName,
+          balance: 50,
+          bot_state: "idle",
+        })
+        .select()
+        .single();
+      
+      profile = newProfile;
+      await ctx.reply(`Привет, ${senderName}! ✨ ИИ-бот KLEX.PRO дарит тебе 50 🍌 для старта!`);
+    }
+  } else {
+    await ctx.reply(`С возвращением, ${senderName}! ✨`);
   }
+
+  if (profile) {
+    await supabaseAdmin
+      .from("profiles")
+      .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
+      .eq("id", profile.id);
+  }
+
+  await sendMaxMainMenu(ctx, false);
 });
 
-// Обработчик обычных сообщений
+// ==================== ОБРАБОТКА НАЖАТИЙ НА КНОПКИ (ACTIONS) ====================
+
+bot.action('action_balance', async (ctx: any) => {
+  await ctx.reply("💰 *Ваш баланс:* (Функция проверки баланса подключается...)", { format: 'markdown' });
+});
+
+bot.action('action_history', async (ctx: any) => {
+  await ctx.reply("📂 *Ваша история генераций*\n\n(Ссылка генерируется...)", { format: 'markdown' });
+});
+
+bot.action('action_help', async (ctx: any) => {
+  const helpText = 
+    `🚀 *Шпаргалка по KLEX.PRO*\n\n` +
+    `• *🎨 Создать картинку* — генерация по тексту.\n` +
+    `• *🖼 Сгенерировать по фото* — изменение фото.\n` +
+    `• *💰 Баланс* — пополнение счета.\n`;
+  await ctx.reply(helpText, { format: 'markdown' });
+});
+
+bot.action('action_settings', async (ctx: any) => {
+  await ctx.reply("⚙️ *Настройки*\n\nСкоро здесь можно будет выбрать модель по умолчанию.", { format: 'markdown' });
+});
+
+bot.action('action_create_image', async (ctx: any) => {
+  await ctx.reply("Функция генерации картинок скоро будет перенесена сюда! 🎨🚀");
+});
+
+bot.action('action_create_photo', async (ctx: any) => {
+  await ctx.reply("Функция генерации по фото скоро будет перенесена сюда! 🖼🚀");
+});
+
+// ==================== ОБРАБОТКА ТЕКСТА ====================
+// Если юзер что-то напишет руками, а не нажмет кнопку
 bot.on('message_created', async (ctx: any) => {
   const text = ctx.message?.body?.text;
-  const maxUserId = ctx.user?.user_id;
-
-  if (!maxUserId) return;
-
-  // Игнорируем команду /start здесь, чтобы не дублировать ответ
-  if (text === '/start') return;
-
-  try {
-    const userProfile = await ensureProfile(maxUserId);
-
-    // Отвечаем с балансом
-    await ctx.reply(
-      `Ты написал: ${text}\n\n💰 Баланс: ${userProfile.balance} 🍌`
-    );
-  } catch (err) {
-    console.error("Ошибка в обработчике сообщений:", err);
-    await ctx.reply("⚠️ Не удалось обработать сообщение. Попробуй позже.");
-  }
+  if (!text || text.startsWith('/start')) return;
+  
+  await ctx.reply(`Я пока понимаю только нажатия на кнопки меню. Вызови /start, чтобы открыть меню!`);
 });
 
-// Вебхук для приёма обновлений от Max
+// ==================== NEXT.JS ВЕБХУК ====================
 export async function POST(req: Request) {
   try {
     const update = await req.json();
-    console.log("MAX ВХОДЯЩИЙ ВЕБХУК:", update?.message?.body?.text);
-
-    // Передаём обновление боту
     await (bot as any).handleUpdate(update);
-
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("MAX ERROR ВНУТРИ NEXT.JS:", e);
