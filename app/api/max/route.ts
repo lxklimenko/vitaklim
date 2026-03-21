@@ -226,7 +226,7 @@ bot.on('message_created', async (ctx: any) => {
     await ctx.reply("🎨 Генерация запущена. Рисуем шедевр...");
 
     try {
-      // 4. ВЫЗЫВАЕМ ТВОЕ ИИ-ЯДРО (Передаем profile.id, чтобы история привязалась к его аккаунту)
+      // 4. ВЫЗЫВАЕМ ИИ-ЯДРО
       const result = await generateImageCore({
         userId: profile.id, 
         prompt: text,
@@ -236,10 +236,30 @@ bot.on('message_created', async (ctx: any) => {
         imageBuffers: undefined
       });
 
-      // 5. Загружаем полученный URL картинки на серверы MAX
-      const imageAttachment = await ctx.api.uploadImage({ url: result.imageUrl });
+      console.log("Успешная генерация! Скачиваем картинку в Vercel...");
+
+      // 5. СКАЧИВАЕМ КАРТИНКУ САМИ
+      const imageResponse = await fetch(result.imageUrl);
+      const arrayBuffer = await imageResponse.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      // 6. СОХРАНЯЕМ ВО ВРЕМЕННУЮ ПАПКУ (Vercel разрешает писать в /tmp)
+      const fs = require('fs');
+      const path = require('path');
+      const os = require('os');
+      const tempFilePath = path.join(os.tmpdir(), `klex_${Date.now()}.jpg`);
       
-      // 6. Отправляем картинку в чат
+      fs.writeFileSync(tempFilePath, buffer);
+
+      console.log("Отправляем локальный файл в MAX...");
+
+      // 7. ЗАГРУЖАЕМ ФАЙЛ В MAX (используем source вместо url)
+      const imageAttachment = await ctx.api.uploadImage({ source: tempFilePath });
+      
+      // 8. УДАЛЯЕМ ВРЕМЕННЫЙ ФАЙЛ (чтобы не забить память Vercel)
+      fs.unlinkSync(tempFilePath);
+
+      // 9. ОТПРАВЛЯЕМ КАРТИНКУ В ЧАТ
       await ctx.reply(`✨ Ваша генерация готова!`, {
         attachments: [imageAttachment.toJson()]
       });
@@ -247,13 +267,13 @@ bot.on('message_created', async (ctx: any) => {
     } catch (error: any) {
       console.error("ОШИБКА ГЕНЕРАЦИИ MAX:", error);
       
-      // ВОЗВРАТ СРЕДСТВ: Если ИИ заблокировал промпт, возвращаем бананы
+      // ВОЗВРАТ СРЕДСТВ
       await supabaseAdmin.rpc('increment_balance', { 
         user_id: profile.id, 
         amount_to_add: cost
       });
 
-      await ctx.reply("Хьюстон, у нас фильтры! 🛑 ИИ посчитал этот запрос небезопасным. Бананы мы тебе вернули!");
+      await ctx.reply("Хьюстон, у нас проблемы! 🛑 Не удалось отправить картинку или сработали фильтры. Бананы мы тебе вернули!");
     }
 
     // 7. Возвращаем бота в исходное состояние и показываем меню
