@@ -2,7 +2,14 @@ import { NextResponse } from "next/server";
 import { Bot, Keyboard } from '@maxhub/max-bot-api';
 import { supabaseAdmin } from "@/app/lib/supabase-admin";
 
-const bot = new Bot("f9LHodD0cOLMc8UCrC62G1ec2CypSZR1hYdu5-DRyPm3Er_LKh5BjR-6NnnWiQqkDeviNqkKrxBsDsa-SK4V");
+// Берем токен из переменных окружения, как ты и настроил
+const MAX_TOKEN = process.env.BOT_TOKEN!;
+
+if (!MAX_TOKEN) {
+  console.error("ОШИБКА: Не задан BOT_TOKEN в .env!");
+}
+
+const bot = new Bot(MAX_TOKEN);
 
 // ==================== ВЫВОД МЕНЮ ====================
 async function sendMaxMainMenu(ctx: any, isAdmin: boolean = false) {
