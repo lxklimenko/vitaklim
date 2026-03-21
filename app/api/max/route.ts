@@ -259,12 +259,34 @@ bot.action('action_back', async (ctx: any) => {
   }
 });
 
-// ==================== КНОПКИ "ДОМОЙ" И "ПОВТОРИТЬ" ====================
+// ==================== КНОПКИ "ДОМОЙ", "ПОВТОРИТЬ" И "ЗАНОВО" ====================
 bot.action('action_home', async (ctx: any) => {
   const maxUserId = getUserId(ctx);
   if (!maxUserId) return;
   await updateBotState(maxUserId, "idle");
   await sendMaxMainMenu(ctx, false);
+});
+
+// НОВОЕ: Начать заново (возврат к выбору модели)
+bot.action('action_start_over', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  if (!maxUserId) return;
+
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("bot_state")
+    .eq("max_user_id", maxUserId)
+    .maybeSingle();
+
+  const currentState = profile?.bot_state;
+
+  // Если мы были в генерации по фото, кидаем на выбор фото-модели
+  if (currentState === "awaiting_photo_prompt" || currentState === "awaiting_photo") {
+    await sendPhotoModelSelection(ctx, maxUserId);
+  } else {
+    // Иначе кидаем на обычный выбор модели
+    await sendModelSelection(ctx, maxUserId);
+  }
 });
 
 bot.action('action_repeat_generation', async (ctx: any) => {
@@ -442,12 +464,13 @@ async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
     await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
     await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
 
-    // 2. ВЫВОДИМ КНОПКИ ПОВТОРА И МЕНЮ
+    // 2. ВЫВОДИМ КНОПКИ ПОВТОРА, ЗАНОВО И МЕНЮ
     const keyboard = Keyboard.inlineKeyboard([
       [Keyboard.button.callback("🔄 Повторить так же", "action_repeat_generation")],
+      [Keyboard.button.callback("🆕 Начать заново", "action_start_over")],
       [Keyboard.button.callback("🏠 В главное меню", "action_home")]
     ]);
-    await ctx.reply(`Вы можете нажать **«Повторить так же»** 🔄, отправить **новый текст** для изменения ✍️ или вернуться в меню:`, {
+    await ctx.reply(`Вы можете нажать **«Повторить так же»** 🔄, отправить **новый текст** для изменения ✍️, начать новую генерацию или вернуться в меню:`, {
       format: 'markdown',
       attachments: [keyboard]
     });
@@ -522,12 +545,13 @@ async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
     await ctx.reply(`✨ Ваша генерация по фото готова!`, { attachments: [imageAttachment.toJson()] });
     await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
 
-    // 2. ВЫВОДИМ КНОПКИ ПОВТОРА И МЕНЮ
+    // 2. ВЫВОДИМ КНОПКИ ПОВТОРА, ЗАНОВО И МЕНЮ
     const keyboard = Keyboard.inlineKeyboard([
       [Keyboard.button.callback("🔄 Повторить так же", "action_repeat_generation")],
+      [Keyboard.button.callback("🆕 Начать заново", "action_start_over")],
       [Keyboard.button.callback("🏠 В главное меню", "action_home")]
     ]);
-    await ctx.reply(`Вы можете нажать **«Повторить так же»** 🔄, написать **новый промпт** для этого же фото ✍️ или вернуться в меню:`, {
+    await ctx.reply(`Вы можете нажать **«Повторить так же»** 🔄, написать **новый промпт** для этого же фото ✍️, начать заново или вернуться в меню:`, {
       format: 'markdown',
       attachments: [keyboard]
     });
