@@ -36,12 +36,10 @@ function getUserId(ctx: any): string | null {
 }
 
 async function updateBotState(maxUserId: string, state: string, model: string | null = null) {
-  const { data, error } = await supabaseAdmin
+  const { error } = await supabaseAdmin
     .from("profiles")
     .update({ bot_state: state, bot_selected_model: model, bot_reference_url: null })
-    .eq("max_user_id", maxUserId)
-    .select("bot_state")
-    .single();
+    .eq("max_user_id", maxUserId);
 
   if (error) console.error(`❌ Ошибка БД при смене статуса:`, error);
 }
@@ -391,6 +389,7 @@ bot.on('message_created', async (ctx: any) => {
     .from("profiles")
     .select("*")
     .eq("max_user_id", maxUserId)
+    .limit(1) // <--- СПАСАТЕЛЬНЫЙ КРУГ
     .maybeSingle();
 
   if (!profile) return;
