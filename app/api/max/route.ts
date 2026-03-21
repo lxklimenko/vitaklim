@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Bot, Keyboard } from '@maxhub/max-bot-api';
 import { supabaseAdmin } from "@/app/lib/supabase-admin";
-import { generateImageCore } from "@/app/lib/generateCore"; // 👈 ИМПОРТИРОВАЛИ ТВОЕ ЯДРО НЕЙРОСЕТИ
+import { generateImageCore } from "@/app/lib/generateCore";
 
 const MAX_TOKEN = process.env.BOT_TOKEN!;
 if (!MAX_TOKEN) console.error("ОШИБКА: Не задан BOT_TOKEN в .env!");
@@ -236,27 +236,33 @@ bot.on('message_created', async (ctx: any) => {
         imageBuffers: undefined
       });
 
-      console.log("Успешная генерация! Скачиваем картинку в Vercel...");
+      console.log("Успешная генерация! Скачиваем картинку...");
 
-      // 5. СКАЧИВАЕМ КАРТИНКУ ПРЯМО В ОПЕРАТИВНУЮ ПАМЯТЬ
+      // 5. СКАЧИВАЕМ КАРТИНКУ В ОПЕРАТИВНУЮ ПАМЯТЬ
       const imageResponse = await fetch(result.imageUrl);
       const arrayBuffer = await imageResponse.arrayBuffer();
       
-      // 6. СОЗДАЕМ "ТРОЯНСКИЙ БУФЕР" (Маскируем память под файл для SDK)
+      // 6. НАШ УСПЕШНЫЙ "ТРОЯНСКИЙ БУФЕР"
       const buffer: any = Buffer.from(arrayBuffer);
-      buffer.path = "klex_image.jpg"; // SDK ищет это свойство, чтобы понять формат
-      buffer.name = "klex_image.jpg"; // На всякий случай для form-data
+      buffer.path = "klex_image.jpg"; 
+      buffer.name = "klex_image.jpg"; 
 
-      console.log("Загружаем буфер напрямую в MAX...");
+      console.log("Загружаем в MAX...");
 
-      // 7. ЗАГРУЖАЕМ В MAX (передаем наш хитрый буфер)
-      const imageAttachment = await ctx.api.uploadImage({ 
-        source: buffer 
-      });
+      // 7. ЗАГРУЖАЕМ КАК КАРТИНКУ (для красивого превью в чате)
+      const imageAttachment = await ctx.api.uploadImage({ source: buffer });
+      
+      // 8. ЗАГРУЖАЕМ КАК ФАЙЛ (для скачивания без потери качества)
+      const fileAttachment = await ctx.api.uploadFile({ source: buffer });
 
-      // 8. ОТПРАВЛЯЕМ КАРТИНКУ В ЧАТ
+      // 9. ОТПРАВЛЯЕМ КАРТИНКУ 
       await ctx.reply(`✨ Ваша генерация готова!`, {
         attachments: [imageAttachment.toJson()]
+      });
+
+      // 10. ОТПРАВЛЯЕМ ФАЙЛ СЛЕДОМ
+      await ctx.reply(`📁 Оригинал в максимальном качестве:`, {
+        attachments: [fileAttachment.toJson()]
       });
 
     } catch (error: any) {
