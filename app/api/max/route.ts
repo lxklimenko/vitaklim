@@ -118,11 +118,12 @@ bot.command('start', async (ctx: any) => {
                   type: "link",
                   text: "🔗 Войти",
                   url: link,
-                },
-              ],
-            ],
-          },
-        ],
+                  payload: "login" // 🔥 ОБЯЗАТЕЛЬНО
+                }
+              ]
+            ]
+          }
+        ]
       }
     );
   } catch (err) {
