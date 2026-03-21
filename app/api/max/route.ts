@@ -70,112 +70,6 @@ async function sendMaxMainMenu(ctx: any, isAdmin: boolean = false) {
   });
 }
 
-// ==================== КОМАНДА /START ====================
-bot.command('start', async (ctx: any) => {
-  const senderName = ctx.message?.sender?.first_name || 'друг';
-  const maxUserId = getUserId(ctx);
-  if (!maxUserId) return;
-
-  console.log(`MAX /start от: ${senderName}, ID: ${maxUserId}`);
-
-  // 1. Проверяем, пришел ли юзер с токеном синхронизации (например, "/start 123456")
-  const text = ctx.message?.body?.text || "";
-  const parts = text.split(" ");
-  const token = parts.length > 1 ? parts[1] : null;
-
-  if (token) {
-    console.log(`Попытка синхронизации аккаунтов. Токен: ${token}`);
-    
-    // Ищем профиль с таким токеном, который еще не протух
-    const { data: syncProfile, error: syncError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, balance, max_link_expires')
-      .eq('max_link_token', token)
-      .maybeSingle();
-
-    if (syncProfile) {
-      // Проверяем срок действия токена
-      const now = new Date();
-      const expires = new Date(syncProfile.max_link_expires);
-      
-      if (now <= expires) {
-        // УСПЕХ! Токен валиден. Привязываем max_user_id к этому (старому) профилю.
-        console.log(`Синхронизация успешна! Привязываем MAX ID ${maxUserId} к профилю ${syncProfile.id}`);
-        
-        await supabaseAdmin
-          .from('profiles')
-          .update({
-            max_user_id: maxUserId,
-            bot_state: "idle",
-            // Очищаем токен, чтобы его нельзя было использовать дважды
-            max_link_token: null, 
-            max_link_expires: null
-          })
-          .eq('id', syncProfile.id);
-
-        await ctx.reply(`🎉 **Аккаунты успешно связаны!**\n\nТеперь у вас общий баланс с Telegram: **${syncProfile.balance} 🍌**`, { format: 'markdown' });
-        await sendMaxMainMenu(ctx, false);
-        return; // Завершаем выполнение, дальше идти не нужно
-      } else {
-        await ctx.reply("❌ Ссылка для привязки аккаунта устарела. Пожалуйста, сгенерируйте новую в Telegram-боте.");
-      }
-    } else {
-      await ctx.reply("❌ Неверная или устаревшая ссылка для привязки аккаунта.");
-    }
-  }
-
-  // =========================================================================
-  // 2. ОБЫЧНЫЙ ВХОД (если токена нет или он оказался недействительным)
-  // =========================================================================
-
-  // Ищем, есть ли уже профиль с таким MAX ID
-  let { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('*')
-    .eq('max_user_id', maxUserId)
-    .maybeSingle();
-
-  // Если профиля нет — создаем новый
-  if (!profile) {
-    console.log("Создаем нового пользователя MAX...");
-    const email = `max_${maxUserId}@klex.pro`;
-    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      email_confirm: true,
-    });
-
-    if (!authError) {
-      const { data: newProfile } = await supabaseAdmin
-        .from("profiles")
-        .upsert({
-          id: authUser.user.id,
-          max_user_id: maxUserId,
-          telegram_first_name: senderName, // Сохраняем имя из MAX
-          balance: 50, // Даем бонус новичку
-          bot_state: "idle",
-        })
-        .select()
-        .single();
-      
-      profile = newProfile;
-      await ctx.reply(`Привет, ${senderName}! ✨ ИИ-бот KLEX.PRO дарит тебе 50 🍌 для старта!`);
-    } else {
-      console.error("Ошибка создания auth-юзера:", authError);
-      await ctx.reply("Произошла ошибка при регистрации. Пожалуйста, попробуйте позже.");
-      return;
-    }
-  } else {
-    // Пользователь уже существует, просто здороваемся
-    await ctx.reply(`С возвращением, ${senderName}! ✨`);
-  }
-
-  // Сбрасываем статус при входе
-  if (profile) await updateBotState(maxUserId, "idle");
-  
-  // Показываем меню
-  await sendMaxMainMenu(ctx, false);
-});
-
 // ==================== ИНФО-КНОПКИ ====================
 bot.action('action_balance', async (ctx: any) => {
   const maxUserId = getUserId(ctx);
@@ -339,7 +233,6 @@ bot.action('action_home', async (ctx: any) => {
   await sendMaxMainMenu(ctx, false);
 });
 
-// НОВОЕ: Начать заново (возврат к выбору модели)
 bot.action('action_start_over', async (ctx: any) => {
   const maxUserId = getUserId(ctx);
   if (!maxUserId) return;
@@ -396,6 +289,85 @@ bot.on('message_created', async (ctx: any) => {
   const maxUserId = getUserId(ctx);
   if (!maxUserId) return;
 
+  const text = ctx.message?.body?.text || "";
+  const attachments = ctx.message?.body?.attachments; 
+
+  // =========================================================================
+  // 1. РУЧНОЙ ПЕРЕХВАТ КОМАНДЫ /START (С ТОКЕНОМ ИЛИ БЕЗ)
+  // =========================================================================
+  if (text.startsWith('/start')) {
+    const senderName = ctx.message?.sender?.first_name || 'друг';
+    const parts = text.split(" ");
+    const token = parts.length > 1 ? parts[1] : null;
+
+    if (token) {
+      console.log(`Попытка синхронизации. Токен: ${token}`);
+      
+      const { data: syncProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('id, balance, max_link_expires')
+        .eq('max_link_token', token)
+        .maybeSingle();
+
+      if (syncProfile) {
+        const now = new Date();
+        const expires = new Date(syncProfile.max_link_expires);
+        
+        if (now <= expires) {
+          // УСПЕХ! Привязываем аккаунты
+          await supabaseAdmin
+            .from('profiles')
+            .update({
+              max_user_id: maxUserId,
+              bot_state: "idle",
+              max_link_token: null, // Сжигаем токен
+              max_link_expires: null
+            })
+            .eq('id', syncProfile.id);
+
+          await ctx.reply(`🎉 **Аккаунты успешно связаны!**\n\nТеперь у вас общий баланс с Telegram: **${syncProfile.balance} 🍌**`, { format: 'markdown' });
+          await sendMaxMainMenu(ctx, false);
+          return; // Выходим из функции
+        } else {
+          await ctx.reply("❌ Ссылка для привязки устарела (прошло 15 минут).");
+          return;
+        }
+      } else {
+        await ctx.reply("❌ Неверная или устаревшая ссылка для привязки.");
+        return;
+      }
+    }
+
+    // Если просто /start (без токена) - обычный вход/регистрация
+    let { data: profile } = await supabaseAdmin.from('profiles').select('*').eq('max_user_id', maxUserId).maybeSingle();
+
+    if (!profile) {
+      const email = `max_${maxUserId}@klex.pro`;
+      const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({ email, email_confirm: true });
+
+      if (!authError) {
+        const { data: newProfile } = await supabaseAdmin.from("profiles").upsert({
+          id: authUser.user.id,
+          max_user_id: maxUserId,
+          telegram_first_name: senderName,
+          balance: 50,
+          bot_state: "idle",
+        }).select().single();
+        profile = newProfile;
+        await ctx.reply(`Привет, ${senderName}! ✨ ИИ-бот KLEX.PRO дарит тебе 50 🍌 для старта!`);
+      }
+    } else {
+      await ctx.reply(`С возвращением, ${senderName}! ✨`);
+    }
+
+    if (profile) await updateBotState(maxUserId, "idle");
+    await sendMaxMainMenu(ctx, false);
+    return; // Завершаем, чтобы не пошло в другие проверки
+  }
+
+  // =========================================================================
+  // 2. ДАЛЬШЕ ИДЕТ СТАНДАРТНАЯ ОБРАБОТКА (ГЕНЕРАЦИИ И ФОТО)
+  // =========================================================================
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("*")
@@ -403,12 +375,7 @@ bot.on('message_created', async (ctx: any) => {
     .maybeSingle();
 
   if (!profile) return;
-
   const currentState = profile.bot_state || "idle";
-  const text = ctx.message?.body?.text;
-  
-  // В MAX вложения лежат внутри объекта body
-  const attachments = ctx.message?.body?.attachments; 
 
   // --- ШАГ 4 (ФОТО): Юзер прислал фото ---
   if (currentState === "awaiting_photo") {
@@ -460,7 +427,7 @@ bot.on('message_created', async (ctx: any) => {
 
   // --- ШАГ 5 (ФОТО): Юзер прислал промпт после фото ---
   if (currentState === "awaiting_photo_prompt") {
-    if (!text || text.startsWith('/start')) {
+    if (!text) {
       await ctx.reply("Пожалуйста, напишите текстовое описание для вашего фото ✍️");
       return;
     }
@@ -470,7 +437,7 @@ bot.on('message_created', async (ctx: any) => {
 
   // --- ШАГ 3 (ТЕКСТ): Юзер прислал промпт (Обычный флоу) ---
   if (currentState === "awaiting_prompt") {
-    if (!text || text.startsWith('/start')) {
+    if (!text) {
       await ctx.reply("Пожалуйста, напишите, что нужно создать ✍️");
       return;
     }
@@ -479,7 +446,7 @@ bot.on('message_created', async (ctx: any) => {
   }
 
   // --- ОШИБКА: Защита от спама ---
-  if (text && !text.startsWith('/start')) {
+  if (text) {
     await ctx.reply(`Я пока понимаю только нажатия на кнопки меню. Вызови /start, чтобы открыть меню!`);
   } else if (attachments && attachments.length > 0) {
     await ctx.reply("Сначала выберите действие \"🖼 Сгрен. по фото\" в меню.");
