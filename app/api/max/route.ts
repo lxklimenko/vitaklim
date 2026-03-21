@@ -35,6 +35,7 @@ function getUserId(ctx: any): string | null {
   return id ? id.toString() : null;
 }
 
+// Исправленная функция — только обновление, без чтения
 async function updateBotState(maxUserId: string, state: string, model: string | null = null) {
   const { error } = await supabaseAdmin
     .from("profiles")
@@ -67,6 +68,37 @@ async function sendMaxMainMenu(ctx: any, isAdmin: boolean = false) {
     attachments: [Keyboard.inlineKeyboard(buttons)]
   });
 }
+
+// ==================== ИНФО-КНОПКИ И БАЛАНС ====================
+bot.action('action_balance', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  if (!maxUserId) return;
+  
+  const { data: profile, error } = await supabaseAdmin
+    .from('profiles')
+    .select('balance')
+    .eq('max_user_id', maxUserId)
+    .limit(1) // <--- СПАСЕНИЕ ОТ КЛОНОВ
+    .maybeSingle();
+    
+  if (error) console.error("Ошибка Баланса:", error);
+
+  if (profile) {
+    const keyboard = Keyboard.inlineKeyboard([
+      [Keyboard.button.callback("💳 Пополнить баланс", "action_start_payment")]
+    ]);
+    await ctx.reply(`💰 *Ваш баланс:* ${profile.balance} 🍌\n\nЗдесь вы можете пополнить счет.`, { 
+      format: 'markdown',
+      attachments: [keyboard]
+    });
+  } else {
+    await ctx.reply("❌ Профиль не найден. Пожалуйста, отправьте /start");
+  }
+});
+
+bot.action('action_history', async (ctx: any) => ctx.reply("📂 История генераций скоро появится!", { format: 'markdown' }));
+bot.action('action_help', async (ctx: any) => ctx.reply("🚀 *Помощь*\n\nВсё очень просто: жми на кнопки!", { format: 'markdown' }));
+bot.action('action_settings', async (ctx: any) => ctx.reply("⚙️ Настройки в разработке.", { format: 'markdown' }));
 
 // ==================== МАШИНА СОСТОЯНИЙ: ОБЫЧНЫЙ ФЛОУ (Text-to-Image) ====================
 async function sendModelSelection(ctx: any, maxUserId: string) {
