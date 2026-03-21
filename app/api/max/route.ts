@@ -29,24 +29,39 @@ async function ensureProfile(maxUserId: number) {
 
   console.log("Создаём нового пользователя Max:", maxUserId);
 
-  // 2. Создаём пользователя в Supabase Auth
   const email = `max_${maxUserId}@max.local`;
-  const { data: authUser, error: authError } =
-    await supabase.auth.admin.createUser({
-      email,
-      email_confirm: true,
-    });
+  let userId: string;
 
-  if (authError) {
-    console.error("Ошибка создания пользователя в auth:", authError);
-    throw new Error(`Auth create failed: ${authError.message}`);
+  // 🔍 сначала проверяем — есть ли уже пользователь
+  const { data: existingUsers } = await supabase.auth.admin.listUsers();
+
+  const existingUser = existingUsers.users.find(
+    (u) => u.email === email
+  );
+
+  if (existingUser) {
+    console.log("Пользователь уже существует:", email);
+    userId = existingUser.id;
+  } else {
+    const { data: authUser, error: authError } =
+      await supabase.auth.admin.createUser({
+        email,
+        email_confirm: true,
+      });
+
+    if (authError || !authUser?.user) {
+      console.error("Ошибка создания пользователя в auth:", authError);
+      throw new Error(`Auth create failed: ${authError?.message || 'unknown'}`);
+    }
+
+    userId = authUser.user.id;
   }
 
-  // 3. Создаём профиль
+  // Создаём профиль
   const { data: newProfile, error: profileError } = await supabase
     .from("profiles")
     .insert({
-      id: authUser.user.id,
+      id: userId,
       max_user_id: maxUserId,
       telegram_id: null,
       telegram_username: null,
