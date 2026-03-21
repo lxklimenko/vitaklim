@@ -46,6 +46,14 @@ async function sendMaxMainMenu(ctx: any, isAdmin: boolean = false) {
   });
 }
 
+// ==================== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ====================
+function getUserId(ctx: any): string | null {
+  return ctx.message?.sender?.user_id?.toString() || 
+         ctx.update?.message_callback?.sender?.user_id?.toString() || 
+         ctx.update?.message?.sender?.user_id?.toString() ||
+         null;
+}
+
 // ==================== КОМАНДА /START ====================
 bot.command('start', async (ctx: any) => {
   const senderName = ctx.message?.sender?.first_name || 'друг';
@@ -102,7 +110,21 @@ bot.command('start', async (ctx: any) => {
 // ==================== ОБРАБОТКА НАЖАТИЙ НА КНОПКИ (ACTIONS) ====================
 
 bot.action('action_balance', async (ctx: any) => {
-  await ctx.reply("💰 *Ваш баланс:* (Функция проверки баланса подключается...)", { format: 'markdown' });
+  const maxUserId = getUserId(ctx);
+  
+  if (maxUserId) {
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('balance')
+      .eq('max_user_id', maxUserId)
+      .maybeSingle();
+
+    if (profile) {
+      await ctx.reply(`💰 *Ваш баланс:* ${profile.balance} 🍌\n\nФункция пополнения через MAX в разработке!`, { format: 'markdown' });
+      return;
+    }
+  }
+  await ctx.reply("💰 Баланс: Не удалось найти профиль.");
 });
 
 bot.action('action_history', async (ctx: any) => {
@@ -123,24 +145,21 @@ bot.action('action_settings', async (ctx: any) => {
 });
 
 bot.action('action_create_image', async (ctx: any) => {
-  const maxUserId = ctx.message?.sender?.user_id?.toString();
-  
-  // Ищем профиль
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('*')
-    .eq('max_user_id', maxUserId)
-    .maybeSingle();
+  const maxUserId = getUserId(ctx);
+  console.log("Нажали Создать картинку. ID:", maxUserId);
 
-  if (!profile) return;
+  // Если нашли пользователя, переводим его в режим выбора модели
+  if (maxUserId) {
+    await supabaseAdmin
+      .from("profiles")
+      .update({ bot_state: "choosing_model", bot_reference_url: null })
+      .eq("max_user_id", maxUserId);
+  } else {
+    // Временно выводим в логи структуру ответа MAX, если ID снова не нашелся
+    console.log("MAX CALLBACK STRUCTURE:", JSON.stringify(ctx.update, null, 2));
+  }
 
-  // 1. Меняем статус пользователя в базе на "choosing_model"
-  await supabaseAdmin
-    .from("profiles")
-    .update({ bot_state: "choosing_model", bot_reference_url: null })
-    .eq("id", profile.id);
-
-  // 2. Создаем клавиатуру с выбором моделей (используем текст кнопок как сигналы payload)
+  // Создаем клавиатуру (она теперь выведется в любом случае!)
   const buttons = [
     [Keyboard.button.callback(MODELS.NANO2, "model_nano2")],
     [Keyboard.button.callback(MODELS.PRO, "model_pro")],
