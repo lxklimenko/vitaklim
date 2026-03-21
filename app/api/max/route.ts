@@ -11,6 +11,12 @@ if (!MAX_TOKEN) {
 
 const bot = new Bot(MAX_TOKEN);
 
+const MODELS = {
+  NANO2: "🍌 Nano Banano 2 (Gemini 3.1 Flash) — 5 🍌",
+  PRO: "🍌 Nano Banana Pro (Gemini 3 Pro) — 10 🍌",
+  PRO4K: "🔥 Nano Banano Pro (4K) — 15 🍌"
+};
+
 // ==================== ВЫВОД МЕНЮ ====================
 async function sendMaxMainMenu(ctx: any, isAdmin: boolean = false) {
   // Используем callback-кнопки: первый аргумент — текст на кнопке, второй — скрытый сигнал (payload)
@@ -117,7 +123,36 @@ bot.action('action_settings', async (ctx: any) => {
 });
 
 bot.action('action_create_image', async (ctx: any) => {
-  await ctx.reply("Функция генерации картинок скоро будет перенесена сюда! 🎨🚀");
+  const maxUserId = ctx.message?.sender?.user_id?.toString();
+  
+  // Ищем профиль
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('*')
+    .eq('max_user_id', maxUserId)
+    .maybeSingle();
+
+  if (!profile) return;
+
+  // 1. Меняем статус пользователя в базе на "choosing_model"
+  await supabaseAdmin
+    .from("profiles")
+    .update({ bot_state: "choosing_model", bot_reference_url: null })
+    .eq("id", profile.id);
+
+  // 2. Создаем клавиатуру с выбором моделей (используем текст кнопок как сигналы payload)
+  const buttons = [
+    [Keyboard.button.callback(MODELS.NANO2, "model_nano2")],
+    [Keyboard.button.callback(MODELS.PRO, "model_pro")],
+    [Keyboard.button.callback(MODELS.PRO4K, "model_pro4k")],
+    [Keyboard.button.callback("⬅️ Назад", "action_back")]
+  ];
+
+  const keyboard = Keyboard.inlineKeyboard(buttons);
+
+  await ctx.reply("Выберите модель:", {
+    attachments: [keyboard]
+  });
 });
 
 bot.action('action_create_photo', async (ctx: any) => {
