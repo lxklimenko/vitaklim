@@ -226,7 +226,7 @@ bot.on('message_created', async (ctx: any) => {
     await ctx.reply("🎨 Генерация запущена. Рисуем шедевр...");
 
     try {
-      // 4. ВЫЗЫВАЕМ ТВОЕ ИИ-ЯДРО
+      // 4. ВЫЗЫВАЕМ ИИ-ЯДРО
       const result = await generateImageCore({
         userId: profile.id, 
         prompt: text,
@@ -238,31 +238,23 @@ bot.on('message_created', async (ctx: any) => {
 
       console.log("Успешная генерация! Скачиваем картинку в Vercel...");
 
-      // 5. СКАЧИВАЕМ КАРТИНКУ САМИ
+      // 5. СКАЧИВАЕМ КАРТИНКУ ПРЯМО В ОПЕРАТИВНУЮ ПАМЯТЬ
       const imageResponse = await fetch(result.imageUrl);
       const arrayBuffer = await imageResponse.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      // 6. СОХРАНЯЕМ ВО ВРЕМЕННУЮ ПАПКУ
-      const fs = require('fs');
-      const path = require('path');
-      const os = require('os');
-      const tempFilePath = path.join(os.tmpdir(), `klex_${Date.now()}.jpg`);
       
-      fs.writeFileSync(tempFilePath, buffer);
+      // 6. СОЗДАЕМ "ТРОЯНСКИЙ БУФЕР" (Маскируем память под файл для SDK)
+      const buffer: any = Buffer.from(arrayBuffer);
+      buffer.path = "klex_image.jpg"; // SDK ищет это свойство, чтобы понять формат
+      buffer.name = "klex_image.jpg"; // На всякий случай для form-data
 
-      console.log("Создаем поток файла и загружаем в MAX...");
+      console.log("Загружаем буфер напрямую в MAX...");
 
-      // 7. ЗАГРУЖАЕМ ФАЙЛ В MAX (Передаем ПОТОК в ключ source)
-      const fileStream = fs.createReadStream(tempFilePath);
+      // 7. ЗАГРУЖАЕМ В MAX (передаем наш хитрый буфер)
       const imageAttachment = await ctx.api.uploadImage({ 
-        source: fileStream 
+        source: buffer 
       });
-      
-      // 8. УДАЛЯЕМ ВРЕМЕННЫЙ ФАЙЛ (Только после того, как загрузка завершилась)
-      fs.unlinkSync(tempFilePath);
 
-      // 9. ОТПРАВЛЯЕМ КАРТИНКУ В ЧАТ
+      // 8. ОТПРАВЛЯЕМ КАРТИНКУ В ЧАТ
       await ctx.reply(`✨ Ваша генерация готова!`, {
         attachments: [imageAttachment.toJson()]
       });
