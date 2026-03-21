@@ -226,7 +226,7 @@ bot.on('message_created', async (ctx: any) => {
     await ctx.reply("🎨 Генерация запущена. Рисуем шедевр...");
 
     try {
-      // 4. ВЫЗЫВАЕМ ИИ-ЯДРО
+      // 4. ВЫЗЫВАЕМ ТВОЕ ИИ-ЯДРО
       const result = await generateImageCore({
         userId: profile.id, 
         prompt: text,
@@ -243,7 +243,7 @@ bot.on('message_created', async (ctx: any) => {
       const arrayBuffer = await imageResponse.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      // 6. СОХРАНЯЕМ ВО ВРЕМЕННУЮ ПАПКУ (Vercel разрешает писать в /tmp)
+      // 6. СОХРАНЯЕМ ВО ВРЕМЕННУЮ ПАПКУ
       const fs = require('fs');
       const path = require('path');
       const os = require('os');
@@ -251,12 +251,14 @@ bot.on('message_created', async (ctx: any) => {
       
       fs.writeFileSync(tempFilePath, buffer);
 
-      console.log("Отправляем локальный файл в MAX...");
+      console.log("Отправляем локальный файл в MAX через потоковое чтение...");
 
-      // 7. ЗАГРУЖАЕМ ФАЙЛ В MAX (используем source вместо url)
-      const imageAttachment = await ctx.api.uploadImage({ source: tempFilePath });
+      // 7. ЗАГРУЖАЕМ ФАЙЛ В MAX (Используем ключ photos и ReadStream)
+      const imageAttachment = await ctx.api.uploadImage({ 
+        photos: fs.createReadStream(tempFilePath) 
+      });
       
-      // 8. УДАЛЯЕМ ВРЕМЕННЫЙ ФАЙЛ (чтобы не забить память Vercel)
+      // 8. УДАЛЯЕМ ВРЕМЕННЫЙ ФАЙЛ (чтобы сервер Vercel не забивался)
       fs.unlinkSync(tempFilePath);
 
       // 9. ОТПРАВЛЯЕМ КАРТИНКУ В ЧАТ
