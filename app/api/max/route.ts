@@ -274,33 +274,49 @@ bot.on('message_created', async (ctx: any) => {
 
   const currentState = profile.bot_state || "idle";
   const text = ctx.message?.body?.text;
-  const attachments = ctx.message?.attachments;
+  
+  // 🛠 ИСПРАВЛЕНИЕ: В MAX вложения лежат внутри объекта body!
+  const attachments = ctx.message?.body?.attachments; 
 
   // --- ШАГ 4 (ФОТО): Юзер прислал фото ---
   if (currentState === "awaiting_photo") {
     if (!attachments || attachments.length === 0) {
+      console.log("Получено сообщение без вложений:", JSON.stringify(ctx.message?.body));
       await ctx.reply("Пожалуйста, пришвартуйте изображение 📸 или нажмите 'Назад'.");
       return;
     }
 
-    const photoAttachment = attachments.find((a: any) => a.type === 'image');
+    // В MAX тип может называться 'image' или 'photo'
+    const photoAttachment = attachments.find((a: any) => a.type === 'image' || a.type === 'photo');
     if (!photoAttachment) {
-      await ctx.reply("Это не похоже на изображение. Пожалуйста, отправьте фото.");
+      console.log("Вложения не являются картинкой:", JSON.stringify(attachments));
+      await ctx.reply("Это не похоже на изображение. Пожалуйста, отправьте именно фото.");
       return;
     }
 
     try {
-      // 1. Получаем ссылку на скачивание файла из MAX
-      const fileInfo = await ctx.api.getFile(photoAttachment.payload.token); 
+      console.log("Найдено фото от юзера:", JSON.stringify(photoAttachment));
       
-      // 2. Сохраняем URL картинки в базу (в массив bot_reference_url)
+      // Достаем ID файла (в MAX он может лежать в token или file_id)
+      const fileId = photoAttachment.payload?.token || photoAttachment.payload?.file_id;
+      
+      if (!fileId) {
+         console.error("Не найден ID файла во вложении!");
+         await ctx.reply("Ошибка: не удалось прочитать файл.");
+         return;
+      }
+
+      // 1. Получаем ссылку на файл через API MAX
+      const fileInfo = await ctx.api.getFile(fileId); 
+      
+      // 2. Сохраняем URL картинки в базу
       const currentUrls = profile.bot_reference_url || [];
       const updatedUrls = [...currentUrls, fileInfo.url];
 
       await supabaseAdmin
         .from("profiles")
         .update({ 
-          bot_state: "awaiting_photo_prompt", // Переводим на следующий шаг
+          bot_state: "awaiting_photo_prompt", 
           bot_reference_url: updatedUrls 
         })
         .eq("max_user_id", maxUserId);
