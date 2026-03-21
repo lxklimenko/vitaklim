@@ -12,117 +12,138 @@ const supabase = createClient(
 // Инициализируем бота
 const bot = new Bot(process.env.MAX_BOT_TOKEN!);
 
-// Новый обработчик /start с upsert для токена
-bot.command('start', async (ctx: any) => {
-  const maxUserId = ctx.user?.user_id;
-
-  if (!maxUserId) return;
-
-  // 🔥 создаём login_token (тот же, что и в Telegram)
-  const loginToken = crypto.randomUUID();
-
-  // 🔥 сохраняем в БД
-  await supabase
-    .from("profiles")
-    .upsert({
-      max_user_id: maxUserId,
-      login_token: loginToken,
-      login_token_expires: new Date(Date.now() + 5 * 60 * 1000),
-    }, {
-      onConflict: "max_user_id"
-    });
-
-  const link = `https://vitaklim-git-main-lxklimenkos-projects.vercel.app/auth?token=${loginToken}`;
-
-  await ctx.reply(
-    "🔐 Войди, чтобы синхронизировать аккаунт 👇",
-    {
-      attachments: [
-        {
-          type: "inline_keyboard",
-          buttons: [
-            [
-              {
-                type: "link",
-                text: "🔗 Войти",
-                url: link
-              }
-            ]
-          ]
-        }
-      ]
-    }
-  );
-});
-
-// Обновлённый обработчик сообщений с интеграцией Supabase
-bot.on('message_created', async (ctx: any) => {
-  const text = ctx.message?.body?.text;
-  const maxUserId = ctx.user?.user_id;
-  const username = ctx.user?.username || `max_${maxUserId}`;
-
-  if (!maxUserId) return;
-
-  // 1. ищем пользователя в таблице profiles
-  const { data: profile } = await supabase
+/**
+ * Создаёт (при необходимости) пользователя в auth и профиль в таблице profiles
+ * @param maxUserId - идентификатор пользователя в Max
+ * @returns объект профиля (с id, max_user_id и другими полями)
+ */
+async function ensureProfile(maxUserId: number) {
+  // 1. Проверяем, существует ли уже профиль
+  const { data: existing } = await supabase
     .from("profiles")
     .select("*")
     .eq("max_user_id", maxUserId)
     .maybeSingle();
 
-  let userProfile = profile;
+  if (existing) return existing;
 
-  // 2. если нет — создаём нового пользователя и профиль
-  if (!userProfile) {
-    console.log("Создаём нового MAX пользователя:", maxUserId);
+  console.log("Создаём нового пользователя Max:", maxUserId);
 
-    const email = `max_${maxUserId}@max.local`;
+  // 2. Создаём пользователя в Supabase Auth
+  const email = `max_${maxUserId}@max.local`;
+  const { data: authUser, error: authError } =
+    await supabase.auth.admin.createUser({
+      email,
+      email_confirm: true,
+    });
 
-    // создаём пользователя в auth
-    const { data: authUser, error: authError } =
-      await supabase.auth.admin.createUser({
-        email,
-        email_confirm: true,
-      });
-
-    if (authError) {
-      console.error("AUTH ERROR:", authError);
-      return;
-    }
-
-    // создаём профиль
-    const { data: newProfile, error: profileError } = await supabase
-      .from("profiles")
-      .insert({
-        id: authUser.user.id,
-        max_user_id: maxUserId,
-        telegram_id: null,
-        telegram_username: null,
-        balance: 50,
-      })
-      .select()
-      .single();
-
-    if (profileError) {
-      console.error("PROFILE ERROR:", profileError);
-      return;
-    }
-
-    userProfile = newProfile;
+  if (authError) {
+    console.error("Ошибка создания пользователя в auth:", authError);
+    throw new Error(`Auth create failed: ${authError.message}`);
   }
 
-  // 3. логика бота: отвечаем с балансом
-  if (text && text !== '/start') {
-    await ctx.reply(`Ты написал: ${text}\n\n💰 Баланс: ${userProfile.balance} 🍌`);
+  // 3. Создаём профиль
+  const { data: newProfile, error: profileError } = await supabase
+    .from("profiles")
+    .insert({
+      id: authUser.user.id,
+      max_user_id: maxUserId,
+      telegram_id: null,
+      telegram_username: null,
+      balance: 50,
+    })
+    .select()
+    .single();
+
+  if (profileError) {
+    console.error("Ошибка создания профиля:", profileError);
+    throw new Error(`Profile create failed: ${profileError.message}`);
+  }
+
+  return newProfile;
+}
+
+// Обработчик команды /start
+bot.command('start', async (ctx: any) => {
+  const maxUserId = ctx.user?.user_id;
+  if (!maxUserId) return;
+
+  try {
+    // Гарантируем существование профиля
+    await ensureProfile(maxUserId);
+
+    // Генерируем токен для авторизации
+    const loginToken = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 минут
+
+    // Обновляем токен в профиле
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        login_token: loginToken,
+        login_token_expires: expiresAt,
+      })
+      .eq("max_user_id", maxUserId);
+
+    if (error) throw error;
+
+    const link = `https://vitaklim-git-main-lxklimenkos-projects.vercel.app/auth?token=${loginToken}`;
+
+    await ctx.reply(
+      "🔐 Войди, чтобы синхронизировать аккаунт 👇",
+      {
+        attachments: [
+          {
+            type: "inline_keyboard",
+            buttons: [
+              [
+                {
+                  type: "link",
+                  text: "🔗 Войти",
+                  url: link,
+                },
+              ],
+            ],
+          },
+        ],
+      }
+    );
+  } catch (err) {
+    console.error("Ошибка в /start:", err);
+    await ctx.reply("⚠️ Произошла ошибка. Попробуй позже.");
   }
 });
 
+// Обработчик обычных сообщений
+bot.on('message_created', async (ctx: any) => {
+  const text = ctx.message?.body?.text;
+  const maxUserId = ctx.user?.user_id;
+
+  if (!maxUserId) return;
+
+  // Игнорируем команду /start здесь, чтобы не дублировать ответ
+  if (text === '/start') return;
+
+  try {
+    const userProfile = await ensureProfile(maxUserId);
+
+    // Отвечаем с балансом
+    await ctx.reply(
+      `Ты написал: ${text}\n\n💰 Баланс: ${userProfile.balance} 🍌`
+    );
+  } catch (err) {
+    console.error("Ошибка в обработчике сообщений:", err);
+    await ctx.reply("⚠️ Не удалось обработать сообщение. Попробуй позже.");
+  }
+});
+
+// Вебхук для приёма обновлений от Max
 export async function POST(req: Request) {
   try {
     const update = await req.json();
     console.log("MAX ВХОДЯЩИЙ ВЕБХУК:", update?.message?.body?.text);
 
-    // Обходим TypeScript защиту, чтобы вызвать handleUpdate
+    // Передаём обновление боту
     await (bot as any).handleUpdate(update);
 
     return NextResponse.json({ ok: true });
