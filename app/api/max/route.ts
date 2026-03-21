@@ -57,15 +57,17 @@ async function ensureProfile(maxUserId: number) {
     userId = authUser.user.id;
   }
 
-  // Создаём профиль
+  // Создаём профиль (upsert на случай повторного вызова)
   const { data: newProfile, error: profileError } = await supabase
     .from("profiles")
-    .insert({
+    .upsert({
       id: userId,
       max_user_id: maxUserId,
       telegram_id: null,
       telegram_username: null,
       balance: 50,
+    }, {
+      onConflict: "id"
     })
     .select()
     .single();
