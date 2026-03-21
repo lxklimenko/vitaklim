@@ -227,7 +227,7 @@ bot.action('action_back', async (ctx: any) => {
   const maxUserId = getUserId(ctx);
   if (!maxUserId) return;
 
-  // Смотрим, на каком шаге мы сейчас находимся
+  // Смотрим, на каком шаге мы сейчас находимся в базе
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("bot_state, bot_selected_model")
@@ -235,31 +235,33 @@ bot.action('action_back', async (ctx: any) => {
     .maybeSingle();
 
   const currentState = profile?.bot_state || "idle";
+  console.log(`🔘 Кнопка НАЗАД. Текущий шаг в базе: ${currentState}`);
 
   switch (currentState) {
-    case "awaiting_prompt":
-      // Возвращаемся от ввода текста к выбору формата
+    case "awaiting_prompt": {
+      // ШАГ 3 -> Возвращаемся на ШАГ 2 (Выбор формата)
       const savedModelStr = profile?.bot_selected_model || "";
       const [modelName] = savedModelStr.split('|'); // Вытаскиваем только имя модели
       await sendFormatSelection(ctx, maxUserId, modelName || MODELS.NANO2);
       break;
-
+    }
     case "choosing_format":
-    case "choosing_photo_format":
-      // Возвращаемся от выбора формата к выбору модели
+    case "choosing_photo_format": {
+      // ШАГ 2 -> Возвращаемся на ШАГ 1 (Выбор модели)
       await sendModelSelection(ctx, maxUserId);
       break;
-
+    }
     case "choosing_model":
     case "choosing_photo_model":
-    default:
-      // Сбрасываем всё и возвращаемся в Главное меню
+    default: {
+      // ШАГ 1 -> Сбрасываем всё и выходим в Главное меню
       await supabaseAdmin
         .from("profiles")
         .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
         .eq("max_user_id", maxUserId);
       await sendMaxMainMenu(ctx, false);
       break;
+    }
   }
 });
 
@@ -287,10 +289,21 @@ bot.action('model_pro4k', async (ctx: any) => {
   if (maxUserId) await sendFormatSelection(ctx, maxUserId, MODELS.PRO4K);
 });
 
-// Клик по форматам
-bot.action('format_1:1', (ctx: any) => handleFormatSelection(ctx, '1:1'));
-bot.action('format_9:16', (ctx: any) => handleFormatSelection(ctx, '9:16'));
-bot.action('format_16:9', (ctx: any) => handleFormatSelection(ctx, '16:9'));
+// Клик по форматам (безопасные асинхронные вызовы)
+bot.action('format_1:1', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  if (maxUserId) await handleFormatSelection(ctx, '1:1');
+});
+
+bot.action('format_9:16', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  if (maxUserId) await handleFormatSelection(ctx, '9:16');
+});
+
+bot.action('format_16:9', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  if (maxUserId) await handleFormatSelection(ctx, '16:9');
+});
 
 // ==================== ГЕНЕРАЦИЯ ПО ФОТО (заглушка) ====================
 bot.action('action_create_photo', async (ctx: any) => {
