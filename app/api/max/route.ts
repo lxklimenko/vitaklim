@@ -144,22 +144,15 @@ bot.action('action_settings', async (ctx: any) => {
   await ctx.reply("⚙️ *Настройки*\n\nСкоро здесь можно будет выбрать модель по умолчанию.", { format: 'markdown' });
 });
 
-bot.action('action_create_image', async (ctx: any) => {
-  const maxUserId = getUserId(ctx);
-  console.log("Нажали Создать картинку. ID:", maxUserId);
+// ==================== ФУНКЦИИ ОТРИСОВКИ ШАГОВ (МАШИНА СОСТОЯНИЙ) ====================
 
-  // Если нашли пользователя, переводим его в режим выбора модели
-  if (maxUserId) {
-    await supabaseAdmin
-      .from("profiles")
-      .update({ bot_state: "choosing_model", bot_reference_url: null })
-      .eq("max_user_id", maxUserId);
-  } else {
-    // Временно выводим в логи структуру ответа MAX, если ID снова не нашелся
-    console.log("MAX CALLBACK STRUCTURE:", JSON.stringify(ctx.update, null, 2));
-  }
+// Шаг 1: Выбор модели
+async function sendModelSelection(ctx: any, maxUserId: string) {
+  await supabaseAdmin
+    .from("profiles")
+    .update({ bot_state: "choosing_model", bot_reference_url: null })
+    .eq("max_user_id", maxUserId);
 
-  // Создаем клавиатуру (она теперь выведется в любом случае!)
   const buttons = [
     [Keyboard.button.callback(MODELS.NANO2, "model_nano2")],
     [Keyboard.button.callback(MODELS.PRO, "model_pro")],
@@ -167,47 +160,22 @@ bot.action('action_create_image', async (ctx: any) => {
     [Keyboard.button.callback("⬅️ Назад", "action_back")]
   ];
 
-  const keyboard = Keyboard.inlineKeyboard(buttons);
-
   await ctx.reply("Выберите модель:", {
-    attachments: [keyboard]
+    attachments: [Keyboard.inlineKeyboard(buttons)]
   });
-});
+}
 
-// ==================== КНОПКА "НАЗАД" ====================
-bot.action('action_back', async (ctx: any) => {
-  const maxUserId = getUserId(ctx);
-  
-  if (maxUserId) {
-    // Сбрасываем все состояния в базе
-    await supabaseAdmin
-      .from("profiles")
-      .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
-      .eq("max_user_id", maxUserId);
-  }
-  
-  // Возвращаем главное меню
-  await sendMaxMainMenu(ctx, false);
-});
-
-// ==================== ВЫБОР МОДЕЛИ -> ПЕРЕХОД К ФОРМАТУ ====================
-// Универсальная функция, чтобы не писать один и тот же код три раза
-async function handleModelSelection(ctx: any, modelKey: keyof typeof MODELS) {
-  const maxUserId = getUserId(ctx);
-  if (!maxUserId) return;
-
-  const modelDisplayName = MODELS[modelKey];
-
-  // 1. Сохраняем выбранную модель в базу и переходим на шаг "choosing_format"
+// Шаг 2: Выбор формата
+async function sendFormatSelection(ctx: any, maxUserId: string, modelDisplayName: string) {
+  // Сохраняем имя выбранной модели и меняем статус
   await supabaseAdmin
     .from("profiles")
     .update({
       bot_state: "choosing_format",
-      bot_selected_model: modelDisplayName
+      bot_selected_model: modelDisplayName 
     })
     .eq("max_user_id", maxUserId);
 
-  // 2. Рисуем клавиатуру с форматами
   const buttons = [
     [Keyboard.button.callback("⬛ 1:1 (Квадрат)", "format_1:1")],
     [
@@ -217,19 +185,114 @@ async function handleModelSelection(ctx: any, modelKey: keyof typeof MODELS) {
     [Keyboard.button.callback("⬅️ Назад", "action_back")]
   ];
 
-  const keyboard = Keyboard.inlineKeyboard(buttons);
-
   await ctx.reply(`Модель: *${modelDisplayName}*\n\nВыберите нужный формат изображения:`, {
-    format: 'markdown', // Включаем поддержку жирного текста
+    format: 'markdown',
+    attachments: [Keyboard.inlineKeyboard(buttons)]
+  });
+}
+
+// Шаг 3: Запрос промпта (текста)
+async function handleFormatSelection(ctx: any, selectedFormat: string) {
+  const maxUserId = getUserId(ctx);
+  if (!maxUserId) return;
+
+  // Достаем сохраненную модель из базы
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('bot_selected_model')
+    .eq('max_user_id', maxUserId)
+    .maybeSingle();
+
+  const oldModelName = profile?.bot_selected_model || MODELS.NANO2;
+  const newModelStr = `${oldModelName}|${selectedFormat}`; // Склеиваем модель и формат
+
+  // Переходим в режим ожидания текста
+  await supabaseAdmin
+    .from("profiles")
+    .update({ bot_state: "awaiting_prompt", bot_selected_model: newModelStr })
+    .eq("max_user_id", maxUserId);
+
+  const keyboard = Keyboard.inlineKeyboard([
+    [Keyboard.button.callback("⬅️ Назад", "action_back")]
+  ]);
+
+  await ctx.reply(`✅ Формат *${selectedFormat}* выбран!\n\nНапишите, что нужно создать ✍️`, {
+    format: 'markdown',
     attachments: [keyboard]
   });
 }
 
-// Слушаем нажатия на кнопки моделей и передаем их в функцию
-bot.action('model_nano2', (ctx: any) => handleModelSelection(ctx, 'NANO2'));
-bot.action('model_pro', (ctx: any) => handleModelSelection(ctx, 'PRO'));
-bot.action('model_pro4k', (ctx: any) => handleModelSelection(ctx, 'PRO4K'));
+// ==================== УМНАЯ КНОПКА "НАЗАД" ====================
+bot.action('action_back', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  if (!maxUserId) return;
 
+  // Смотрим, на каком шаге мы сейчас находимся
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("bot_state, bot_selected_model")
+    .eq("max_user_id", maxUserId)
+    .maybeSingle();
+
+  const currentState = profile?.bot_state || "idle";
+
+  switch (currentState) {
+    case "awaiting_prompt":
+      // Возвращаемся от ввода текста к выбору формата
+      const savedModelStr = profile?.bot_selected_model || "";
+      const [modelName] = savedModelStr.split('|'); // Вытаскиваем только имя модели
+      await sendFormatSelection(ctx, maxUserId, modelName || MODELS.NANO2);
+      break;
+
+    case "choosing_format":
+    case "choosing_photo_format":
+      // Возвращаемся от выбора формата к выбору модели
+      await sendModelSelection(ctx, maxUserId);
+      break;
+
+    case "choosing_model":
+    case "choosing_photo_model":
+    default:
+      // Сбрасываем всё и возвращаемся в Главное меню
+      await supabaseAdmin
+        .from("profiles")
+        .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
+        .eq("max_user_id", maxUserId);
+      await sendMaxMainMenu(ctx, false);
+      break;
+  }
+});
+
+// ==================== ПРИВЯЗКА КНОПОК ====================
+
+// Клик по "Создать картинку" в главном меню
+bot.action('action_create_image', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  if (maxUserId) await sendModelSelection(ctx, maxUserId);
+});
+
+// Клик по моделям (с проверкой на null, чтобы TypeScript не ругался)
+bot.action('model_nano2', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  if (maxUserId) await sendFormatSelection(ctx, maxUserId, MODELS.NANO2);
+});
+
+bot.action('model_pro', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  if (maxUserId) await sendFormatSelection(ctx, maxUserId, MODELS.PRO);
+});
+
+bot.action('model_pro4k', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  if (maxUserId) await sendFormatSelection(ctx, maxUserId, MODELS.PRO4K);
+});
+
+// Клик по форматам
+bot.action('format_1:1', (ctx: any) => handleFormatSelection(ctx, '1:1'));
+bot.action('format_9:16', (ctx: any) => handleFormatSelection(ctx, '9:16'));
+bot.action('format_16:9', (ctx: any) => handleFormatSelection(ctx, '16:9'));
+
+// ==================== ГЕНЕРАЦИЯ ПО ФОТО (заглушка) ====================
 bot.action('action_create_photo', async (ctx: any) => {
   await ctx.reply("Функция генерации по фото скоро будет перенесена сюда! 🖼🚀");
 });
