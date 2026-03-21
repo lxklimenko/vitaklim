@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Bot } from '@maxhub/max-bot-api';
+import { Bot, Keyboard } from '@maxhub/max-bot-api';
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 
@@ -106,24 +106,19 @@ bot.command('start', async (ctx: any) => {
 
     const link = `https://vitaklim-git-main-lxklimenkos-projects.vercel.app/auth?token=${loginToken}`;
 
+    const keyboard = Keyboard.inlineKeyboard([
+      [
+        Keyboard.button.link(
+          "🔗 Войти",
+          link
+        )
+      ]
+    ]);
+
     await ctx.reply(
       "🔐 Войди, чтобы синхронизировать аккаунт 👇",
       {
-        attachments: [
-          {
-            type: "inline_keyboard",
-            buttons: [
-              [
-                {
-                  type: "link",
-                  text: "🔗 Войти",
-                  url: link,
-                  payload: "login" // 🔥 ОБЯЗАТЕЛЬНО
-                }
-              ]
-            ]
-          }
-        ]
+        attachments: [keyboard]
       }
     );
   } catch (err) {
