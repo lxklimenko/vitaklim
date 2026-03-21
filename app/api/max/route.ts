@@ -70,32 +70,6 @@ async function sendMaxMainMenu(ctx: any, isAdmin: boolean = false) {
   });
 }
 
-// ==================== ИНФО-КНОПКИ И БАЛАНС ====================
-bot.action('action_balance', async (ctx: any) => {
-  const maxUserId = getUserId(ctx);
-  if (!maxUserId) return;
-  
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('balance')
-    .eq('max_user_id', maxUserId)
-    .maybeSingle();
-    
-  if (profile) {
-    const keyboard = Keyboard.inlineKeyboard([
-      [Keyboard.button.callback("💳 Пополнить баланс", "action_start_payment")]
-    ]);
-    await ctx.reply(`💰 *Ваш баланс:* ${profile.balance} 🍌\n\nЗдесь вы можете пополнить счет.`, { 
-      format: 'markdown',
-      attachments: [keyboard]
-    });
-  }
-});
-
-bot.action('action_history', async (ctx: any) => ctx.reply("📂 История генераций скоро появится!", { format: 'markdown' }));
-bot.action('action_help', async (ctx: any) => ctx.reply("🚀 *Помощь*\n\nВсё очень просто: жми на кнопки!", { format: 'markdown' }));
-bot.action('action_settings', async (ctx: any) => ctx.reply("⚙️ Настройки в разработке.", { format: 'markdown' }));
-
 // ==================== МАШИНА СОСТОЯНИЙ: ОБЫЧНЫЙ ФЛОУ (Text-to-Image) ====================
 async function sendModelSelection(ctx: any, maxUserId: string) {
   await updateBotState(maxUserId, "choosing_model");
@@ -421,6 +395,46 @@ bot.on('message_created', async (ctx: any) => {
 
   if (!profile) return;
   const currentState = profile.bot_state || "idle";
+
+  // =========================================================================
+  // НОВОЕ: ПЕРЕХВАТ ТЕКСТОВЫХ КОМАНД ИЗ ГЛАВНОГО МЕНЮ
+  // =========================================================================
+  if (text === "💰 Баланс" || text === "action_balance") {
+    const keyboard = Keyboard.inlineKeyboard([
+      [Keyboard.button.callback("💳 Пополнить баланс", "action_start_payment")]
+    ]);
+    await ctx.reply(`💰 *Ваш баланс:* ${profile.balance} 🍌\n\nЗдесь вы можете пополнить счет.`, { 
+      format: 'markdown',
+      attachments: [keyboard]
+    });
+    return;
+  }
+  
+  if (text === "📜 История" || text === "action_history") {
+    await ctx.reply("📂 История генераций скоро появится!", { format: 'markdown' });
+    return;
+  }
+  
+  if (text === "❓ Помощь" || text === "action_help") {
+    await ctx.reply("🚀 *Помощь*\n\nВсё очень просто: жми на кнопки!", { format: 'markdown' });
+    return;
+  }
+  
+  if (text === "⚙️ Настройки" || text === "action_settings") {
+    await ctx.reply("⚙️ Настройки в разработке.", { format: 'markdown' });
+    return;
+  }
+  
+  // Добавим ручной перехват для кнопок создания, если MAX отправляет их текстом
+  if (text === "🎨 Создать картинку") {
+    await sendModelSelection(ctx, maxUserId);
+    return;
+  }
+  
+  if (text === "🖼 Сгрен. по фото") {
+    await sendPhotoModelSelection(ctx, maxUserId);
+    return;
+  }
 
   // --- ШАГ ОПЛАТЫ 1: Юзер вводит Email ---
   if (currentState === "awaiting_payment_email") {
