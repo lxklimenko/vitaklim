@@ -275,43 +275,35 @@ bot.on('message_created', async (ctx: any) => {
   const currentState = profile.bot_state || "idle";
   const text = ctx.message?.body?.text;
   
-  // 🛠 ИСПРАВЛЕНИЕ: В MAX вложения лежат внутри объекта body!
+  // В MAX вложения лежат внутри объекта body
   const attachments = ctx.message?.body?.attachments; 
 
   // --- ШАГ 4 (ФОТО): Юзер прислал фото ---
   if (currentState === "awaiting_photo") {
     if (!attachments || attachments.length === 0) {
-      console.log("Получено сообщение без вложений:", JSON.stringify(ctx.message?.body));
       await ctx.reply("Пожалуйста, пришвартуйте изображение 📸 или нажмите 'Назад'.");
       return;
     }
 
-    // В MAX тип может называться 'image' или 'photo'
     const photoAttachment = attachments.find((a: any) => a.type === 'image' || a.type === 'photo');
     if (!photoAttachment) {
-      console.log("Вложения не являются картинкой:", JSON.stringify(attachments));
       await ctx.reply("Это не похоже на изображение. Пожалуйста, отправьте именно фото.");
       return;
     }
 
     try {
-      console.log("Найдено фото от юзера:", JSON.stringify(photoAttachment));
+      // 1. БЕРЕМ ПРЯМУЮ ССЫЛКУ ИЗ СООБЩЕНИЯ (Спасибо, MAX!)
+      const fileUrl = photoAttachment.payload?.url;
       
-      // Достаем ID файла (в MAX он может лежать в token или file_id)
-      const fileId = photoAttachment.payload?.token || photoAttachment.payload?.file_id;
-      
-      if (!fileId) {
-         console.error("Не найден ID файла во вложении!");
-         await ctx.reply("Ошибка: не удалось прочитать файл.");
+      if (!fileUrl) {
+         console.error("Не найден URL файла во вложении!");
+         await ctx.reply("Ошибка: не удалось прочитать ссылку на файл.");
          return;
       }
 
-      // 1. Получаем ссылку на файл через API MAX
-      const fileInfo = await ctx.api.getFile(fileId); 
-      
       // 2. Сохраняем URL картинки в базу
       const currentUrls = profile.bot_reference_url || [];
-      const updatedUrls = [...currentUrls, fileInfo.url];
+      const updatedUrls = [...currentUrls, fileUrl];
 
       await supabaseAdmin
         .from("profiles")
@@ -328,8 +320,8 @@ bot.on('message_created', async (ctx: any) => {
       });
 
     } catch (error: any) {
-      console.error("Ошибка загрузки фото из MAX:", error);
-      await ctx.reply("Не удалось обработать фото. Попробуйте еще раз.");
+      console.error("Ошибка обработки фото:", error);
+      await ctx.reply("Не удалось сохранить фото. Попробуйте еще раз.");
     }
     return;
   }
