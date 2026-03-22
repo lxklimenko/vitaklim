@@ -49,6 +49,28 @@ async function updateBotState(maxUserId: string, state: string, model: string | 
   if (error) console.error(`❌ Ошибка БД при смене статуса:`, error);
 }
 
+// ==================== ПРИВЕТСТВЕННОЕ МЕНЮ (добавлено) ====================
+async function sendMaxWelcome(ctx: any) {
+  const senderName = ctx.message?.sender?.first_name || 'друг';
+  
+  const buttons = [
+    [Keyboard.button.callback("🚀 Начать пользоваться", "action_get_started")]
+  ];
+
+  const welcomeText = 
+    `Привет, ${senderName}! ✨\n\n` +
+    `**KLEX.PRO** — это твой персональный художник на базе передовых нейросетей.\n\n` +
+    `🎨 Создавай шедевры по описанию\n` +
+    `🖼 Улучшай и меняй свои фото\n` +
+    `🍌 Получай бонусы за приглашение друзей\n\n` +
+    `Мы уже начислили тебе **50 🍌** на старт. Попробуем что-нибудь создать?`;
+
+  await ctx.reply(welcomeText, {
+    format: 'markdown',
+    attachments: [Keyboard.inlineKeyboard(buttons)]
+  });
+}
+
 // ==================== ГЛАВНОЕ МЕНЮ (с автоопределением админа) ====================
 async function sendMaxMainMenu(ctx: any) {
   const maxUserId = getUserId(ctx);
@@ -274,6 +296,17 @@ bot.action('action_start_payment', async (ctx: any) => {
   });
 });
 
+// ==================== КНОПКА ПОЕХАЛИ (добавлено) ====================
+bot.action('action_get_started', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  if (maxUserId) {
+    await updateBotState(maxUserId, "idle");
+  }
+  
+  // А вот теперь показываем основное меню
+  await sendMaxMainMenu(ctx);
+});
+
 // ==================== УМНАЯ КНОПКА "НАЗАД" ====================
 bot.action('action_back', async (ctx: any) => {
   const maxUserId = getUserId(ctx);
@@ -392,7 +425,15 @@ bot.on('message_created', async (ctx: any) => {
   const attachments = ctx.message?.body?.attachments; 
 
   // =========================================================================
-  // 1. РУЧНОЙ ПЕРЕХВАТ КОМАНДЫ /START (С ТОКЕНОМ ИЛИ БЕЗ)
+  // 1. НОВОЕ: Если нет ни текста, ни вложений — это нажатие системной кнопки "Начать"
+  // =========================================================================
+  if (!text && (!attachments || attachments.length === 0)) {
+    await sendMaxWelcome(ctx);
+    return;
+  }
+
+  // =========================================================================
+  // 2. РУЧНОЙ ПЕРЕХВАТ КОМАНДЫ /START (С ТОКЕНОМ ИЛИ БЕЗ)
   // =========================================================================
   if (text.startsWith('/start')) {
     const senderName = ctx.message?.sender?.first_name || 'друг';
@@ -424,7 +465,7 @@ bot.on('message_created', async (ctx: any) => {
             .eq('id', syncProfile.id);
 
           await ctx.reply(`🎉 **Аккаунты успешно связаны!**\n\nТеперь у вас общий баланс с Telegram: **${syncProfile.balance} 🍌**`, { format: 'markdown' });
-          await sendMaxMainMenu(ctx);
+          await sendMaxWelcome(ctx);
           return;
         } else {
           await ctx.reply("❌ Ссылка для привязки устарела (прошло 15 минут).");
@@ -458,12 +499,13 @@ bot.on('message_created', async (ctx: any) => {
     }
 
     if (profile) await updateBotState(maxUserId, "idle");
-    await sendMaxMainMenu(ctx);
+    // Вместо sendMaxMainMenu вызываем приветствие
+    await sendMaxWelcome(ctx);
     return;
   }
 
   // =========================================================================
-  // 2. ДАЛЬШЕ ИДЕТ СТАНДАРТНАЯ ОБРАБОТКА (ГЕНЕРАЦИИ, ФОТО, РАССЫЛКА)
+  // 3. ДАЛЬШЕ ИДЕТ СТАНДАРТНАЯ ОБРАБОТКА (ГЕНЕРАЦИИ, ФОТО, РАССЫЛКА)
   // =========================================================================
   const { data: profile } = await supabaseAdmin
     .from("profiles")
@@ -515,7 +557,7 @@ bot.on('message_created', async (ctx: any) => {
   }
 
   // =========================================================================
-  // 3. РАССЫЛКА (админ)
+  // 4. РАССЫЛКА (админ)
   // =========================================================================
   if (currentState === "awaiting_broadcast_text") {
     if (maxUserId !== ADMIN_MAX_ID) {
@@ -550,7 +592,6 @@ bot.on('message_created', async (ctx: any) => {
 
     for (const user of users) {
       try {
-        // ✅ ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЙ МЕТОД ИЗ ДОКУМЕНТАЦИИ:
         await bot.api.sendMessageToUser(
           Number(user.max_user_id), 
           broadcastText, 
@@ -558,7 +599,6 @@ bot.on('message_created', async (ctx: any) => {
         );
         
         successCount++;
-        // Задержка 50мс, чтобы не спамить API слишком быстро
         await new Promise(resolve => setTimeout(resolve, 50));
       } catch (err) {
         console.error(`Ошибка отправки пользователю ${user.max_user_id}:`, err);
