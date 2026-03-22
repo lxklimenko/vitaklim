@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { generateImageCore } from "@/app/lib/generateCore";
+import { Bot as MaxBot } from '@maxhub/max-bot-api'; // Добавлено
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL!; // URL вашего сайта для API оплаты
 const ADMIN_ID = 323655436; // 👈 ID администратора для уведомлений и админ‑панели
+const MAX_BOT_TOKEN = process.env.MAX_BOT_TOKEN!; // Добавлено
+const maxBot = new MaxBot(MAX_BOT_TOKEN); // Добавлено
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -45,8 +48,8 @@ type UserState =
   | "awaiting_photo_prompt"
   | "awaiting_payment_email"
   | "awaiting_payment_amount"
-  | "awaiting_broadcast_tg"   // новое состояние для рассылки Telegram
-  | "awaiting_broadcast_max";  // новое состояние для рассылки MAX
+  | "awaiting_broadcast_tg"
+  | "awaiting_broadcast_max";
 
 /**
  * Ищет в тексте формат (например, 21:9, 9 на 16 или 1:1).
@@ -718,7 +721,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ================== ОБНОВЛЕННАЯ АДМИН ПАНЕЛЬ ==================
+    // ================== ОБНОВЛЕННАЯ АДМИН ПАНЕЛЬ (Кнопки вместо ссылки) ==================
     if (text === "🔐 Админ-панель" && telegramId === ADMIN_ID) {
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
@@ -730,7 +733,7 @@ export async function POST(req: Request) {
           reply_markup: {
             keyboard: [
               [{ text: "📢 Рассылка в Telegram" }, { text: "📢 Рассылка в MAX" }],
-              [{ text: "📊 Статистика" }],
+              [{ text: "📊 Статистика пользователей" }],
               [{ text: "⬅️ Назад" }]
             ],
             resize_keyboard: true,
@@ -740,28 +743,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // Запуск рассылки в Telegram
+    // --- Логика выбора типа рассылки ---
     if (text === "📢 Рассылка в Telegram" && telegramId === ADMIN_ID) {
       await supabase.from("profiles").update({ bot_state: "awaiting_broadcast_tg" }).eq("id", profile.id);
       await sendMessage(chatId, "📝 *Рассылка: Telegram*\n\nВведите текст сообщения для всех пользователей TG-бота:");
       return NextResponse.json({ ok: true });
     }
 
-    // Запуск рассылки в MAX
     if (text === "📢 Рассылка в MAX" && telegramId === ADMIN_ID) {
       await supabase.from("profiles").update({ bot_state: "awaiting_broadcast_max" }).eq("id", profile.id);
       await sendMessage(chatId, "📝 *Рассылка: MAX*\n\nВведите текст сообщения для всех пользователей в MAX:");
       return NextResponse.json({ ok: true });
     }
 
-    // ================== МАШИНА СОСТОЯНИЙ ==================
-
-    // 🚀 ВЫПОЛНЕНИЕ РАССЫЛКИ В TELEGRAM
+    // --- Выполнение рассылки в Telegram ---
     if (currentState === "awaiting_broadcast_tg" && telegramId === ADMIN_ID) {
       await sendMessage(chatId, "🚀 Начинаю рассылку в Telegram...");
-      
       const { data: users } = await supabase.from('profiles').select('telegram_id').not('telegram_id', 'is', null);
-      
       let success = 0;
       if (users) {
         for (const user of users) {
@@ -772,27 +770,20 @@ export async function POST(req: Request) {
               body: JSON.stringify({ chat_id: user.telegram_id, text: text, parse_mode: "Markdown" }),
             });
             success++;
-            await new Promise(res => setTimeout(res, 50)); // Пауза 50мс
+            await new Promise(res => setTimeout(res, 50));
           } catch (e) { console.error(e); }
         }
       }
-
-      await sendMessage(chatId, `✅ Рассылка завершена!\nУспешно: ${success}`);
+      await sendMessage(chatId, `✅ Рассылка в TG завершена!\nУспешно: ${success}`);
       await supabase.from("profiles").update({ bot_state: "idle" }).eq("id", profile.id);
       await sendMainMenu(chatId);
       return NextResponse.json({ ok: true });
     }
 
-    // 🚀 ВЫПОЛНЕНИЕ РАССЫЛКИ В MAX (из Telegram!)
+    // --- Выполнение рассылки в MAX ---
     if (currentState === "awaiting_broadcast_max" && telegramId === ADMIN_ID) {
       await sendMessage(chatId, "🚀 Начинаю рассылку в MAX...");
-      
       const { data: users } = await supabase.from('profiles').select('max_user_id').not('max_user_id', 'is', null);
-      
-      // Для отправки в MAX нам понадобится библиотека (она у тебя уже есть в проекте)
-      const { Bot: MaxBot } = require('@maxhub/max-bot-api');
-      const maxBot = new MaxBot(process.env.MAX_BOT_TOKEN);
-
       let success = 0;
       if (users) {
         for (const user of users) {
@@ -803,12 +794,21 @@ export async function POST(req: Request) {
           } catch (e) { console.error(e); }
         }
       }
-
       await sendMessage(chatId, `✅ Рассылка в MAX завершена!\nУспешно: ${success}`);
       await supabase.from("profiles").update({ bot_state: "idle" }).eq("id", profile.id);
       await sendMainMenu(chatId);
       return NextResponse.json({ ok: true });
     }
+
+    // --- Статистика ---
+    if (text === "📊 Статистика пользователей" && telegramId === ADMIN_ID) {
+      const { count: tgCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).not('telegram_id', 'is', null);
+      const { count: maxCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).not('max_user_id', 'is', null);
+      await sendMessage(chatId, `📊 *Статистика*\n\nTelegram: ${tgCount}\nMAX: ${maxCount}`);
+      return NextResponse.json({ ok: true });
+    }
+
+    // ================== МАШИНА СОСТОЯНИЙ ==================
 
     // ====== ВЫБОР МОДЕЛИ ДЛЯ ФОТО ======
     if (currentState === "choosing_photo_model") {
