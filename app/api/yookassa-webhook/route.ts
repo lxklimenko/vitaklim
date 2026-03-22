@@ -3,6 +3,7 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { YooCheckout } from '@a2seven/yoo-checkout';
+import { Bot } from '@maxhub/max-bot-api';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,6 +15,10 @@ const checkout = new YooCheckout({
   shopId: process.env.YOOKASSA_SHOP_ID!,
   secretKey: process.env.YOOKASSA_SECRET_KEY!,
 });
+
+// Инициализируем Max бота, если токен задан
+const MAX_TOKEN = process.env.MAX_BOT_TOKEN;
+const maxBot = MAX_TOKEN ? new Bot(MAX_TOKEN) : null;
 
 export async function POST(req: Request) {
   try {
@@ -58,7 +63,7 @@ export async function POST(req: Request) {
         {
           p_user_id: userId,
           p_amount: amount,
-          p_yookassa_id: paymentId
+          p_yookassa_id: paymentId,
         }
       );
 
@@ -69,30 +74,45 @@ export async function POST(req: Request) {
 
       console.log('✅ Balance updated for user:', userId);
 
-      // --- Отправка уведомления в Telegram ---
+      // --- Отправка уведомления в зависимости от платформы ---
       try {
-        const profileRes = await supabase
+        const { data: profile } = await supabase
           .from('profiles')
-          .select('telegram_id')
+          .select('telegram_id, max_user_id')
           .eq('id', userId)
           .maybeSingle();
 
-        if (profileRes.data?.telegram_id) {
-          await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: profileRes.data.telegram_id,
-              text: `✅ Оплата прошла успешно!\n\nНа ваш баланс зачислено ${amount} 🍌`
-            }),
-          });
-          console.log(`📨 Telegram notification sent to user ${userId}`);
-        } else {
-          console.log(`ℹ️ No telegram_id for user ${userId}`);
+        const fromPlatform = payment.metadata?.from; // 'max' или 'tg'
+        const msg = `✅ Оплата прошла успешно!\n\nНа ваш баланс зачислено ${amount} 🍌`;
+
+        // 1. Если платеж из MAX — шлем в MAX
+        if (fromPlatform === 'max' && profile?.max_user_id && maxBot) {
+          try {
+            await (maxBot.api as any).send({
+              recipient: { user_id: profile.max_user_id.toString() },
+              message: { text: msg },
+            });
+            console.log('✅ Уведомление отправлено в MAX');
+          } catch (err) {
+            console.error('❌ Ошибка отправки в MAX:', err);
+          }
         }
-      } catch (telegramError) {
-        // Логируем ошибку, но не прерываем обработку вебхука
-        console.error('⚠️ Failed to send Telegram notification:', telegramError);
+        // 2. Иначе (или если это был TG) — шлем в Telegram
+        else if (profile?.telegram_id) {
+          await fetch(
+            `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: profile.telegram_id, text: msg }),
+            }
+          );
+          console.log('✅ Уведомление отправлено в Telegram');
+        } else {
+          console.log(`ℹ️ Нет данных для отправки уведомления пользователю ${userId}`);
+        }
+      } catch (notifyError) {
+        console.error('⚠️ Ошибка уведомлений:', notifyError);
       }
       // --- Конец блока уведомления ---
 
@@ -100,7 +120,6 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true });
-
   } catch (error) {
     console.error('🚨 Webhook fatal error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

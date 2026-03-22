@@ -36,17 +36,27 @@ export async function POST(req: Request) {
     const checkout = new YooCheckout({ shopId, secretKey });
 
     const body = await req.json();
-    const { amount, telegramUserId, email } = body; // добавили email
+    const { amount, telegramUserId, email, from } = body; // добавили from
 
     let userId: string | null = null;
 
-    // 1️⃣ Если пришёл Telegram пользователь — ищем по telegram_id
+    // 1️⃣ Если пришёл Telegram пользователь — ищем по telegram_id, затем по max_user_id
     if (telegramUserId) {
-      const { data: profile } = await supabase
+      let { data: profile } = await supabase
         .from("profiles")
         .select("id")
         .eq("telegram_id", telegramUserId)
         .maybeSingle();
+
+      // Если не нашли по telegram_id, пробуем по max_user_id
+      if (!profile) {
+        const { data: maxProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("max_user_id", telegramUserId.toString())
+          .maybeSingle();
+        profile = maxProfile;
+      }
 
       if (!profile) {
         return NextResponse.json(
@@ -58,7 +68,7 @@ export async function POST(req: Request) {
       userId = profile.id;
     }
 
-    // 2️⃣ Если обычный сайт
+    // 2️⃣ Если обычный сайт (без telegramUserId)
     else {
       const { createRouteHandlerClient } = require('@supabase/auth-helpers-nextjs');
       const { cookies } = require('next/headers');
@@ -124,6 +134,7 @@ export async function POST(req: Request) {
         description: `Пополнение баланса пользователем ${userId}`,
         metadata: {
           userId,
+          from: from || 'tg', // <-- Сохраняем источник платежа (по умолчанию 'tg')
         },
         // Чек согласно 54-ФЗ с обязательными полями payment_subject и payment_mode
         receipt: {

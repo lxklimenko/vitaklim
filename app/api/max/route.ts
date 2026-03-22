@@ -524,6 +524,7 @@ bot.on('message_created', async (ctx: any) => {
           // Передаем telegram_id, если аккаунты связаны, иначе max_user_id
           telegramUserId: profile.telegram_id || profile.max_user_id, 
           email: userEmail,
+          from: 'max', // <-- ДОБАВЛЯЕМ ЭТУ МЕТКУ
         }),
       });
 
