@@ -88,24 +88,26 @@ export async function POST(req: Request) {
         // 1. Если платеж из MAX — шлем в MAX
         if (fromPlatform === 'max' && profile?.max_user_id && maxBot) {
           try {
-            // В библиотеке @maxhub/max-bot-api правильный путь такой:
-            await (maxBot.api as any).messages.sendText({
-              chatId: profile.max_user_id.toString(),
-              text: msg
-            });
-            console.log('✅ Уведомление в MAX отправлено через sendText');
+            // В документации: await bot.api.sendMessageToUser(id, text, { options });
+            await maxBot.api.sendMessageToUser(
+              Number(profile.max_user_id), // ID пользователя как число
+              msg,
+              { format: 'markdown' } // Чтобы красиво отобразить жирный текст и эмодзи
+            );
+            console.log('✅ Уведомление в MAX успешно отправлено через sendMessageToUser');
           } catch (maxErr: any) {
-            console.error('❌ Ошибка API MAX (через sendText):', maxErr.message);
+            console.error('❌ Ошибка API MAX:', maxErr.message);
             
-            // ФОЛБЕК (на всякий случай, если структура API другая)
+            // Если по ID пользователя не прошло, пробуем как в чат (иногда ID совпадают)
             try {
-                await (maxBot.api as any).sendMessageToChat({
-                    chat_id: profile.max_user_id.toString(),
-                    text: msg
-                });
-                console.log('✅ Уведомление в MAX отправлено через sendMessageToChat');
-            } catch (fallbackErr) {
-                console.error('❌ Не удалось отправить даже через фолбек');
+              await maxBot.api.sendMessageToChat(
+                Number(profile.max_user_id),
+                msg,
+                { format: 'markdown' }
+              );
+              console.log('✅ Уведомление в MAX отправлено через sendMessageToChat (резерв)');
+            } catch (fallbackErr: any) {
+              console.error('❌ Все методы из документации не сработали:', fallbackErr.message);
             }
           }
         }
