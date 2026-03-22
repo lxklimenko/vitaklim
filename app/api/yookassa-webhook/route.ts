@@ -88,13 +88,25 @@ export async function POST(req: Request) {
         // 1. Если платеж из MAX — шлем в MAX
         if (fromPlatform === 'max' && profile?.max_user_id && maxBot) {
           try {
-            await (maxBot.api as any).send({
-              recipient: { user_id: profile.max_user_id.toString() },
-              message: { text: msg },
+            // В библиотеке @maxhub/max-bot-api правильный путь такой:
+            await (maxBot.api as any).messages.sendText({
+              chatId: profile.max_user_id.toString(),
+              text: msg
             });
-            console.log('✅ Уведомление отправлено в MAX');
-          } catch (err) {
-            console.error('❌ Ошибка отправки в MAX:', err);
+            console.log('✅ Уведомление в MAX отправлено через sendText');
+          } catch (maxErr: any) {
+            console.error('❌ Ошибка API MAX (через sendText):', maxErr.message);
+            
+            // ФОЛБЕК (на всякий случай, если структура API другая)
+            try {
+                await (maxBot.api as any).sendMessageToChat({
+                    chat_id: profile.max_user_id.toString(),
+                    text: msg
+                });
+                console.log('✅ Уведомление в MAX отправлено через sendMessageToChat');
+            } catch (fallbackErr) {
+                console.error('❌ Не удалось отправить даже через фолбек');
+            }
           }
         }
         // 2. Иначе (или если это был TG) — шлем в Telegram
