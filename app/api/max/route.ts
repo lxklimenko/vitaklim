@@ -36,7 +36,8 @@ function getUserId(ctx: any): string | null {
   const id = ctx.user?.user_id || 
              ctx.message?.sender?.user_id || 
              ctx.update?.message_callback?.sender?.user_id || 
-             ctx.update?.message?.sender?.user_id;
+             ctx.update?.message?.sender?.user_id ||
+             ctx.update?.bot_started?.user?.user_id;
   return id ? id.toString() : null;
 }
 
@@ -47,6 +48,45 @@ async function updateBotState(maxUserId: string, state: string, model: string | 
     .eq("max_user_id", maxUserId);
 
   if (error) console.error(`❌ Ошибка БД при смене статуса:`, error);
+}
+
+// ==================== УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ДЛЯ СТАРТА ====================
+async function handleUserStart(ctx: any) {
+  const maxUserId = getUserId(ctx);
+  if (!maxUserId) return;
+
+  // Пробуем достать имя из разных мест (сообщения или события старта)
+  const senderName = ctx.message?.sender?.first_name || 
+                     ctx.update?.bot_started?.user?.first_name || 
+                     'друг';
+
+  // Проверяем/создаем профиль
+  let { data: profile } = await supabaseAdmin.from('profiles').select('*').eq('max_user_id', maxUserId).maybeSingle();
+
+  if (!profile) {
+    const email = `max_${maxUserId}@klex.pro`;
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({ email, email_confirm: true });
+    if (!authError) {
+      const { data: newProfile } = await supabaseAdmin.from("profiles").upsert({
+        id: authUser.user.id,
+        max_user_id: maxUserId,
+        telegram_first_name: senderName,
+        balance: 50,
+        bot_state: "idle",
+      }).select().single();
+      profile = newProfile;
+    }
+  }
+
+  // Отправляем приветствие с кнопкой "Поехали!"
+  const welcomeButtons = [[Keyboard.button.callback("🚀 Поехали!", "action_home")]];
+  
+  await ctx.reply(`Привет, ${senderName}! ✨\n\n**KLEX.PRO** — создавай шедевры и меняй фото с помощью нейросетей прямо в MAX.\n\nТебе начислено **50 🍌** для теста!`, {
+    format: 'markdown',
+    attachments: [Keyboard.inlineKeyboard(welcomeButtons)]
+  });
+
+  await updateBotState(maxUserId, "idle");
 }
 
 // ==================== ГЛАВНОЕ МЕНЮ (с автоопределением админа) ====================
@@ -384,6 +424,14 @@ bot.action('action_repeat_generation', async (ctx: any) => {
 });
 
 // ==================== ОБРАБОТКА СООБЩЕНИЙ ====================
+
+// ✅ Правильное событие для кнопки "Начать" в MAX
+bot.on('bot_started', async (ctx: any) => {
+  console.log("Юзер нажал кнопку НАЧАТЬ (bot_started)");
+  await handleUserStart(ctx);
+});
+
+// Основной обработчик сообщений
 bot.on('message_created', async (ctx: any) => {
   const maxUserId = getUserId(ctx);
   if (!maxUserId) return;
@@ -391,93 +439,15 @@ bot.on('message_created', async (ctx: any) => {
   const text = ctx.message?.body?.text || "";
   const attachments = ctx.message?.body?.attachments || [];
 
-  // =========================================================================
-  // 1. УЛУЧШЕННЫЙ ПЕРЕХВАТ СТАРТА (Ловим и /start, и просто нажатие кнопки Начать)
-  // =========================================================================
-  
-  const isStartCommand = text.startsWith('/start');
-  const isInitialAction = !text && attachments.length === 0;
-
-  if (isStartCommand || isInitialAction) {
-    const senderName = ctx.message?.sender?.first_name || 'друг';
-    
-    // --- Логика синхронизации (если есть токен в /start) ---
-    const parts = text.split(" ");
-    const token = parts.length > 1 ? parts[1] : null;
-    if (token) {
-      console.log(`Попытка синхронизации. Токен: ${token}`);
-      
-      const { data: syncProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('id, balance, max_link_expires')
-        .eq('max_link_token', token)
-        .maybeSingle();
-
-      if (syncProfile) {
-        const now = new Date();
-        const expires = new Date(syncProfile.max_link_expires);
-        
-        if (now <= expires) {
-          await supabaseAdmin
-            .from('profiles')
-            .update({
-              max_user_id: maxUserId,
-              bot_state: "idle",
-              max_link_token: null,
-              max_link_expires: null
-            })
-            .eq('id', syncProfile.id);
-
-          await ctx.reply(`🎉 **Аккаунты успешно связаны!**\n\nТеперь у вас общий баланс с Telegram: **${syncProfile.balance} 🍌**`, { format: 'markdown' });
-          // После синхронизации показываем главное меню
-          await sendMaxMainMenu(ctx);
-          return;
-        } else {
-          await ctx.reply("❌ Ссылка для привязки устарела (прошло 15 минут).");
-          return;
-        }
-      } else {
-        await ctx.reply("❌ Неверная или устаревшая ссылка для привязки.");
-        return;
-      }
-    }
-
-    // --- Логика профиля ---
-    let { data: profile } = await supabaseAdmin.from('profiles').select('*').eq('max_user_id', maxUserId).maybeSingle();
-
-    if (!profile) {
-      const email = `max_${maxUserId}@klex.pro`;
-      const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({ email, email_confirm: true });
-      if (!authError) {
-        const { data: newProfile } = await supabaseAdmin.from("profiles").upsert({
-          id: authUser.user.id,
-          max_user_id: maxUserId,
-          telegram_first_name: senderName,
-          balance: 50,
-          bot_state: "idle",
-        }).select().single();
-        profile = newProfile;
-      }
-    }
-
-    // --- ВМЕСТО СРАЗУ МЕНЮ — ПОКАЗЫВАЕМ ПРИВЕТСТВИЕ ---
-    const welcomeButtons = [
-      [Keyboard.button.callback("🚀 Поехали!", "action_home")]
-    ];
-
-    await ctx.reply(`Привет, ${senderName}! ✨\n\n**KLEX.PRO** — создавай шедевры и меняй фото с помощью нейросетей прямо в MAX.\n\nТебе начислено **50 🍌** для теста!`, {
-      format: 'markdown',
-      attachments: [Keyboard.inlineKeyboard(welcomeButtons)]
-    });
-
-    if (profile) await updateBotState(maxUserId, "idle");
+  // Если ввели /start руками — запускаем приветствие
+  if (text.startsWith('/start')) {
+    await handleUserStart(ctx);
     return;
   }
 
   // =========================================================================
-  // 2. ДАЛЬШЕ ИДЕТ ОСТАЛЬНАЯ ЛОГИКА (ГЕНЕРАЦИИ, ФОТО И Т.Д.)
+  // ДАЛЬШЕ ИДЕТ ОСТАЛЬНАЯ ЛОГИКА (ГЕНЕРАЦИИ, ФОТО, РАССЫЛКА)
   // =========================================================================
-  
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("*")
@@ -488,9 +458,7 @@ bot.on('message_created', async (ctx: any) => {
   if (!profile) return;
   const currentState = profile.bot_state || "idle";
 
-  // =========================================================================
-  // НОВОЕ: ПЕРЕХВАТ ТЕКСТОВЫХ КОМАНД ИЗ ГЛАВНОГО МЕНЮ
-  // =========================================================================
+  // Перехват текстовых команд из главного меню (если юзер вводит текст вместо кнопок)
   if (text === "💰 Баланс" || text === "action_balance") {
     const keyboard = Keyboard.inlineKeyboard([
       [Keyboard.button.callback("💳 Пополнить баланс", "action_start_payment")]
@@ -527,9 +495,7 @@ bot.on('message_created', async (ctx: any) => {
     return;
   }
 
-  // =========================================================================
-  // 3. РАССЫЛКА (админ)
-  // =========================================================================
+  // --- РАССЫЛКА (админ) ---
   if (currentState === "awaiting_broadcast_text") {
     if (maxUserId !== ADMIN_MAX_ID) {
       await updateBotState(maxUserId, "idle");
@@ -545,7 +511,6 @@ bot.on('message_created', async (ctx: any) => {
 
     await ctx.reply("📢 Начинаю рассылку... Это может занять некоторое время.");
 
-    // Получаем всех пользователей, у которых есть max_user_id
     const { data: users, error } = await supabaseAdmin
       .from('profiles')
       .select('max_user_id')
@@ -568,7 +533,6 @@ bot.on('message_created', async (ctx: any) => {
           broadcastText, 
           { format: 'markdown' }
         );
-        
         successCount++;
         await new Promise(resolve => setTimeout(resolve, 50));
       } catch (err) {
