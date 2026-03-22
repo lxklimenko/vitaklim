@@ -55,7 +55,6 @@ async function handleUserStart(ctx: any) {
   const maxUserId = getUserId(ctx);
   if (!maxUserId) return;
 
-  // Пробуем достать имя из разных мест (сообщения или события старта)
   const senderName = ctx.message?.sender?.first_name || 
                      ctx.update?.bot_started?.user?.first_name || 
                      'друг';
@@ -78,13 +77,23 @@ async function handleUserStart(ctx: any) {
     }
   }
 
-  // Отправляем приветствие с кнопкой "Поехали!"
+  // Новое крутое описание
+  // В названии KLEX․PRO используется спец. символ вместо точки, чтобы убрать превью картинки
+  const welcomeText = 
+    `Привет, ${senderName}! ✨\n\n` +
+    `Добро пожаловать в **KLEX․PRO** — твой персональный ИИ-художник! 🍌\n\n` +
+    `Я помогу тебе:\n` +
+    `🎨 **Создавать** невероятные картины по описанию\n` +
+    `📸 **Превращать** обычные фото в цифровое искусство\n` +
+    `🚀 **Генерировать** контент за считанные секунды\n\n` +
+    `🎁 Тебе начислено **50 🍌** (бананов) на первые шедевры!\n\n` +
+    `Нажми кнопку ниже, чтобы открыть меню и начать творить.`;
+
   const welcomeButtons = [[Keyboard.button.callback("🚀 Поехали!", "action_home")]];
   
-  // Используем обратные кавычки, чтобы мессенджер не распознал ссылку
-  await ctx.reply(`Привет, ${senderName}! ✨\n\n**\`KLEX.PRO\`** — создавай шедевры и меняй фото с помощью нейросетей прямо в MAX.\n\nТебе начислено **50 🍌** для теста!`, {
+  await ctx.reply(welcomeText, {
     format: 'markdown',
-    link_preview: false, // дополнительная защита
+    link_preview: false, 
     attachments: [Keyboard.inlineKeyboard(welcomeButtons)]
   });
 
