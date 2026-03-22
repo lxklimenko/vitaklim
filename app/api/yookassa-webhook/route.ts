@@ -1,117 +1,108 @@
+export const runtime = 'nodejs';
+
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { Bot } from '@maxhub/max-bot-api';
+import { YooCheckout } from '@a2seven/yoo-checkout';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Используем MAX_BOT_TOKEN из Vercel
-const MAX_TOKEN = process.env.MAX_BOT_TOKEN;
-const maxBot = MAX_TOKEN ? new Bot(MAX_TOKEN) : null;
-
-async function verifySignature(req: Request, body: string): Promise<boolean> {
-  const signature = req.headers.get('x-yookassa-signature');
-  if (!signature) return false;
-
-  const secret = process.env.YOOKASSA_WEBHOOK_SECRET;
-  if (!secret) return false;
-
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(secret);
-  const messageData = encoder.encode(body);
-
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['verify']
-  );
-
-  const signatureBuffer = Uint8Array.from(
-    signature.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
-  );
-
-  return await crypto.subtle.verify('HMAC', cryptoKey, signatureBuffer, messageData);
-}
+// Инициализируем ЮKassa для проверки статуса
+const checkout = new YooCheckout({
+  shopId: process.env.YOOKASSA_SHOP_ID!,
+  secretKey: process.env.YOOKASSA_SECRET_KEY!,
+});
 
 export async function POST(req: Request) {
   try {
-    const rawBody = await req.text();
-    const isValid = await verifySignature(req, rawBody);
-    
-    if (!isValid) {
-      console.error('Invalid signature');
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
+    const body = await req.json();
+    console.log('📦 Webhook received:', body.event);
+
+    // Берем ID платежа из уведомления
+    const paymentId = body.object?.id;
+
+    if (!paymentId) {
+      return NextResponse.json({ error: 'No payment ID' }, { status: 400 });
     }
 
-    const notification = JSON.parse(rawBody);
-    const payment = notification.object;
+    // 🛡 ПРОВЕРКА ПОДЛИННОСТИ: Запрашиваем статус напрямую у ЮKassa
+    const payment = await checkout.getPayment(paymentId);
 
+    // Если ЮKassa подтверждает, что статус 'succeeded'
     if (payment.status === 'succeeded') {
       const userId = payment.metadata?.userId;
-      const amount = payment.amount.value;
+      const amount = Number(payment.amount?.value);
 
-      if (!userId) {
-        return NextResponse.json({ error: 'User ID missing' }, { status: 400 });
+      if (!userId || !amount) {
+        console.error('❌ Metadata missing in payment');
+        return NextResponse.json({ error: 'Invalid metadata' }, { status: 400 });
       }
 
-      // Начисляем баланс в БД
+      // Проверяем, не обрабатывали ли мы этот платеж ранее
+      const { data: existingPayment } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('yookassa_id', paymentId)
+        .maybeSingle();
+
+      if (existingPayment) {
+        console.log('⚠️ Payment already processed');
+        return NextResponse.json({ ok: true });
+      }
+
+      // Начисляем баланс через твою RPC функцию
       const { error: rpcError } = await supabase.rpc(
         'process_successful_payment',
         {
           p_user_id: userId,
-          p_amount: parseFloat(amount),
-          p_yookassa_id: payment.id
+          p_amount: amount,
+          p_yookassa_id: paymentId
         }
       );
 
       if (rpcError) {
-        console.error('RPC error:', rpcError);
-        return NextResponse.json({ error: 'Failed to update balance' }, { status: 500 });
+        console.error('❌ RPC error:', rpcError);
+        return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
       }
 
-      // Уведомления пользователю
+      console.log('✅ Balance updated for user:', userId);
+
+      // --- Отправка уведомления в Telegram ---
       try {
-        const { data: profile } = await supabase
+        const profileRes = await supabase
           .from('profiles')
-          .select('telegram_id, max_user_id')
+          .select('telegram_id')
           .eq('id', userId)
           .maybeSingle();
 
-        const msg = `✅ Оплата прошла успешно!\n\nНа ваш баланс зачислено ${amount} 🍌`;
-
-        // 1. В Telegram
-        if (profile?.telegram_id) {
+        if (profileRes.data?.telegram_id) {
           await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: profile.telegram_id, text: msg }),
+            body: JSON.stringify({
+              chat_id: profileRes.data.telegram_id,
+              text: `✅ Оплата прошла успешно!\n\nНа ваш баланс зачислено ${amount} 🍌`
+            }),
           });
+          console.log(`📨 Telegram notification sent to user ${userId}`);
+        } else {
+          console.log(`ℹ️ No telegram_id for user ${userId}`);
         }
-
-        // 2. В MAX (через надежный метод send)
-        if (profile?.max_user_id && maxBot) {
-          try {
-            await (maxBot.api as any).send({
-              recipient: { user_id: profile.max_user_id.toString() },
-              message: { text: msg }
-            });
-            console.log('✅ Уведомление в MAX отправлено');
-          } catch (maxErr) {
-            console.error('❌ Ошибка отправки в MAX:', maxErr);
-          }
-        }
-      } catch (notifyError) {
-        console.error('⚠️ Ошибка в блоке уведомлений:', notifyError);
+      } catch (telegramError) {
+        // Логируем ошибку, но не прерываем обработку вебхука
+        console.error('⚠️ Failed to send Telegram notification:', telegramError);
       }
+      // --- Конец блока уведомления ---
+
+      return NextResponse.json({ success: true });
     }
 
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error('Webhook error:', error);
+    return NextResponse.json({ ok: true });
+
+  } catch (error) {
+    console.error('🚨 Webhook fatal error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
