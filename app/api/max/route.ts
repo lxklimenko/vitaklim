@@ -550,11 +550,11 @@ bot.on('message_created', async (ctx: any) => {
 
     for (const user of users) {
       try {
-        // Используем метод из официальной документации
+        // ✅ ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЙ МЕТОД ИЗ ДОКУМЕНТАЦИИ:
         await bot.api.sendMessageToUser(
-          Number(user.max_user_id), // Передаем ID как число
+          Number(user.max_user_id), 
           broadcastText, 
-          { format: 'markdown' }    // Опции форматирования
+          { format: 'markdown' }
         );
         
         successCount++;
