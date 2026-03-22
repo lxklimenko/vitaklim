@@ -81,9 +81,10 @@ async function handleUserStart(ctx: any) {
   // Отправляем приветствие с кнопкой "Поехали!"
   const welcomeButtons = [[Keyboard.button.callback("🚀 Поехали!", "action_home")]];
   
-  await ctx.reply(`Привет, ${senderName}! ✨\n\n**KLEX.PRO** — создавай шедевры и меняй фото с помощью нейросетей прямо в MAX.\n\nТебе начислено **50 🍌** для теста!`, {
+  // Используем обратные кавычки, чтобы мессенджер не распознал ссылку
+  await ctx.reply(`Привет, ${senderName}! ✨\n\n**\`KLEX.PRO\`** — создавай шедевры и меняй фото с помощью нейросетей прямо в MAX.\n\nТебе начислено **50 🍌** для теста!`, {
     format: 'markdown',
-    link_preview: false, // 👈 Убираем карточку сайта
+    link_preview: false, // дополнительная защита
     attachments: [Keyboard.inlineKeyboard(welcomeButtons)]
   });
 
