@@ -49,28 +49,6 @@ async function updateBotState(maxUserId: string, state: string, model: string | 
   if (error) console.error(`❌ Ошибка БД при смене статуса:`, error);
 }
 
-// ==================== ПРИВЕТСТВЕННОЕ МЕНЮ (добавлено) ====================
-async function sendMaxWelcome(ctx: any) {
-  const senderName = ctx.message?.sender?.first_name || 'друг';
-  
-  const buttons = [
-    [Keyboard.button.callback("🚀 Начать пользоваться", "action_get_started")]
-  ];
-
-  const welcomeText = 
-    `Привет, ${senderName}! ✨\n\n` +
-    `**KLEX.PRO** — это твой персональный художник на базе передовых нейросетей.\n\n` +
-    `🎨 Создавай шедевры по описанию\n` +
-    `🖼 Улучшай и меняй свои фото\n` +
-    `🍌 Получай бонусы за приглашение друзей\n\n` +
-    `Мы уже начислили тебе **50 🍌** на старт. Попробуем что-нибудь создать?`;
-
-  await ctx.reply(welcomeText, {
-    format: 'markdown',
-    attachments: [Keyboard.inlineKeyboard(buttons)]
-  });
-}
-
 // ==================== ГЛАВНОЕ МЕНЮ (с автоопределением админа) ====================
 async function sendMaxMainMenu(ctx: any) {
   const maxUserId = getUserId(ctx);
@@ -296,17 +274,6 @@ bot.action('action_start_payment', async (ctx: any) => {
   });
 });
 
-// ==================== КНОПКА ПОЕХАЛИ (добавлено) ====================
-bot.action('action_get_started', async (ctx: any) => {
-  const maxUserId = getUserId(ctx);
-  if (maxUserId) {
-    await updateBotState(maxUserId, "idle");
-  }
-  
-  // А вот теперь показываем основное меню
-  await sendMaxMainMenu(ctx);
-});
-
 // ==================== УМНАЯ КНОПКА "НАЗАД" ====================
 bot.action('action_back', async (ctx: any) => {
   const maxUserId = getUserId(ctx);
@@ -422,24 +389,21 @@ bot.on('message_created', async (ctx: any) => {
   if (!maxUserId) return;
 
   const text = ctx.message?.body?.text || "";
-  const attachments = ctx.message?.body?.attachments; 
+  const attachments = ctx.message?.body?.attachments || [];
 
   // =========================================================================
-  // 1. НОВОЕ: Если нет ни текста, ни вложений — это нажатие системной кнопки "Начать"
+  // 1. УЛУЧШЕННЫЙ ПЕРЕХВАТ СТАРТА (Ловим и /start, и просто нажатие кнопки Начать)
   // =========================================================================
-  if (!text && (!attachments || attachments.length === 0)) {
-    await sendMaxWelcome(ctx);
-    return;
-  }
+  
+  const isStartCommand = text.startsWith('/start');
+  const isInitialAction = !text && attachments.length === 0;
 
-  // =========================================================================
-  // 2. РУЧНОЙ ПЕРЕХВАТ КОМАНДЫ /START (С ТОКЕНОМ ИЛИ БЕЗ)
-  // =========================================================================
-  if (text.startsWith('/start')) {
+  if (isStartCommand || isInitialAction) {
     const senderName = ctx.message?.sender?.first_name || 'друг';
+    
+    // --- Логика синхронизации (если есть токен в /start) ---
     const parts = text.split(" ");
     const token = parts.length > 1 ? parts[1] : null;
-
     if (token) {
       console.log(`Попытка синхронизации. Токен: ${token}`);
       
@@ -465,7 +429,8 @@ bot.on('message_created', async (ctx: any) => {
             .eq('id', syncProfile.id);
 
           await ctx.reply(`🎉 **Аккаунты успешно связаны!**\n\nТеперь у вас общий баланс с Telegram: **${syncProfile.balance} 🍌**`, { format: 'markdown' });
-          await sendMaxWelcome(ctx);
+          // После синхронизации показываем главное меню
+          await sendMaxMainMenu(ctx);
           return;
         } else {
           await ctx.reply("❌ Ссылка для привязки устарела (прошло 15 минут).");
@@ -477,12 +442,12 @@ bot.on('message_created', async (ctx: any) => {
       }
     }
 
+    // --- Логика профиля ---
     let { data: profile } = await supabaseAdmin.from('profiles').select('*').eq('max_user_id', maxUserId).maybeSingle();
 
     if (!profile) {
       const email = `max_${maxUserId}@klex.pro`;
       const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({ email, email_confirm: true });
-
       if (!authError) {
         const { data: newProfile } = await supabaseAdmin.from("profiles").upsert({
           id: authUser.user.id,
@@ -492,21 +457,27 @@ bot.on('message_created', async (ctx: any) => {
           bot_state: "idle",
         }).select().single();
         profile = newProfile;
-        await ctx.reply(`Привет, ${senderName}! ✨ ИИ-бот KLEX.PRO дарит тебе 50 🍌 для старта!`);
       }
-    } else {
-      await ctx.reply(`С возвращением, ${senderName}! ✨`);
     }
 
+    // --- ВМЕСТО СРАЗУ МЕНЮ — ПОКАЗЫВАЕМ ПРИВЕТСТВИЕ ---
+    const welcomeButtons = [
+      [Keyboard.button.callback("🚀 Поехали!", "action_home")]
+    ];
+
+    await ctx.reply(`Привет, ${senderName}! ✨\n\n**KLEX.PRO** — создавай шедевры и меняй фото с помощью нейросетей прямо в MAX.\n\nТебе начислено **50 🍌** для теста!`, {
+      format: 'markdown',
+      attachments: [Keyboard.inlineKeyboard(welcomeButtons)]
+    });
+
     if (profile) await updateBotState(maxUserId, "idle");
-    // Вместо sendMaxMainMenu вызываем приветствие
-    await sendMaxWelcome(ctx);
     return;
   }
 
   // =========================================================================
-  // 3. ДАЛЬШЕ ИДЕТ СТАНДАРТНАЯ ОБРАБОТКА (ГЕНЕРАЦИИ, ФОТО, РАССЫЛКА)
+  // 2. ДАЛЬШЕ ИДЕТ ОСТАЛЬНАЯ ЛОГИКА (ГЕНЕРАЦИИ, ФОТО И Т.Д.)
   // =========================================================================
+  
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("*")
@@ -557,7 +528,7 @@ bot.on('message_created', async (ctx: any) => {
   }
 
   // =========================================================================
-  // 4. РАССЫЛКА (админ)
+  // 3. РАССЫЛКА (админ)
   // =========================================================================
   if (currentState === "awaiting_broadcast_text") {
     if (maxUserId !== ADMIN_MAX_ID) {
