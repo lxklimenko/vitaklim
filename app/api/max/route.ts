@@ -745,16 +745,31 @@ async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
     console.log("Успешная генерация! Скачиваем картинку...");
 
     const imageResponse = await fetch(result.imageUrl);
+    const contentType = imageResponse.headers.get('content-type'); // Получаем реальный тип (image/webp или image/jpeg)
     const arrayBuffer = await imageResponse.arrayBuffer();
-    const buffer: any = Buffer.from(arrayBuffer);
-    buffer.path = "klex_image.jpg";
-    buffer.name = "klex_image.jpg";
+    const buffer = Buffer.from(arrayBuffer);
 
-    const imageAttachment = await ctx.api.uploadImage({ source: buffer });
-    const fileAttachment = await ctx.api.uploadFile({ source: buffer });
+    // Определяем расширение на основе типа контента
+    let extension = 'jpg';
+    if (contentType?.includes('webp')) extension = 'webp';
+    if (contentType?.includes('png')) extension = 'png';
+
+    const fileName = `KLEX_${Date.now()}.${extension}`;
+
+    // Отправляем как превью (тут расширение не так важно, MAX сам пережмет)
+    const imageAttachment = await ctx.api.uploadImage({ 
+      source: buffer,
+      filename: fileName 
+    });
+
+    // Отправляем как файл (ВАЖНО передать имя файла в объект)
+    const fileAttachment = await ctx.api.uploadFile({ 
+      source: buffer,
+      filename: fileName // 👈 Явно указываем имя файла здесь
+    });
 
     await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
-    await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
+    await ctx.reply(`📁 Оригинал в максимальном качестве (.${extension}):`, { attachments: [fileAttachment.toJson()] });
 
     const keyboard = Keyboard.inlineKeyboard([
       [Keyboard.button.callback("🔄 Повторить так же", "action_repeat_generation")],
@@ -824,16 +839,31 @@ async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
     console.log("Успешная генерация по фото! Скачиваем результат...");
 
     const imageResponse = await fetch(result.imageUrl);
+    const contentType = imageResponse.headers.get('content-type'); // Получаем реальный тип (image/webp или image/jpeg)
     const arrayBuffer = await imageResponse.arrayBuffer();
-    const buffer: any = Buffer.from(arrayBuffer);
-    buffer.path = "klex_image.jpg";
-    buffer.name = "klex_image.jpg";
+    const buffer = Buffer.from(arrayBuffer);
 
-    const imageAttachment = await ctx.api.uploadImage({ source: buffer });
-    const fileAttachment = await ctx.api.uploadFile({ source: buffer });
+    // Определяем расширение на основе типа контента
+    let extension = 'jpg';
+    if (contentType?.includes('webp')) extension = 'webp';
+    if (contentType?.includes('png')) extension = 'png';
+
+    const fileName = `KLEX_${Date.now()}.${extension}`;
+
+    // Отправляем как превью (тут расширение не так важно, MAX сам пережмет)
+    const imageAttachment = await ctx.api.uploadImage({ 
+      source: buffer,
+      filename: fileName 
+    });
+
+    // Отправляем как файл (ВАЖНО передать имя файла в объект)
+    const fileAttachment = await ctx.api.uploadFile({ 
+      source: buffer,
+      filename: fileName // 👈 Явно указываем имя файла здесь
+    });
 
     await ctx.reply(`✨ Ваша генерация по фото готова!`, { attachments: [imageAttachment.toJson()] });
-    await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
+    await ctx.reply(`📁 Оригинал в максимальном качестве (.${extension}):`, { attachments: [fileAttachment.toJson()] });
 
     const keyboard = Keyboard.inlineKeyboard([
       [Keyboard.button.callback("🔄 Повторить так же", "action_repeat_generation")],
