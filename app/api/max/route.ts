@@ -447,6 +447,9 @@ bot.on('message_created', async (ctx: any) => {
   const maxUserId = getUserId(ctx);
   if (!maxUserId) return;
 
+  // 🛑 Игнорируем сообщения, отправленные самим ботом
+  if (ctx.message?.sender?.is_bot) return; 
+
   const text = ctx.message?.body?.text || "";
   const attachments = ctx.message?.body?.attachments || [];
 
@@ -713,22 +716,14 @@ bot.on('message_created', async (ctx: any) => {
 async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
   const maxUserId = profile.max_user_id;
   const savedModelStr = profile.bot_selected_model || `${MODELS.NANO2}|1:1`;
-  const parts = savedModelStr.split('|');
-  const modelDisplayName = parts[0];
-  const formatFromDb = parts[1] || "1:1";
+  const [modelDisplayName, formatFromDb] = savedModelStr.split('|');
   
   const cost = PRICES[modelDisplayName] || 5;
-  const modelId = MODEL_NAME_TO_ID[modelDisplayName] || "gemini-3.1-flash-image-preview";
+  const modelId = MODEL_NAME_TO_ID[modelDisplayName];
 
-  if (profile.balance < cost) {
-    await ctx.reply(`❌ Недостаточно средств.\n\nВы выбрали модель за ${cost} 🍌, а у вас всего ${profile.balance} 🍌.`);
-    await updateBotState(maxUserId, "idle");
-    await sendMaxMainMenu(ctx);
-    return;
-  }
-
-  const newModelStr = `${modelDisplayName}|${formatFromDb}|${prompt}`;
-  await supabaseAdmin.from('profiles').update({ bot_selected_model: newModelStr }).eq('max_user_id', maxUserId);
+  // 🛑 ШАГ 1: СРАЗУ сбрасываем статус в idle. 
+  // Это разорвет "петлю" повторных генераций, если Vercel будет долго думать.
+  await updateBotState(maxUserId, "idle");
 
   await ctx.reply("🎨 Генерация запущена. Рисуем шедевр...");
 
@@ -742,51 +737,38 @@ async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
       imageBuffers: undefined
     });
 
-    console.log("Успешная генерация! Скачиваем картинку...");
-
     const imageResponse = await fetch(result.imageUrl);
-    const contentType = imageResponse.headers.get('content-type'); // Получаем реальный тип (image/webp или image/jpeg)
     const arrayBuffer = await imageResponse.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Определяем расширение на основе типа контента
-    let extension = 'jpg';
-    if (contentType?.includes('webp')) extension = 'webp';
-    if (contentType?.includes('png')) extension = 'png';
+    // 🖼 ШАГ 2: Создаем нормальное имя файла с расширением .jpg
+    const fileName = `KLEX_${Date.now()}.jpg`;
 
-    const fileName = `KLEX_${Date.now()}.${extension}`;
-
-    // Отправляем как превью (тут расширение не так важно, MAX сам пережмет)
+    // 📤 ШАГ 3: Передаем имя файла прямо в метод отправки
     const imageAttachment = await ctx.api.uploadImage({ 
-      source: buffer,
-      filename: fileName 
+        source: buffer, 
+        name: fileName 
     });
-
-    // Отправляем как файл (ВАЖНО передать имя файла в объект)
+    
     const fileAttachment = await ctx.api.uploadFile({ 
-      source: buffer,
-      filename: fileName // 👈 Явно указываем имя файла здесь
+        source: buffer, 
+        name: fileName // 👈 Теперь файл будет скачиваться как ФОТО
     });
 
     await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
-    await ctx.reply(`📁 Оригинал в максимальном качестве (.${extension}):`, { attachments: [fileAttachment.toJson()] });
+    await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
 
     const keyboard = Keyboard.inlineKeyboard([
-      [Keyboard.button.callback("🔄 Повторить так же", "action_repeat_generation")],
-      [Keyboard.button.callback("🆕 Начать заново", "action_start_over")],
-      [Keyboard.button.callback("🏠 В главное меню", "action_home")]
+      [Keyboard.button.callback("🔄 Повторить", "action_repeat_generation")],
+      [Keyboard.button.callback("🏠 Меню", "action_home")]
     ]);
-    await ctx.reply(`Вы можете нажать **«Повторить так же»** 🔄, отправить **новый текст** для изменения ✍️, начать новую генерацию или вернуться в меню:`, {
-      format: 'markdown',
-      attachments: [keyboard]
-    });
+    
+    await ctx.reply(`Напишите новый текст или вернитесь в меню:`, { attachments: [keyboard] });
 
   } catch (error: any) {
-    console.error("ОШИБКА ГЕНЕРАЦИИ MAX:", error);
+    console.error("ОШИБКА:", error);
     await supabaseAdmin.rpc('increment_balance', { user_id: profile.id, amount_to_add: cost });
-    await ctx.reply("Хьюстон, у нас проблемы! 🛑 Не удалось отправить картинку. Бананы мы тебе вернули!");
-    await updateBotState(maxUserId, "idle");
-    await sendMaxMainMenu(ctx);
+    await ctx.reply("🛑 Ошибка генерации. Бананы возвращены!");
   }
 }
 
@@ -794,12 +776,10 @@ async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
 async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
   const maxUserId = profile.max_user_id;
   const savedModelStr = profile.bot_selected_model || `${MODELS.NANO2}|1:1`;
-  const parts = savedModelStr.split('|');
-  const modelDisplayName = parts[0];
-  const formatFromDb = parts[1] || "1:1";
+  const [modelDisplayName, formatFromDb] = savedModelStr.split('|');
   
   const cost = PRICES[modelDisplayName] || 5;
-  const modelId = MODEL_NAME_TO_ID[modelDisplayName] || "gemini-3.1-flash-image-preview";
+  const modelId = MODEL_NAME_TO_ID[modelDisplayName];
 
   const referenceUrls = profile.bot_reference_url;
   if (!referenceUrls || referenceUrls.length === 0) {
@@ -816,8 +796,8 @@ async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
     return;
   }
 
-  const newModelStr = `${modelDisplayName}|${formatFromDb}|${prompt}`;
-  await supabaseAdmin.from('profiles').update({ bot_selected_model: newModelStr }).eq('max_user_id', maxUserId);
+  // 🛑 ШАГ 1: СРАЗУ сбрасываем статус в idle. 
+  await updateBotState(maxUserId, "idle");
 
   await ctx.reply("🎨 Генерация по фото запущена. Обрабатываем...");
 
@@ -836,51 +816,38 @@ async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
       imageBuffers: [userImageBuffer]
     });
 
-    console.log("Успешная генерация по фото! Скачиваем результат...");
-
     const imageResponse = await fetch(result.imageUrl);
-    const contentType = imageResponse.headers.get('content-type'); // Получаем реальный тип (image/webp или image/jpeg)
     const arrayBuffer = await imageResponse.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Определяем расширение на основе типа контента
-    let extension = 'jpg';
-    if (contentType?.includes('webp')) extension = 'webp';
-    if (contentType?.includes('png')) extension = 'png';
+    // 🖼 ШАГ 2: Создаем нормальное имя файла с расширением .jpg
+    const fileName = `KLEX_${Date.now()}.jpg`;
 
-    const fileName = `KLEX_${Date.now()}.${extension}`;
-
-    // Отправляем как превью (тут расширение не так важно, MAX сам пережмет)
+    // 📤 ШАГ 3: Передаем имя файла прямо в метод отправки
     const imageAttachment = await ctx.api.uploadImage({ 
-      source: buffer,
-      filename: fileName 
+        source: buffer, 
+        name: fileName 
     });
-
-    // Отправляем как файл (ВАЖНО передать имя файла в объект)
+    
     const fileAttachment = await ctx.api.uploadFile({ 
-      source: buffer,
-      filename: fileName // 👈 Явно указываем имя файла здесь
+        source: buffer, 
+        name: fileName
     });
 
     await ctx.reply(`✨ Ваша генерация по фото готова!`, { attachments: [imageAttachment.toJson()] });
-    await ctx.reply(`📁 Оригинал в максимальном качестве (.${extension}):`, { attachments: [fileAttachment.toJson()] });
+    await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
 
     const keyboard = Keyboard.inlineKeyboard([
-      [Keyboard.button.callback("🔄 Повторить так же", "action_repeat_generation")],
-      [Keyboard.button.callback("🆕 Начать заново", "action_start_over")],
-      [Keyboard.button.callback("🏠 В главное меню", "action_home")]
+      [Keyboard.button.callback("🔄 Повторить", "action_repeat_generation")],
+      [Keyboard.button.callback("🏠 Меню", "action_home")]
     ]);
-    await ctx.reply(`Вы можете нажать **«Повторить так же»** 🔄, написать **новый промпт** для этого же фото ✍️, начать заново или вернуться в меню:`, {
-      format: 'markdown',
-      attachments: [keyboard]
-    });
+    
+    await ctx.reply(`Напишите новый текст или вернитесь в меню:`, { attachments: [keyboard] });
 
   } catch (error: any) {
-    console.error("ОШИБКА ГЕНЕРАЦИИ ПО ФОТО MAX:", error);
+    console.error("ОШИБКА ГЕНЕРАЦИИ ПО ФОТО:", error);
     await supabaseAdmin.rpc('increment_balance', { user_id: profile.id, amount_to_add: cost });
-    await ctx.reply("Хьюстон, у нас проблемы! 🛑 Не удалось сгенерировать картинку. Бананы мы тебе вернули!");
-    await updateBotState(maxUserId, "idle");
-    await sendMaxMainMenu(ctx);
+    await ctx.reply("🛑 Ошибка генерации. Бананы возвращены!");
   }
 }
 
