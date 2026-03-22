@@ -83,6 +83,7 @@ async function handleUserStart(ctx: any) {
   
   await ctx.reply(`Привет, ${senderName}! ✨\n\n**KLEX.PRO** — создавай шедевры и меняй фото с помощью нейросетей прямо в MAX.\n\nТебе начислено **50 🍌** для теста!`, {
     format: 'markdown',
+    link_preview: false, // 👈 Убираем карточку сайта
     attachments: [Keyboard.inlineKeyboard(welcomeButtons)]
   });
 
