@@ -3,14 +3,13 @@ import { Bot, Keyboard } from '@maxhub/max-bot-api';
 import { supabaseAdmin } from "@/app/lib/supabase-admin";
 import { generateImageCore } from "@/app/lib/generateCore";
 
-// Исправляем здесь название переменной
+// ==================== КОНСТАНТЫ ====================
 const MAX_TOKEN = process.env.MAX_BOT_TOKEN!; 
 if (!MAX_TOKEN) {
     console.error("ОШИБКА: Переменная MAX_BOT_TOKEN не найдена! Проверь настройки Vercel.");
 }
 
 const bot = new Bot(MAX_TOKEN);
-// ... остальной код моделей ...
 
 const MODELS = {
   NANO2: "🍌 Nano Banano 2 (Gemini 3.1 Flash) — 5 🍌",
@@ -30,6 +29,8 @@ const MODEL_NAME_TO_ID: Record<string, string> = {
   [MODELS.PRO4K]: "gemini-3-pro-image-preview-4k",
 };
 
+const ADMIN_MAX_ID = "117704905"; // ID администратора в MAX
+
 // ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
 function getUserId(ctx: any): string | null {
   const id = ctx.user?.user_id || 
@@ -39,7 +40,6 @@ function getUserId(ctx: any): string | null {
   return id ? id.toString() : null;
 }
 
-// Исправленная функция — только обновление, без чтения
 async function updateBotState(maxUserId: string, state: string, model: string | null = null) {
   const { error } = await supabaseAdmin
     .from("profiles")
@@ -49,8 +49,11 @@ async function updateBotState(maxUserId: string, state: string, model: string | 
   if (error) console.error(`❌ Ошибка БД при смене статуса:`, error);
 }
 
-// ==================== ГЛАВНОЕ МЕНЮ ====================
-async function sendMaxMainMenu(ctx: any, isAdmin: boolean = false) {
+// ==================== ГЛАВНОЕ МЕНЮ (с автоопределением админа) ====================
+async function sendMaxMainMenu(ctx: any) {
+  const maxUserId = getUserId(ctx);
+  const isAdmin = maxUserId === ADMIN_MAX_ID;
+
   const buttons = [
     [
       Keyboard.button.callback("🎨 Создать картинку", "action_create_image"),
@@ -82,7 +85,7 @@ bot.action('action_balance', async (ctx: any) => {
     .from('profiles')
     .select('balance')
     .eq('max_user_id', maxUserId)
-    .limit(1) // <--- СПАСЕНИЕ ОТ КЛОНОВ
+    .limit(1)
     .maybeSingle();
     
   if (error) console.error("Ошибка Баланса:", error);
@@ -103,6 +106,59 @@ bot.action('action_balance', async (ctx: any) => {
 bot.action('action_history', async (ctx: any) => ctx.reply("📂 История генераций скоро появится!", { format: 'markdown' }));
 bot.action('action_help', async (ctx: any) => ctx.reply("🚀 *Помощь*\n\nВсё очень просто: жми на кнопки!", { format: 'markdown' }));
 bot.action('action_settings', async (ctx: any) => ctx.reply("⚙️ Настройки в разработке.", { format: 'markdown' }));
+
+// ==================== АДМИН-ПАНЕЛЬ ====================
+bot.action('action_admin', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  
+  // Доступ только для администратора
+  if (maxUserId !== ADMIN_MAX_ID) {
+    return ctx.reply("⛔️ Доступ ограничен. Эта зона только для администратора.");
+  }
+
+  const buttons = [
+    [Keyboard.button.callback("📢 Создать рассылку", "admin_broadcast_start")],
+    [Keyboard.button.callback("📊 Статистика", "admin_stats")],
+    [Keyboard.button.callback("⬅️ Назад", "action_home")]
+  ];
+
+  await ctx.reply("🔐 **Панель управления KLEX**\n\nПривет, Алекс! Что планируем делать сегодня?", {
+    format: 'markdown',
+    attachments: [Keyboard.inlineKeyboard(buttons)]
+  });
+});
+
+bot.action('admin_broadcast_start', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  if (maxUserId !== ADMIN_MAX_ID) return;
+
+  // Переключаем статус админа на ожидание текста рассылки
+  await updateBotState(maxUserId, "awaiting_broadcast_text");
+
+  const keyboard = Keyboard.inlineKeyboard([[Keyboard.button.callback("❌ Отмена", "action_admin")]]);
+  
+  await ctx.reply("📢 **Подготовка рассылки**\n\nПришли следующим сообщением текст, который увидят все пользователи бота.\n\n_Поддерживается Markdown форматирование._", {
+    format: 'markdown',
+    attachments: [keyboard]
+  });
+});
+
+bot.action('admin_stats', async (ctx: any) => {
+  const maxUserId = getUserId(ctx);
+  if (maxUserId !== ADMIN_MAX_ID) return;
+
+  const { count, error } = await supabaseAdmin
+    .from('profiles')
+    .select('*', { count: 'exact', head: true })
+    .not('max_user_id', 'is', null);
+
+  if (error) {
+    await ctx.reply("❌ Ошибка получения статистики.");
+    return;
+  }
+
+  await ctx.reply(`📊 **Статистика**\n\nВсего пользователей в MAX: ${count || 0}`, { format: 'markdown' });
+});
 
 // ==================== МАШИНА СОСТОЯНИЙ: ОБЫЧНЫЙ ФЛОУ (Text-to-Image) ====================
 async function sendModelSelection(ctx: any, maxUserId: string) {
@@ -209,7 +265,6 @@ bot.action('action_start_payment', async (ctx: any) => {
   const maxUserId = getUserId(ctx);
   if (!maxUserId) return;
   
-  // Переводим в статус ожидания email
   await updateBotState(maxUserId, "awaiting_payment_email", null);
   
   const keyboard = Keyboard.inlineKeyboard([[Keyboard.button.callback("⬅️ Назад", "action_back")]]);
@@ -242,25 +297,21 @@ bot.action('action_back', async (ctx: any) => {
 
     // --- ФОТО флоу Назад ---
     case "awaiting_photo": {
-      // От просьбы фото к выбору формата
       await sendPhotoFormatSelection(ctx, maxUserId, modelName || MODELS.NANO2);
       break;
     }
     case "choosing_photo_format": {
-      // От формата к выбору модели
       await sendPhotoModelSelection(ctx, maxUserId);
       break;
     }
 
     // --- Оплата флоу Назад ---
     case "awaiting_payment_email": {
-      // От ввода email возвращаемся в главное меню (или баланс)
       await updateBotState(maxUserId, "idle");
-      await sendMaxMainMenu(ctx, false);
+      await sendMaxMainMenu(ctx);
       break;
     }
     case "awaiting_payment_amount": {
-      // От ввода суммы возвращаемся к вводу email
       await updateBotState(maxUserId, "awaiting_payment_email", null);
       const keyboard = Keyboard.inlineKeyboard([[Keyboard.button.callback("⬅️ Назад", "action_back")]]);
       await ctx.reply("Пожалуйста, введите ваш email заново:", { attachments: [keyboard] });
@@ -272,7 +323,7 @@ bot.action('action_back', async (ctx: any) => {
     case "choosing_photo_model":
     default: {
       await updateBotState(maxUserId, "idle");
-      await sendMaxMainMenu(ctx, false);
+      await sendMaxMainMenu(ctx);
       break;
     }
   }
@@ -283,7 +334,7 @@ bot.action('action_home', async (ctx: any) => {
   const maxUserId = getUserId(ctx);
   if (!maxUserId) return;
   await updateBotState(maxUserId, "idle");
-  await sendMaxMainMenu(ctx, false);
+  await sendMaxMainMenu(ctx);
 });
 
 bot.action('action_start_over', async (ctx: any) => {
@@ -298,11 +349,9 @@ bot.action('action_start_over', async (ctx: any) => {
 
   const currentState = profile?.bot_state;
 
-  // Если мы были в генерации по фото, кидаем на выбор фото-модели
   if (currentState === "awaiting_photo_prompt" || currentState === "awaiting_photo") {
     await sendPhotoModelSelection(ctx, maxUserId);
   } else {
-    // Иначе кидаем на обычный выбор модели
     await sendModelSelection(ctx, maxUserId);
   }
 });
@@ -318,16 +367,13 @@ bot.action('action_repeat_generation', async (ctx: any) => {
   const savedModelStr = profile.bot_selected_model || "";
   const parts = savedModelStr.split('|');
   
-  // Если частей меньше 3, значит промпт еще не сохранялся
   if (parts.length < 3) {
      await ctx.reply("К сожалению, предыдущий запрос не сохранился. Пожалуйста, напишите его текстом.");
      return;
   }
 
-  // Склеиваем текст обратно (на случай, если юзер сам использовал символ "|" в промпте)
   const prompt = parts.slice(2).join('|'); 
 
-  // Запускаем нужную генерацию заново!
   if (currentState === "awaiting_prompt") {
      await handleTextGeneration(ctx, profile, prompt);
   } else if (currentState === "awaiting_photo_prompt") {
@@ -367,20 +413,19 @@ bot.on('message_created', async (ctx: any) => {
         const expires = new Date(syncProfile.max_link_expires);
         
         if (now <= expires) {
-          // УСПЕХ! Привязываем аккаунты
           await supabaseAdmin
             .from('profiles')
             .update({
               max_user_id: maxUserId,
               bot_state: "idle",
-              max_link_token: null, // Сжигаем токен
+              max_link_token: null,
               max_link_expires: null
             })
             .eq('id', syncProfile.id);
 
           await ctx.reply(`🎉 **Аккаунты успешно связаны!**\n\nТеперь у вас общий баланс с Telegram: **${syncProfile.balance} 🍌**`, { format: 'markdown' });
-          await sendMaxMainMenu(ctx, false);
-          return; // Выходим из функции
+          await sendMaxMainMenu(ctx);
+          return;
         } else {
           await ctx.reply("❌ Ссылка для привязки устарела (прошло 15 минут).");
           return;
@@ -391,7 +436,6 @@ bot.on('message_created', async (ctx: any) => {
       }
     }
 
-    // Если просто /start (без токена) - обычный вход/регистрация
     let { data: profile } = await supabaseAdmin.from('profiles').select('*').eq('max_user_id', maxUserId).maybeSingle();
 
     if (!profile) {
@@ -414,18 +458,18 @@ bot.on('message_created', async (ctx: any) => {
     }
 
     if (profile) await updateBotState(maxUserId, "idle");
-    await sendMaxMainMenu(ctx, false);
-    return; // Завершаем, чтобы не пошло в другие проверки
+    await sendMaxMainMenu(ctx);
+    return;
   }
 
   // =========================================================================
-  // 2. ДАЛЬШЕ ИДЕТ СТАНДАРТНАЯ ОБРАБОТКА (ГЕНЕРАЦИИ И ФОТО)
+  // 2. ДАЛЬШЕ ИДЕТ СТАНДАРТНАЯ ОБРАБОТКА (ГЕНЕРАЦИИ, ФОТО, РАССЫЛКА)
   // =========================================================================
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("*")
     .eq("max_user_id", maxUserId)
-    .limit(1) // <--- СПАСАТЕЛЬНЫЙ КРУГ
+    .limit(1)
     .maybeSingle();
 
   if (!profile) return;
@@ -460,7 +504,6 @@ bot.on('message_created', async (ctx: any) => {
     return;
   }
   
-  // Добавим ручной перехват для кнопок создания, если MAX отправляет их текстом
   if (text === "🎨 Создать картинку") {
     await sendModelSelection(ctx, maxUserId);
     return;
@@ -468,6 +511,64 @@ bot.on('message_created', async (ctx: any) => {
   
   if (text === "🖼 Сгрен. по фото") {
     await sendPhotoModelSelection(ctx, maxUserId);
+    return;
+  }
+
+  // =========================================================================
+  // 3. РАССЫЛКА (админ)
+  // =========================================================================
+  if (currentState === "awaiting_broadcast_text") {
+    if (maxUserId !== ADMIN_MAX_ID) {
+      await updateBotState(maxUserId, "idle");
+      await sendMaxMainMenu(ctx);
+      return;
+    }
+
+    const broadcastText = text;
+    if (!broadcastText) {
+      await ctx.reply("❌ Отправьте текст рассылки (не пустое сообщение).");
+      return;
+    }
+
+    await ctx.reply("📢 Начинаю рассылку... Это может занять некоторое время.");
+
+    // Получаем всех пользователей, у которых есть max_user_id
+    const { data: users, error } = await supabaseAdmin
+      .from('profiles')
+      .select('max_user_id')
+      .not('max_user_id', 'is', null);
+
+    if (error || !users || users.length === 0) {
+      await ctx.reply("❌ Нет пользователей для рассылки.");
+      await updateBotState(maxUserId, "idle");
+      await sendMaxMainMenu(ctx);
+      return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const user of users) {
+      try {
+        // Используем метод из официальной документации
+        await bot.api.sendMessageToUser(
+          Number(user.max_user_id), // Передаем ID как число
+          broadcastText, 
+          { format: 'markdown' }    // Опции форматирования
+        );
+        
+        successCount++;
+        // Задержка 50мс, чтобы не спамить API слишком быстро
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (err) {
+        console.error(`Ошибка отправки пользователю ${user.max_user_id}:`, err);
+        failCount++;
+      }
+    }
+
+    await ctx.reply(`✅ **Рассылка завершена**\n\nУспешно: ${successCount}\nОшибок: ${failCount}`, { format: 'markdown' });
+    await updateBotState(maxUserId, "idle");
+    await sendMaxMainMenu(ctx);
     return;
   }
 
@@ -479,7 +580,6 @@ bot.on('message_created', async (ctx: any) => {
       return;
     }
 
-    // Сохраняем email во временное хранилище (bot_selected_model)
     await supabaseAdmin
       .from("profiles")
       .update({
@@ -515,16 +615,14 @@ bot.on('message_created', async (ctx: any) => {
     try {
       const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://klex.pro";
       
-      // Вызываем твой API оплаты
       const paymentResponse = await fetch(`${SITE_URL}/api/payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount,
-          // Передаем telegram_id, если аккаунты связаны, иначе max_user_id
           telegramUserId: profile.telegram_id || profile.max_user_id, 
           email: userEmail,
-          from: 'max', // <-- ДОБАВЛЯЕМ ЭТУ МЕТКУ
+          from: 'max',
         }),
       });
 
@@ -534,7 +632,6 @@ bot.on('message_created', async (ctx: any) => {
         console.error("Payment API error:", paymentData);
         await ctx.reply("❌ Ошибка создания платежа. Попробуйте позже.");
       } else {
-        // Выдаем красивую ссылку в MAX
         const confirmationUrl = paymentData.confirmationUrl;
         await ctx.reply(`💳 **Пополнение на ${amount} ₽**\n\n🔗 [Нажмите сюда, чтобы перейти к оплате](${confirmationUrl})`, {
           format: 'markdown'
@@ -545,9 +642,8 @@ bot.on('message_created', async (ctx: any) => {
       await ctx.reply("❌ Произошла ошибка связи с сервером оплаты.");
     }
 
-    // Сбрасываем статус
     await updateBotState(maxUserId, "idle", null);
-    await sendMaxMainMenu(ctx, false);
+    await sendMaxMainMenu(ctx);
     return;
   }
 
@@ -565,7 +661,6 @@ bot.on('message_created', async (ctx: any) => {
     }
 
     try {
-      // 1. БЕРЕМ ПРЯМУЮ ССЫЛКУ ИЗ СООБЩЕНИЯ (Спасибо, MAX!)
       const fileUrl = photoAttachment.payload?.url;
       
       if (!fileUrl) {
@@ -574,7 +669,6 @@ bot.on('message_created', async (ctx: any) => {
          return;
       }
 
-      // 2. Сохраняем URL картинки в базу
       const currentUrls = profile.bot_reference_url || [];
       const updatedUrls = [...currentUrls, fileUrl];
 
@@ -643,11 +737,10 @@ async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
   if (profile.balance < cost) {
     await ctx.reply(`❌ Недостаточно средств.\n\nВы выбрали модель за ${cost} 🍌, а у вас всего ${profile.balance} 🍌.`);
     await updateBotState(maxUserId, "idle");
-    await sendMaxMainMenu(ctx, false);
+    await sendMaxMainMenu(ctx);
     return;
   }
 
-  // 1. СОХРАНЯЕМ ПРОМПТ В БАЗУ ДЛЯ ПОВТОРА (Модель|Формат|Промпт)
   const newModelStr = `${modelDisplayName}|${formatFromDb}|${prompt}`;
   await supabaseAdmin.from('profiles').update({ bot_selected_model: newModelStr }).eq('max_user_id', maxUserId);
 
@@ -677,7 +770,6 @@ async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
     await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
     await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
 
-    // 2. ВЫВОДИМ КНОПКИ ПОВТОРА, ЗАНОВО И МЕНЮ
     const keyboard = Keyboard.inlineKeyboard([
       [Keyboard.button.callback("🔄 Повторить так же", "action_repeat_generation")],
       [Keyboard.button.callback("🆕 Начать заново", "action_start_over")],
@@ -693,7 +785,7 @@ async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
     await supabaseAdmin.rpc('increment_balance', { user_id: profile.id, amount_to_add: cost });
     await ctx.reply("Хьюстон, у нас проблемы! 🛑 Не удалось отправить картинку. Бананы мы тебе вернули!");
     await updateBotState(maxUserId, "idle");
-    await sendMaxMainMenu(ctx, false);
+    await sendMaxMainMenu(ctx);
   }
 }
 
@@ -712,18 +804,17 @@ async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
   if (!referenceUrls || referenceUrls.length === 0) {
     await ctx.reply("Ошибка: не найдено ни одного фото. Начните заново.");
     await updateBotState(maxUserId, "idle");
-    await sendMaxMainMenu(ctx, false);
+    await sendMaxMainMenu(ctx);
     return;
   }
 
   if (profile.balance < cost) {
     await ctx.reply(`❌ Недостаточно средств.\n\nВы выбрали модель за ${cost} 🍌, а у вас всего ${profile.balance} 🍌.`);
     await updateBotState(maxUserId, "idle");
-    await sendMaxMainMenu(ctx, false);
+    await sendMaxMainMenu(ctx);
     return;
   }
 
-  // 1. СОХРАНЯЕМ ПРОМПТ В БАЗУ ДЛЯ ПОВТОРА
   const newModelStr = `${modelDisplayName}|${formatFromDb}|${prompt}`;
   await supabaseAdmin.from('profiles').update({ bot_selected_model: newModelStr }).eq('max_user_id', maxUserId);
 
@@ -758,7 +849,6 @@ async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
     await ctx.reply(`✨ Ваша генерация по фото готова!`, { attachments: [imageAttachment.toJson()] });
     await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
 
-    // 2. ВЫВОДИМ КНОПКИ ПОВТОРА, ЗАНОВО И МЕНЮ
     const keyboard = Keyboard.inlineKeyboard([
       [Keyboard.button.callback("🔄 Повторить так же", "action_repeat_generation")],
       [Keyboard.button.callback("🆕 Начать заново", "action_start_over")],
@@ -774,7 +864,7 @@ async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
     await supabaseAdmin.rpc('increment_balance', { user_id: profile.id, amount_to_add: cost });
     await ctx.reply("Хьюстон, у нас проблемы! 🛑 Не удалось сгенерировать картинку. Бананы мы тебе вернули!");
     await updateBotState(maxUserId, "idle");
-    await sendMaxMainMenu(ctx, false);
+    await sendMaxMainMenu(ctx);
   }
 }
 
