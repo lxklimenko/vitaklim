@@ -43,8 +43,10 @@ type UserState =
   | "awaiting_prompt"
   | "awaiting_photo"
   | "awaiting_photo_prompt"
-  | "awaiting_payment_email"      // новое состояние для ввода email
-  | "awaiting_payment_amount";     // состояние для ввода суммы (после email)
+  | "awaiting_payment_email"
+  | "awaiting_payment_amount"
+  | "awaiting_broadcast_tg"   // новое состояние для рассылки Telegram
+  | "awaiting_broadcast_max";  // новое состояние для рассылки MAX
 
 /**
  * Ищет в тексте формат (например, 21:9, 9 на 16 или 1:1).
@@ -716,45 +718,97 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ================== АДМИН ПАНЕЛЬ ==================
-    if (text === "🔐 Админ-панель" && telegramId === Number(ADMIN_ID)) {
-
+    // ================== ОБНОВЛЕННАЯ АДМИН ПАНЕЛЬ ==================
+    if (text === "🔐 Админ-панель" && telegramId === ADMIN_ID) {
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: "🔐 Открыть админ-панель:",
+          text: "🔐 *Панель управления KLEX*\n\nВыберите тип рассылки или посмотрите статистику:",
+          parse_mode: "Markdown",
           reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: "🚀 Открыть админку",
-                  url: "https://klex.pro/admin/login"
-                }
-              ]
-            ]
-          }
+            keyboard: [
+              [{ text: "📢 Рассылка в Telegram" }, { text: "📢 Рассылка в MAX" }],
+              [{ text: "📊 Статистика" }],
+              [{ text: "⬅️ Назад" }]
+            ],
+            resize_keyboard: true,
+          },
         }),
       });
-
       return NextResponse.json({ ok: true });
     }
 
-    if (text === "🚀 Открыть приложение") {
-      await supabase
-        .from("profiles")
-        .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
-        .eq("id", profile.id);
+    // Запуск рассылки в Telegram
+    if (text === "📢 Рассылка в Telegram" && telegramId === ADMIN_ID) {
+      await supabase.from("profiles").update({ bot_state: "awaiting_broadcast_tg" }).eq("id", profile.id);
+      await sendMessage(chatId, "📝 *Рассылка: Telegram*\n\nВведите текст сообщения для всех пользователей TG-бота:");
+      return NextResponse.json({ ok: true });
+    }
 
-      await sendMessage(
-        chatId,
-        "Откройте Mini App: https://t.me/YourBotName/app"
-      );
+    // Запуск рассылки в MAX
+    if (text === "📢 Рассылка в MAX" && telegramId === ADMIN_ID) {
+      await supabase.from("profiles").update({ bot_state: "awaiting_broadcast_max" }).eq("id", profile.id);
+      await sendMessage(chatId, "📝 *Рассылка: MAX*\n\nВведите текст сообщения для всех пользователей в MAX:");
       return NextResponse.json({ ok: true });
     }
 
     // ================== МАШИНА СОСТОЯНИЙ ==================
+
+    // 🚀 ВЫПОЛНЕНИЕ РАССЫЛКИ В TELEGRAM
+    if (currentState === "awaiting_broadcast_tg" && telegramId === ADMIN_ID) {
+      await sendMessage(chatId, "🚀 Начинаю рассылку в Telegram...");
+      
+      const { data: users } = await supabase.from('profiles').select('telegram_id').not('telegram_id', 'is', null);
+      
+      let success = 0;
+      if (users) {
+        for (const user of users) {
+          try {
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ chat_id: user.telegram_id, text: text, parse_mode: "Markdown" }),
+            });
+            success++;
+            await new Promise(res => setTimeout(res, 50)); // Пауза 50мс
+          } catch (e) { console.error(e); }
+        }
+      }
+
+      await sendMessage(chatId, `✅ Рассылка завершена!\nУспешно: ${success}`);
+      await supabase.from("profiles").update({ bot_state: "idle" }).eq("id", profile.id);
+      await sendMainMenu(chatId);
+      return NextResponse.json({ ok: true });
+    }
+
+    // 🚀 ВЫПОЛНЕНИЕ РАССЫЛКИ В MAX (из Telegram!)
+    if (currentState === "awaiting_broadcast_max" && telegramId === ADMIN_ID) {
+      await sendMessage(chatId, "🚀 Начинаю рассылку в MAX...");
+      
+      const { data: users } = await supabase.from('profiles').select('max_user_id').not('max_user_id', 'is', null);
+      
+      // Для отправки в MAX нам понадобится библиотека (она у тебя уже есть в проекте)
+      const { Bot: MaxBot } = require('@maxhub/max-bot-api');
+      const maxBot = new MaxBot(process.env.MAX_BOT_TOKEN);
+
+      let success = 0;
+      if (users) {
+        for (const user of users) {
+          try {
+            await maxBot.api.sendMessageToUser(Number(user.max_user_id), text, { format: 'markdown' });
+            success++;
+            await new Promise(res => setTimeout(res, 50));
+          } catch (e) { console.error(e); }
+        }
+      }
+
+      await sendMessage(chatId, `✅ Рассылка в MAX завершена!\nУспешно: ${success}`);
+      await supabase.from("profiles").update({ bot_state: "idle" }).eq("id", profile.id);
+      await sendMainMenu(chatId);
+      return NextResponse.json({ ok: true });
+    }
 
     // ====== ВЫБОР МОДЕЛИ ДЛЯ ФОТО ======
     if (currentState === "choosing_photo_model") {
