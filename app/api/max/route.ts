@@ -2,9 +2,6 @@ import { NextResponse } from "next/server";
 import { Bot, Keyboard } from '@maxhub/max-bot-api';
 import { supabaseAdmin } from "@/app/lib/supabase-admin";
 import { generateImageCore } from "@/app/lib/generateCore";
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
 
 // ==================== КОНСТАНТЫ ====================
 const MAX_TOKEN = process.env.MAX_BOT_TOKEN!; 
@@ -743,34 +740,26 @@ async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
     console.log("Успешная генерация! Скачиваем картинку...");
 
     const imageResponse = await fetch(result.imageUrl);
-    const contentType = imageResponse.headers.get('content-type') || '';
+    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
     const arrayBuffer = await imageResponse.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
 
-    // Узнаем реальный формат
+    // Узнаем реальный формат от нейросети
     let extension = 'jpg';
     if (contentType.includes('webp')) extension = 'webp';
     else if (contentType.includes('png')) extension = 'png';
 
     const fileName = `KLEX_${Date.now()}.${extension}`;
 
-    // 🛑 БРОНЕБОЙНЫЙ МЕТОД: Сохраняем файл физически во временную папку Vercel (/tmp)
-    const tempFilePath = path.join(os.tmpdir(), fileName);
-    fs.writeFileSync(tempFilePath, buffer);
+    // 🚀 МАГИЯ WEB API: Создаем виртуальный файл в памяти.
+    // Библиотека MAX увидит в нем и данные, и ИМЯ файла!
+    const fileObj = new File([arrayBuffer], fileName, { type: contentType });
 
-    try {
-      // Отправляем настоящий файл с диска (теперь MAX точно увидит его имя и расширение!)
-      const imageAttachment = await ctx.api.uploadImage({ source: fs.createReadStream(tempFilePath) });
-      const fileAttachment = await ctx.api.uploadFile({ source: fs.createReadStream(tempFilePath) });
+    // Отправляем виртуальный файл
+    const imageAttachment = await ctx.api.uploadImage({ source: fileObj });
+    const fileAttachment = await ctx.api.uploadFile({ source: fileObj });
 
-      await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
-      await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
-    } finally {
-      // Обязательно удаляем временный файл после отправки, чтобы сервер не засорялся
-      if (fs.existsSync(tempFilePath)) {
-        fs.unlinkSync(tempFilePath);
-      }
-    }
+    await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
+    await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
 
     const keyboard = Keyboard.inlineKeyboard([
       [Keyboard.button.callback("🔄 Повторить", "action_repeat_generation")],
@@ -833,34 +822,26 @@ async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
     console.log("Успешная генерация! Скачиваем картинку...");
 
     const imageResponse = await fetch(result.imageUrl);
-    const contentType = imageResponse.headers.get('content-type') || '';
+    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
     const arrayBuffer = await imageResponse.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
 
-    // Узнаем реальный формат
+    // Узнаем реальный формат от нейросети
     let extension = 'jpg';
     if (contentType.includes('webp')) extension = 'webp';
     else if (contentType.includes('png')) extension = 'png';
 
     const fileName = `KLEX_${Date.now()}.${extension}`;
 
-    // 🛑 БРОНЕБОЙНЫЙ МЕТОД: Сохраняем файл физически во временную папку Vercel (/tmp)
-    const tempFilePath = path.join(os.tmpdir(), fileName);
-    fs.writeFileSync(tempFilePath, buffer);
+    // 🚀 МАГИЯ WEB API: Создаем виртуальный файл в памяти.
+    // Библиотека MAX увидит в нем и данные, и ИМЯ файла!
+    const fileObj = new File([arrayBuffer], fileName, { type: contentType });
 
-    try {
-      // Отправляем настоящий файл с диска (теперь MAX точно увидит его имя и расширение!)
-      const imageAttachment = await ctx.api.uploadImage({ source: fs.createReadStream(tempFilePath) });
-      const fileAttachment = await ctx.api.uploadFile({ source: fs.createReadStream(tempFilePath) });
+    // Отправляем виртуальный файл
+    const imageAttachment = await ctx.api.uploadImage({ source: fileObj });
+    const fileAttachment = await ctx.api.uploadFile({ source: fileObj });
 
-      await ctx.reply(`✨ Ваша генерация по фото готова!`, { attachments: [imageAttachment.toJson()] });
-      await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
-    } finally {
-      // Обязательно удаляем временный файл после отправки, чтобы сервер не засорялся
-      if (fs.existsSync(tempFilePath)) {
-        fs.unlinkSync(tempFilePath);
-      }
-    }
+    await ctx.reply(`✨ Ваша генерация по фото готова!`, { attachments: [imageAttachment.toJson()] });
+    await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
 
     const keyboard = Keyboard.inlineKeyboard([
       [Keyboard.button.callback("🔄 Повторить", "action_repeat_generation")],
