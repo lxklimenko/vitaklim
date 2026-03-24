@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Bot, Keyboard } from '@maxhub/max-bot-api';
 import { supabaseAdmin } from "@/app/lib/supabase-admin";
 import { generateImageCore } from "@/app/lib/generateCore";
+import { Readable } from 'stream'; // 👈 ДОБАВИТЬ ЭТО
 
 // ==================== КОНСТАНТЫ ====================
 const MAX_TOKEN = process.env.MAX_BOT_TOKEN!; 
@@ -737,25 +738,41 @@ async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
       imageBuffers: undefined
     });
 
-    console.log("Успешная генерация! Отправляем превью и ссылку...");
+    console.log("Успешная генерация! Скачиваем файл в память...");
 
     const imageResponse = await fetch(result.imageUrl);
+    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
     const arrayBuffer = await imageResponse.arrayBuffer();
-    const buffer: any = Buffer.from(arrayBuffer);
+    const buffer = Buffer.from(arrayBuffer);
 
-    // 1. Отправляем картинку как превью (тут MAX отрабатывает отлично)
+    let extension = 'jpg';
+    if (contentType.includes('webp')) extension = 'webp';
+    else if (contentType.includes('png')) extension = 'png';
+
+    const fileName = `KLEX_${Date.now()}.${extension}`;
+
+    // 🚀 МАГИЯ NODE.JS: Оборачиваем буфер в поток, чтобы обмануть MAX API
+    const fileStream = new Readable();
+    fileStream.push(buffer);
+    fileStream.push(null); // Закрываем поток данных
+    (fileStream as any).path = fileName; // 👈 MAX прочитает это свойство и назовет файл правильно!
+
+    // 1. Отправляем сжатое превью для быстрого просмотра
     const imageAttachment = await ctx.api.uploadImage({ source: buffer });
-    await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
+    
+    // 2. Отправляем чистый ДОКУМЕНТ (теперь с правильным именем и без страшных ссылок!)
+    const fileAttachment = await ctx.api.uploadFile({ source: fileStream });
 
-    // 2. 🚀 ПРЯМАЯ ССЫЛКА НА ОРИГИНАЛ: Надежно, быстро и без багов с файлами!
+    await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
+    
     const keyboard = Keyboard.inlineKeyboard([
       [Keyboard.button.callback("🔄 Повторить", "action_repeat_generation")],
       [Keyboard.button.callback("🏠 Меню", "action_home")]
     ]);
-    
-    await ctx.reply(`📁 **Оригинал в максимальном качестве:**\n🔗 [Скачать файл без сжатия (HD)](${result.imageUrl})`, { 
+
+    await ctx.reply(`📁 **Оригинал в максимальном качестве:**\n(Файл без сжатия прикреплен ниже)`, { 
       format: 'markdown',
-      attachments: [keyboard] 
+      attachments: [fileAttachment.toJson(), keyboard] // Прикрепляем файл и кнопки вместе
     });
 
   } catch (error: any) {
@@ -806,28 +823,44 @@ async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
       modelId,
       aspectRatio: formatFromDb || "1:1",
       supabase: supabaseAdmin,
-      imageBuffers: [userImageBuffer] // 👈 Отличие только здесь
+      imageBuffers: [userImageBuffer] // 👈 Отличие только в этой строке
     });
 
-    console.log("Успешная генерация по фото! Отправляем превью и ссылку...");
+    console.log("Успешная генерация! Скачиваем файл в память...");
 
     const imageResponse = await fetch(result.imageUrl);
+    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
     const arrayBuffer = await imageResponse.arrayBuffer();
-    const buffer: any = Buffer.from(arrayBuffer);
+    const buffer = Buffer.from(arrayBuffer);
 
-    // 1. Отправляем картинку как превью
+    let extension = 'jpg';
+    if (contentType.includes('webp')) extension = 'webp';
+    else if (contentType.includes('png')) extension = 'png';
+
+    const fileName = `KLEX_${Date.now()}.${extension}`;
+
+    // 🚀 МАГИЯ NODE.JS: Оборачиваем буфер в поток, чтобы обмануть MAX API
+    const fileStream = new Readable();
+    fileStream.push(buffer);
+    fileStream.push(null); // Закрываем поток данных
+    (fileStream as any).path = fileName; // 👈 MAX прочитает это свойство и назовет файл правильно!
+
+    // 1. Отправляем сжатое превью для быстрого просмотра
     const imageAttachment = await ctx.api.uploadImage({ source: buffer });
-    await ctx.reply(`✨ Ваша генерация по фото готова!`, { attachments: [imageAttachment.toJson()] });
+    
+    // 2. Отправляем чистый ДОКУМЕНТ (теперь с правильным именем и без страшных ссылок!)
+    const fileAttachment = await ctx.api.uploadFile({ source: fileStream });
 
-    // 2. 🚀 ПРЯМАЯ ССЫЛКА НА ОРИГИНАЛ
+    await ctx.reply(`✨ Ваша генерация по фото готова!`, { attachments: [imageAttachment.toJson()] });
+    
     const keyboard = Keyboard.inlineKeyboard([
       [Keyboard.button.callback("🔄 Повторить", "action_repeat_generation")],
       [Keyboard.button.callback("🏠 Меню", "action_home")]
     ]);
-    
-    await ctx.reply(`📁 **Оригинал в максимальном качестве:**\n🔗 [Скачать файл без сжатия (HD)](${result.imageUrl})`, { 
+
+    await ctx.reply(`📁 **Оригинал в максимальном качестве:**\n(Файл без сжатия прикреплен ниже)`, { 
       format: 'markdown',
-      attachments: [keyboard] 
+      attachments: [fileAttachment.toJson(), keyboard] // Прикрепляем файл и кнопки вместе
     });
 
   } catch (error: any) {
