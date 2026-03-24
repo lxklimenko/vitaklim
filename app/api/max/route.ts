@@ -737,26 +737,19 @@ async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
       imageBuffers: undefined
     });
 
-    console.log("Успешная генерация! Скачиваем картинку...");
+    console.log("Успешная генерация! Передаем URL напрямую в MAX...");
 
-    const imageResponse = await fetch(result.imageUrl);
-    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
-    const arrayBuffer = await imageResponse.arrayBuffer();
+    // Генерируем красивое имя файла
+    const fileName = `KLEX_${Date.now()}.jpg`; 
 
-    // Узнаем реальный формат от нейросети
-    let extension = 'jpg';
-    if (contentType.includes('webp')) extension = 'webp';
-    else if (contentType.includes('png')) extension = 'png';
-
-    const fileName = `KLEX_${Date.now()}.${extension}`;
-
-    // 🚀 МАГИЯ WEB API: Создаем виртуальный файл в памяти.
-    // Библиотека MAX увидит в нем и данные, и ИМЯ файла!
-    const fileObj = new File([arrayBuffer], fileName, { type: contentType });
-
-    // Отправляем виртуальный файл
-    const imageAttachment = await ctx.api.uploadImage({ source: fileObj });
-    const fileAttachment = await ctx.api.uploadFile({ source: fileObj });
+    // 🚀 ПРЯМАЯ ПЕРЕДАЧА URL: Пусть серверы MAX сами скачивают файл!
+    const imageAttachment = await ctx.api.uploadImage({ url: result.imageUrl });
+    
+    // Передаем url и явно указываем имя файла, чтобы он скачался как фото
+    const fileAttachment = await ctx.api.uploadFile({ 
+      url: result.imageUrl, 
+      name: fileName 
+    });
 
     await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
     await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
@@ -819,26 +812,19 @@ async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
       imageBuffers: [userImageBuffer]
     });
 
-    console.log("Успешная генерация! Скачиваем картинку...");
+    console.log("Успешная генерация! Передаем URL напрямую в MAX...");
 
-    const imageResponse = await fetch(result.imageUrl);
-    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
-    const arrayBuffer = await imageResponse.arrayBuffer();
+    // Генерируем красивое имя файла
+    const fileName = `KLEX_${Date.now()}.jpg`; 
 
-    // Узнаем реальный формат от нейросети
-    let extension = 'jpg';
-    if (contentType.includes('webp')) extension = 'webp';
-    else if (contentType.includes('png')) extension = 'png';
-
-    const fileName = `KLEX_${Date.now()}.${extension}`;
-
-    // 🚀 МАГИЯ WEB API: Создаем виртуальный файл в памяти.
-    // Библиотека MAX увидит в нем и данные, и ИМЯ файла!
-    const fileObj = new File([arrayBuffer], fileName, { type: contentType });
-
-    // Отправляем виртуальный файл
-    const imageAttachment = await ctx.api.uploadImage({ source: fileObj });
-    const fileAttachment = await ctx.api.uploadFile({ source: fileObj });
+    // 🚀 ПРЯМАЯ ПЕРЕДАЧА URL: Пусть серверы MAX сами скачивают файл!
+    const imageAttachment = await ctx.api.uploadImage({ url: result.imageUrl });
+    
+    // Передаем url и явно указываем имя файла, чтобы он скачался как фото
+    const fileAttachment = await ctx.api.uploadFile({ 
+      url: result.imageUrl, 
+      name: fileName 
+    });
 
     await ctx.reply(`✨ Ваша генерация по фото готова!`, { attachments: [imageAttachment.toJson()] });
     await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
