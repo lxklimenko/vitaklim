@@ -737,28 +737,31 @@ async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
       imageBuffers: undefined
     });
 
-    console.log("Успешная генерация! Подготавливаем файл...");
+    console.log("Успешная генерация! Подготавливаем безопасную ссылку...");
 
-    const imageResponse = await fetch(result.imageUrl);
-    const arrayBuffer = await imageResponse.arrayBuffer();
-    const buffer: any = Buffer.from(arrayBuffer);
-
-    // 1. Отправляем картинку как превью (тут библиотека MAX работает нормально)
-    const imageAttachment = await ctx.api.uploadImage({ source: buffer });
-    await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
+    // 1. Извлекаем только путь к файлу из полной ссылки
+    // Полная ссылка выглядит так: https://.../generations-private/USER_ID/filename.jpg?token=...
+    const urlObj = new URL(result.imageUrl);
+    const pathParts = urlObj.pathname.split('generations-private/');
+    const filePath = pathParts[1]; // Получим только "USER_ID/filename.jpg"
 
     const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://klex.pro";
     
-    // 🚀 ПЕРЕДАЕМ ПОЛНУЮ ССЫЛКУ В НАШ ПРОКСИ-СЕРВЕР
-    // Оборачиваем в encodeURIComponent, чтобы ссылка не сломалась при передаче
-    const downloadUrl = `${SITE_URL}/api/download?url=${encodeURIComponent(result.imageUrl)}`;
+    // 2. Формируем ссылку через наш прокси (БЕЗ слова supabase в параметрах)
+    const downloadUrl = `${SITE_URL}/api/download?file=${encodeURIComponent(filePath)}`;
+
+    // Отправляем картинку как превью (тут библиотека MAX работает нормально)
+    const imageResponse = await fetch(result.imageUrl);
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    const buffer: any = Buffer.from(arrayBuffer);
+    const imageAttachment = await ctx.api.uploadImage({ source: buffer });
+    await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
 
     const keyboard = Keyboard.inlineKeyboard([
       [Keyboard.button.callback("🔄 Повторить", "action_repeat_generation")],
       [Keyboard.button.callback("🏠 Меню", "action_home")]
     ]);
     
-    // Юзер жмет на ссылку -> запрос идет на klex.pro -> сервер скачивает из Supabase -> отдает юзеру
     await ctx.reply(`📁 **Оригинал в максимальном качестве:**\n🔗 [Скачать HD оригинал](${downloadUrl})`, { 
       format: 'markdown',
       attachments: [keyboard] 
@@ -815,28 +818,28 @@ async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
       imageBuffers: [userImageBuffer] // 👈 Отличие только в этой строке
     });
 
-    console.log("Успешная генерация! Подготавливаем файл...");
+    console.log("Успешная генерация! Подготавливаем безопасную ссылку...");
 
+    // 1. Извлекаем только путь к файлу из полной ссылки
+    const urlObj = new URL(result.imageUrl);
+    const pathParts = urlObj.pathname.split('generations-private/');
+    const filePath = pathParts[1];
+
+    const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://klex.pro";
+    const downloadUrl = `${SITE_URL}/api/download?file=${encodeURIComponent(filePath)}`;
+
+    // Отправляем картинку как превью
     const imageResponse = await fetch(result.imageUrl);
     const arrayBuffer = await imageResponse.arrayBuffer();
     const buffer: any = Buffer.from(arrayBuffer);
-
-    // 1. Отправляем картинку как превью (тут библиотека MAX работает нормально)
     const imageAttachment = await ctx.api.uploadImage({ source: buffer });
     await ctx.reply(`✨ Ваша генерация по фото готова!`, { attachments: [imageAttachment.toJson()] });
-
-    const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://klex.pro";
-    
-    // 🚀 ПЕРЕДАЕМ ПОЛНУЮ ССЫЛКУ В НАШ ПРОКСИ-СЕРВЕР
-    // Оборачиваем в encodeURIComponent, чтобы ссылка не сломалась при передаче
-    const downloadUrl = `${SITE_URL}/api/download?url=${encodeURIComponent(result.imageUrl)}`;
 
     const keyboard = Keyboard.inlineKeyboard([
       [Keyboard.button.callback("🔄 Повторить", "action_repeat_generation")],
       [Keyboard.button.callback("🏠 Меню", "action_home")]
     ]);
     
-    // Юзер жмет на ссылку -> запрос идет на klex.pro -> сервер скачивает из Supabase -> отдает юзеру
     await ctx.reply(`📁 **Оригинал в максимальном качестве:**\n🔗 [Скачать HD оригинал](${downloadUrl})`, { 
       format: 'markdown',
       attachments: [keyboard] 

@@ -1,38 +1,43 @@
-// app/api/download/route.ts
 import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/app/lib/supabase-admin";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const fileUrl = searchParams.get('url');
+  const filePath = searchParams.get('file'); 
 
-  if (!fileUrl) {
-    return new NextResponse("URL файла не указан", { status: 400 });
+  if (!filePath) {
+    return new NextResponse("Параметр 'file' не указан", { status: 400 });
   }
 
   try {
-    // 1. Твой сервер (Vercel) сам скачивает файл из Supabase. 
-    // Ему VPN не нужен, у него прямой и быстрый канал.
-    const response = await fetch(fileUrl);
+    // Декодируем путь на случай спецсимволов
+    const decodedPath = decodeURIComponent(filePath);
 
-    if (!response.ok) {
-      throw new Error(`Ошибка скачивания сервером: ${response.statusText}`);
+    // Скачиваем файл напрямую через админ-доступ (VPN не нужен)
+    const { data, error } = await supabaseAdmin.storage
+      .from('generations-private')
+      .download(decodedPath);
+
+    if (error || !data) {
+      console.error("Supabase Storage Error:", error);
+      return new NextResponse("Файл не найден в хранилище", { status: 404 });
     }
 
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    let extension = 'jpg';
-    if (contentType.includes('webp')) extension = 'webp';
-    else if (contentType.includes('png')) extension = 'png';
+    const buffer = await data.arrayBuffer();
+    const contentType = data.type || 'image/jpeg';
+    
+    // Определяем расширение для красивого имени
+    const ext = contentType.includes('png') ? 'png' : 'jpg';
 
-    // 2. Сервер СРАЗУ ЖЕ отдает этот файл пользователю как документ (Stream)
-    // Провайдер юзера видит только klex.pro и ничего не блокирует!
-    return new NextResponse(response.body, {
+    return new NextResponse(buffer, {
       headers: {
         "Content-Type": contentType,
-        "Content-Disposition": `attachment; filename="KLEX_Original.${extension}"`,
+        "Content-Disposition": `attachment; filename="KLEX_Original_${Date.now()}.${ext}"`,
+        "Cache-Control": "no-store, max-age=0",
       },
     });
-  } catch (error) {
-    console.error("Ошибка проксирования файла:", error);
-    return new NextResponse("Ошибка сервера при скачивании файла", { status: 500 });
+  } catch (e) {
+    console.error("Proxy Download Error:", e);
+    return new NextResponse("Внутренняя ошибка сервера", { status: 500 });
   }
 }
