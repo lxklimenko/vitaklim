@@ -70,7 +70,7 @@ async function handleUserStart(ctx: any) {
         id: authUser.user.id,
         max_user_id: maxUserId,
         telegram_first_name: senderName,
-        balance: 50,
+        balance: 30,
         bot_state: "idle",
       }).select().single();
       profile = newProfile;
@@ -86,7 +86,7 @@ async function handleUserStart(ctx: any) {
     `🎨 **Создавать** невероятные картины по описанию\n` +
     `📸 **Превращать** обычные фото в цифровое искусство\n` +
     `🚀 **Генерировать** контент за считанные секунды\n\n` +
-    `🎁 Тебе начислено **50 🍌** (бананов) на первые шедевры!\n\n` +
+    `🎁 Тебе начислено **30 🍌** (бананов) на первые шедевры!\n\n` +
     `Нажми кнопку ниже, чтобы открыть меню и начать творить.`;
 
   const welcomeButtons = [[Keyboard.button.callback("🚀 Поехали!", "action_home")]];

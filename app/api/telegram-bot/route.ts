@@ -489,7 +489,7 @@ export async function POST(req: Request) {
           id: userId,
           telegram_id: telegramId,
           telegram_username: username,
-          balance: 50, // Бонус начислится, только если записи не было
+          balance: 30, // Бонус начислится, только если записи не было
           bot_state: "idle",
           bot_selected_model: null,
           bot_reference_url: null,
