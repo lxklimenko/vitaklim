@@ -747,21 +747,18 @@ async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
     const imageAttachment = await ctx.api.uploadImage({ source: buffer });
     await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
 
-    // 2. ИЗВЛЕКАЕМ ПУТЬ ДЛЯ КРАСИВОЙ ССЫЛКИ
-    // result.imageUrl выглядит так: https://.../generations-private/0ec2da.../177...jpg?token=...
-    // Мы вырезаем только короткий путь "0ec2da.../177...jpg"
-    const urlObj = new URL(result.imageUrl);
-    const filePath = urlObj.pathname.split('generations-private/')[1]; 
-
     const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://klex.pro";
-    const downloadUrl = `${SITE_URL}/api/download?file=${filePath}`;
+    
+    // 🚀 ПЕРЕДАЕМ ПОЛНУЮ ССЫЛКУ В НАШ ПРОКСИ-СЕРВЕР
+    // Оборачиваем в encodeURIComponent, чтобы ссылка не сломалась при передаче
+    const downloadUrl = `${SITE_URL}/api/download?url=${encodeURIComponent(result.imageUrl)}`;
 
     const keyboard = Keyboard.inlineKeyboard([
       [Keyboard.button.callback("🔄 Повторить", "action_repeat_generation")],
       [Keyboard.button.callback("🏠 Меню", "action_home")]
     ]);
     
-    // 3. 🚀 Отправляем короткую ссылку, которая мгновенно скачает файл
+    // Юзер жмет на ссылку -> запрос идет на klex.pro -> сервер скачивает из Supabase -> отдает юзеру
     await ctx.reply(`📁 **Оригинал в максимальном качестве:**\n🔗 [Скачать HD оригинал](${downloadUrl})`, { 
       format: 'markdown',
       attachments: [keyboard] 
@@ -828,19 +825,18 @@ async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
     const imageAttachment = await ctx.api.uploadImage({ source: buffer });
     await ctx.reply(`✨ Ваша генерация по фото готова!`, { attachments: [imageAttachment.toJson()] });
 
-    // 2. ИЗВЛЕКАЕМ ПУТЬ ДЛЯ КРАСИВОЙ ССЫЛКИ
-    const urlObj = new URL(result.imageUrl);
-    const filePath = urlObj.pathname.split('generations-private/')[1]; 
-
     const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://klex.pro";
-    const downloadUrl = `${SITE_URL}/api/download?file=${filePath}`;
+    
+    // 🚀 ПЕРЕДАЕМ ПОЛНУЮ ССЫЛКУ В НАШ ПРОКСИ-СЕРВЕР
+    // Оборачиваем в encodeURIComponent, чтобы ссылка не сломалась при передаче
+    const downloadUrl = `${SITE_URL}/api/download?url=${encodeURIComponent(result.imageUrl)}`;
 
     const keyboard = Keyboard.inlineKeyboard([
       [Keyboard.button.callback("🔄 Повторить", "action_repeat_generation")],
       [Keyboard.button.callback("🏠 Меню", "action_home")]
     ]);
     
-    // 3. 🚀 Отправляем короткую ссылку, которая мгновенно скачает файл
+    // Юзер жмет на ссылку -> запрос идет на klex.pro -> сервер скачивает из Supabase -> отдает юзеру
     await ctx.reply(`📁 **Оригинал в максимальном качестве:**\n🔗 [Скачать HD оригинал](${downloadUrl})`, { 
       format: 'markdown',
       attachments: [keyboard] 
