@@ -737,23 +737,30 @@ async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
       imageBuffers: undefined
     });
 
+    console.log("Успешная генерация! Скачиваем картинку...");
+
     const imageResponse = await fetch(result.imageUrl);
+    const contentType = imageResponse.headers.get('content-type') || '';
     const arrayBuffer = await imageResponse.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // 🖼 ШАГ 2: Создаем нормальное имя файла с расширением .jpg
-    const fileName = `KLEX_${Date.now()}.jpg`;
-
-    // 📤 ШАГ 3: Передаем имя файла прямо в метод отправки
-    const imageAttachment = await ctx.api.uploadImage({ 
-        source: buffer, 
-        name: fileName 
-    });
     
-    const fileAttachment = await ctx.api.uploadFile({ 
-        source: buffer, 
-        name: fileName // 👈 Теперь файл будет скачиваться как ФОТО
-    });
+    // Делаем buffer типа any, чтобы MAX API разрешил нам добавить к нему свойства name и path
+    const buffer: any = Buffer.from(arrayBuffer);
+
+    // Узнаем реальный формат картинки от нейросети
+    let extension = 'jpg';
+    if (contentType.includes('webp')) extension = 'webp';
+    else if (contentType.includes('png')) extension = 'png';
+
+    // Генерируем уникальное имя с правильным расширением
+    const fileName = `KLEX_${Date.now()}.${extension}`;
+
+    // 🛑 САМОЕ ВАЖНОЕ: Вшиваем имя прямо в сам файл (MAX API читает именно отсюда)
+    buffer.path = fileName;
+    buffer.name = fileName;
+
+    // Отправляем
+    const imageAttachment = await ctx.api.uploadImage({ source: buffer });
+    const fileAttachment = await ctx.api.uploadFile({ source: buffer });
 
     await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
     await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
@@ -816,23 +823,30 @@ async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
       imageBuffers: [userImageBuffer]
     });
 
+    console.log("Успешная генерация! Скачиваем картинку...");
+
     const imageResponse = await fetch(result.imageUrl);
+    const contentType = imageResponse.headers.get('content-type') || '';
     const arrayBuffer = await imageResponse.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // 🖼 ШАГ 2: Создаем нормальное имя файла с расширением .jpg
-    const fileName = `KLEX_${Date.now()}.jpg`;
-
-    // 📤 ШАГ 3: Передаем имя файла прямо в метод отправки
-    const imageAttachment = await ctx.api.uploadImage({ 
-        source: buffer, 
-        name: fileName 
-    });
     
-    const fileAttachment = await ctx.api.uploadFile({ 
-        source: buffer, 
-        name: fileName
-    });
+    // Делаем buffer типа any, чтобы MAX API разрешил нам добавить к нему свойства name и path
+    const buffer: any = Buffer.from(arrayBuffer);
+
+    // Узнаем реальный формат картинки от нейросети
+    let extension = 'jpg';
+    if (contentType.includes('webp')) extension = 'webp';
+    else if (contentType.includes('png')) extension = 'png';
+
+    // Генерируем уникальное имя с правильным расширением
+    const fileName = `KLEX_${Date.now()}.${extension}`;
+
+    // 🛑 САМОЕ ВАЖНОЕ: Вшиваем имя прямо в сам файл (MAX API читает именно отсюда)
+    buffer.path = fileName;
+    buffer.name = fileName;
+
+    // Отправляем
+    const imageAttachment = await ctx.api.uploadImage({ source: buffer });
+    const fileAttachment = await ctx.api.uploadFile({ source: buffer });
 
     await ctx.reply(`✨ Ваша генерация по фото готова!`, { attachments: [imageAttachment.toJson()] });
     await ctx.reply(`📁 Оригинал в максимальном качестве:`, { attachments: [fileAttachment.toJson()] });
