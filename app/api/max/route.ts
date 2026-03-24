@@ -2,9 +2,6 @@ import { NextResponse } from "next/server";
 import { Bot, Keyboard } from '@maxhub/max-bot-api';
 import { supabaseAdmin } from "@/app/lib/supabase-admin";
 import { generateImageCore } from "@/app/lib/generateCore";
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
 
 // ==================== КОНСТАНТЫ ====================
 const MAX_TOKEN = process.env.MAX_BOT_TOKEN!; 
@@ -740,49 +737,35 @@ async function handleTextGeneration(ctx: any, profile: any, prompt: string) {
       imageBuffers: undefined
     });
 
-    console.log("Успешная генерация! Сохраняем файл во временную папку Vercel...");
+    console.log("Успешная генерация! Подготавливаем файл...");
 
     const imageResponse = await fetch(result.imageUrl);
-    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
     const arrayBuffer = await imageResponse.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const buffer: any = Buffer.from(arrayBuffer);
 
-    let extension = 'jpg';
-    if (contentType.includes('webp')) extension = 'webp';
-    else if (contentType.includes('png')) extension = 'png';
+    // 1. Отправляем картинку как превью (тут библиотека MAX работает нормально)
+    const imageAttachment = await ctx.api.uploadImage({ source: buffer });
+    await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
 
-    // Формируем красивое имя и путь к временной папке /tmp
-    const fileName = `KLEX_${Date.now()}.${extension}`;
-    const tempFilePath = path.join(os.tmpdir(), fileName);
+    // 2. ИЗВЛЕКАЕМ ПУТЬ ДЛЯ КРАСИВОЙ ССЫЛКИ
+    // result.imageUrl выглядит так: https://.../generations-private/0ec2da.../177...jpg?token=...
+    // Мы вырезаем только короткий путь "0ec2da.../177...jpg"
+    const urlObj = new URL(result.imageUrl);
+    const filePath = urlObj.pathname.split('generations-private/')[1]; 
 
-    // 1. Физически сохраняем файл на диск сервера (Vercel разрешает это только в /tmp)
-    fs.writeFileSync(tempFilePath, buffer);
+    const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://klex.pro";
+    const downloadUrl = `${SITE_URL}/api/download?file=${filePath}`;
 
-    try {
-      // 2. Отправляем картинку как сжатое превью в чат
-      const imageAttachment = await ctx.api.uploadImage({ source: buffer });
-      await ctx.reply(`✨ Ваша генерация готова!`, { attachments: [imageAttachment.toJson()] });
-
-      // 3. Отправляем ОРИГИНАЛЬНЫЙ ФАЙЛ (документом)
-      // Передаем путь к файлу. Библиотека сама его прочитает и прикрепит правильное имя!
-      const fileAttachment = await ctx.api.uploadFile({ source: tempFilePath });
-      
-      const keyboard = Keyboard.inlineKeyboard([
-        [Keyboard.button.callback("🔄 Повторить", "action_repeat_generation")],
-        [Keyboard.button.callback("🏠 Меню", "action_home")]
-      ]);
-
-      await ctx.reply(`📁 **Оригинал в максимальном качестве:**\n(Файл без сжатия прикреплен ниже)`, { 
-        format: 'markdown',
-        attachments: [fileAttachment.toJson(), keyboard] 
-      });
-
-    } finally {
-      // 4. Обязательно удаляем файл с диска после отправки, чтобы память сервера не переполнилась
-      if (fs.existsSync(tempFilePath)) {
-        fs.unlinkSync(tempFilePath);
-      }
-    }
+    const keyboard = Keyboard.inlineKeyboard([
+      [Keyboard.button.callback("🔄 Повторить", "action_repeat_generation")],
+      [Keyboard.button.callback("🏠 Меню", "action_home")]
+    ]);
+    
+    // 3. 🚀 Отправляем короткую ссылку, которая мгновенно скачает файл
+    await ctx.reply(`📁 **Оригинал в максимальном качестве:**\n🔗 [Скачать HD оригинал](${downloadUrl})`, { 
+      format: 'markdown',
+      attachments: [keyboard] 
+    });
 
   } catch (error: any) {
     console.error("ОШИБКА:", error);
@@ -835,49 +818,33 @@ async function handlePhotoGeneration(ctx: any, profile: any, prompt: string) {
       imageBuffers: [userImageBuffer] // 👈 Отличие только в этой строке
     });
 
-    console.log("Успешная генерация! Сохраняем файл во временную папку Vercel...");
+    console.log("Успешная генерация! Подготавливаем файл...");
 
     const imageResponse = await fetch(result.imageUrl);
-    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
     const arrayBuffer = await imageResponse.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const buffer: any = Buffer.from(arrayBuffer);
 
-    let extension = 'jpg';
-    if (contentType.includes('webp')) extension = 'webp';
-    else if (contentType.includes('png')) extension = 'png';
+    // 1. Отправляем картинку как превью (тут библиотека MAX работает нормально)
+    const imageAttachment = await ctx.api.uploadImage({ source: buffer });
+    await ctx.reply(`✨ Ваша генерация по фото готова!`, { attachments: [imageAttachment.toJson()] });
 
-    // Формируем красивое имя и путь к временной папке /tmp
-    const fileName = `KLEX_${Date.now()}.${extension}`;
-    const tempFilePath = path.join(os.tmpdir(), fileName);
+    // 2. ИЗВЛЕКАЕМ ПУТЬ ДЛЯ КРАСИВОЙ ССЫЛКИ
+    const urlObj = new URL(result.imageUrl);
+    const filePath = urlObj.pathname.split('generations-private/')[1]; 
 
-    // 1. Физически сохраняем файл на диск сервера (Vercel разрешает это только в /tmp)
-    fs.writeFileSync(tempFilePath, buffer);
+    const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://klex.pro";
+    const downloadUrl = `${SITE_URL}/api/download?file=${filePath}`;
 
-    try {
-      // 2. Отправляем картинку как сжатое превью в чат
-      const imageAttachment = await ctx.api.uploadImage({ source: buffer });
-      await ctx.reply(`✨ Ваша генерация по фото готова!`, { attachments: [imageAttachment.toJson()] });
-
-      // 3. Отправляем ОРИГИНАЛЬНЫЙ ФАЙЛ (документом)
-      // Передаем путь к файлу. Библиотека сама его прочитает и прикрепит правильное имя!
-      const fileAttachment = await ctx.api.uploadFile({ source: tempFilePath });
-      
-      const keyboard = Keyboard.inlineKeyboard([
-        [Keyboard.button.callback("🔄 Повторить", "action_repeat_generation")],
-        [Keyboard.button.callback("🏠 Меню", "action_home")]
-      ]);
-
-      await ctx.reply(`📁 **Оригинал в максимальном качестве:**\n(Файл без сжатия прикреплен ниже)`, { 
-        format: 'markdown',
-        attachments: [fileAttachment.toJson(), keyboard] 
-      });
-
-    } finally {
-      // 4. Обязательно удаляем файл с диска после отправки, чтобы память сервера не переполнилась
-      if (fs.existsSync(tempFilePath)) {
-        fs.unlinkSync(tempFilePath);
-      }
-    }
+    const keyboard = Keyboard.inlineKeyboard([
+      [Keyboard.button.callback("🔄 Повторить", "action_repeat_generation")],
+      [Keyboard.button.callback("🏠 Меню", "action_home")]
+    ]);
+    
+    // 3. 🚀 Отправляем короткую ссылку, которая мгновенно скачает файл
+    await ctx.reply(`📁 **Оригинал в максимальном качестве:**\n🔗 [Скачать HD оригинал](${downloadUrl})`, { 
+      format: 'markdown',
+      attachments: [keyboard] 
+    });
 
   } catch (error: any) {
     console.error("ОШИБКА ГЕНЕРАЦИИ ПО ФОТО:", error);
