@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": contentType,
-        "Content-Disposition": `attachment; filename="KLEX_Original_${Date.now()}.${ext}"`,
+        "Content-Disposition": `inline; filename="KLEX_Original_${Date.now()}.${ext}"`,
         "Cache-Control": "no-store, max-age=0",
       },
     });
