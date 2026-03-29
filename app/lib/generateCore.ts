@@ -4,7 +4,7 @@ import { STORAGE_BUCKET } from "@/app/constants/storage";
 import OpenAI from "openai";
 
 const GENERATION_COST = parseInt(process.env.GENERATION_COST || "1", 10);
-const FETCH_TIMEOUT = 60000; // 60 seconds
+const FETCH_TIMEOUT = 60000; // 60 seconds (оставлен для возможного использования, но в Google-части не применяется)
 
 function generateFileName(userId: string) {
   const timestamp = Date.now();
@@ -18,21 +18,22 @@ export async function generateImageCore({
   modelId,
   aspectRatio,
   supabase,
-  imageBuffers,
+  imageBuffers, // <-- теперь массив
 }: {
   userId: string;
   prompt: string;
   modelId: string;
   aspectRatio?: string;
   supabase: any;
-  imageBuffers?: Buffer[];
+  imageBuffers?: Buffer[]; // <-- тип изменён на массив
 }) {
   console.log("START GENERATION:", { userId, prompt, modelId, photosCount: imageBuffers?.length || 0 });
 
+  // ========== Обработка суффикса 4K ==========
   const is4KRequested = modelId.endsWith("-4k");
   const cleanModelId = is4KRequested ? modelId.replace(/-4k$/, "") : modelId;
 
-  // ---------- SHARP PREPROCESS ----------
+  // 🔥 Оптимизируем ВСЕ входящие фото через Sharp (если они есть)
   let optimizedBuffers: Buffer[] = [];
   if (imageBuffers && imageBuffers.length > 0) {
     try {
@@ -40,26 +41,23 @@ export async function generateImageCore({
       optimizedBuffers = await Promise.all(
         imageBuffers.map(buf =>
           sharp(buf)
-            .resize({ width: 1024, height: 1024, fit: "inside", withoutEnlargement: true })
-            .jpeg({ quality: 75 })
+            .resize({ width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true })
+            .jpeg({ quality: 75 }) // Чуть ниже качество для экономии места (можно настроить)
             .toBuffer()
         )
       );
-
-      console.log(
-        "SHARP: Все фото оптимизированы, общий вес:",
-        optimizedBuffers.reduce((acc, b) => acc + b.length, 0) / 1024,
-        "KB"
-      );
+      console.log("SHARP: Все фото оптимизированы, общий вес:",
+        optimizedBuffers.reduce((acc, b) => acc + b.length, 0) / 1024, "KB");
     } catch (e) {
       console.error("SHARP PRE-PROCESS ERROR:", e);
+      // В случае ошибки используем оригиналы (риск, но лучше чем ничего)
       optimizedBuffers = imageBuffers;
     }
   }
 
   const startTime = Date.now();
 
-  // ---------- ANTI SPAM ----------
+  // 1️⃣ Anti-spam
   const { data: lastGeneration } = await supabase
     .from("generations")
     .select("created_at")
@@ -75,14 +73,14 @@ export async function generateImageCore({
     }
   }
 
-  // ---------- CLEAN OLD ----------
+  // 🔥 Удаляем старые зависшие "pending" записи пользователя
   await supabase
     .from("generations")
     .delete()
     .eq("user_id", userId)
     .eq("status", "pending");
 
-  // ---------- CREATE PENDING ----------
+  // 2️⃣ Создаём запись со статусом pending
   const { data: processingRecord, error: processingError } = await supabase
     .from("generations")
     .insert({
@@ -100,18 +98,18 @@ export async function generateImageCore({
 
   console.log("PENDING CREATED:", processingRecord.id);
 
-  // ---------- COST ----------
-  let cost = 5;
+  // ========== Определение стоимости ==========
+  let cost = 5; // По умолчанию Nano 2
 
   if (modelId.includes("-4k")) {
-    cost = 15;
+    cost = 15; // Nano Banano Pro (4K)
   } else if (modelId === "gemini-3-pro-image-preview") {
-    cost = 10;
+    cost = 10; // Nano Banana Pro
   } else if (modelId === "imagen-4-ultra" || modelId === "dall-e-3") {
-    cost = 15;
+    cost = 15; // Для Ultra и DALL-E
   }
 
-  // ---------- BALANCE ----------
+  // 3️⃣ Всегда списываем баланс через RPC
   const { data: rpcResult } = await supabase.rpc("create_generation", {
     p_generation_id: processingRecord.id,
     p_user_id: userId,
@@ -121,25 +119,21 @@ export async function generateImageCore({
   if (!rpcResult?.success) {
     throw new Error(rpcResult?.error || "Не удалось списать средства");
   }
-
   console.log("BALANCE CHARGED");
 
-  // ============================================================
-  // ==================== GENERATION =============================
-  // ============================================================
-
+  // ------------------- ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ -------------------
   let buffer: Buffer;
 
   if (modelId === "dall-e-3") {
+    // OpenAI DALL-E 3 (поддерживает только одно изображение как референс)
     console.log("CALLING OPENAI API");
-
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error("API ключ OpenAI не настроен");
 
     const openai = new OpenAI({ apiKey });
-
     let finalPrompt = prompt;
 
+    // Если есть хотя бы одно фото, используем первое для описания
     if (optimizedBuffers.length > 0) {
       const visionResponse = await openai.chat.completions.create({
         model: "gpt-4o",
@@ -151,18 +145,13 @@ export async function generateImageCore({
           ],
         }],
       });
-
       const visualDescription = visionResponse.choices[0]?.message?.content;
       finalPrompt = `На основе описания: ${visualDescription}. Изменения: ${prompt}`;
     }
 
     let dallESize: "1024x1024" | "1792x1024" | "1024x1792" = "1024x1024";
-
-    if (aspectRatio === "16:9" || aspectRatio === "21:9") {
-      dallESize = "1792x1024";
-    } else if (aspectRatio === "9:16") {
-      dallESize = "1024x1792";
-    }
+    if (aspectRatio === "16:9" || aspectRatio === "21:9") dallESize = "1792x1024";
+    else if (aspectRatio === "9:16") dallESize = "1024x1792";
 
     const response = await openai.images.generate({
       model: "dall-e-3",
@@ -174,21 +163,17 @@ export async function generateImageCore({
 
     const base64Image = response?.data?.[0]?.b64_json;
     if (!base64Image) throw new Error("OpenAI не вернул изображение");
-
     buffer = Buffer.from(base64Image, "base64");
-
     console.log("OPENAI RESPONSE RECEIVED");
-
   } else {
+    // 🌐 ГЕНЕРАЦИЯ ЧЕРЕЗ GOOGLE (поддержка нескольких фото)
     console.log("CALLING GOOGLE API WITH MULTIPLE PHOTOS");
-
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) throw new Error("API key не настроен");
 
-    const isProModel =
-      cleanModelId === "gemini-3-pro-image-preview" ||
-      cleanModelId === "imagen-4-ultra";
+    const isProModel = cleanModelId === "gemini-3-pro-image-preview" || cleanModelId === "imagen-4-ultra";
 
+    // Формируем массив частей: текстовый промпт + все фото
     const parts: any[] = [{ text: prompt }];
 
     if (optimizedBuffers.length > 0) {
@@ -208,7 +193,7 @@ export async function generateImageCore({
         responseModalities: ["image"],
         ...(aspectRatio && {
           imageConfig: {
-            aspectRatio: aspectRatio.replace(/\s/g, ""),
+            aspectRatio: aspectRatio.replace(/\s/g, ''),
           }
         }),
         temperature: isProModel ? 0.35 : 0.7,
@@ -221,73 +206,56 @@ export async function generateImageCore({
       ]
     };
 
-    // 🔥 ЗАМЕНЕННЫЙ FETCH
     const response = await fetch(
-      `https://alex-cosh.vercel.app/api/proxy?model=${cleanModelId}&key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${cleanModelId}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody)
       }
     );
-
+   
     const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error?.message || "Ошибка генерации");
-    }
+    if (!response.ok) throw new Error(data.error?.message || "Ошибка генерации");
 
     console.log("GOOGLE RAW RESPONSE:", JSON.stringify(data, null, 2));
 
     const base64Image = data?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData)?.inlineData?.data;
-
-    if (!base64Image) {
-      throw new Error("Модель не вернула изображение");
-    }
-
+    if (!base64Image) throw new Error("Модель не вернула изображение");
     buffer = Buffer.from(base64Image, "base64");
-
     console.log("GOOGLE RESPONSE RECEIVED");
   }
 
-  // ============================================================
-  // ==================== UPSCALE ================================
-  // ============================================================
-
+  // ------------------- ОБРАБОТКА И СОХРАНЕНИЕ -------------------
+  // 🚀 Улучшение качества (upscale) для Pro моделей
   let processedBuffer: Buffer;
-
   try {
-    const isProModel =
-      cleanModelId === "gemini-3-pro-image-preview" ||
-      cleanModelId === "imagen-4-ultra";
-
+    const isProModel = cleanModelId === "gemini-3-pro-image-preview" || cleanModelId === "imagen-4-ultra";
+   
     let sharpInstance = sharp(buffer);
-
+   
     if (isProModel) {
-      console.log(`[UPSCALE] Режим: ${is4KRequested ? "4K" : "Pro 2K"}`);
-
-      const targetArea = is4KRequested ? 8294400 : 4194304;
+      console.log(`[UPSCALE] Режим: ${is4KRequested ? '4K' : 'Pro 2K'}`);
+     
+      const targetArea = is4KRequested ? 8294400 : 4194304; // 8.3 Мп для 4K, 4.2 Мп для 2K Pro
       const MAX_SIDE = is4KRequested ? 3840 : 2560;
 
       const metadata = await sharpInstance.metadata();
-
+     
       let effectiveRatio = aspectRatio || "1:1";
-
       if (!aspectRatio || aspectRatio === "1:1") {
         const found = prompt.match(/(\d+):(\d+)/);
         if (found) effectiveRatio = `${found[1]}:${found[2]}`;
       }
 
-      const ratioParts = effectiveRatio.split(":").map(Number);
+      const ratioParts = effectiveRatio.split(':').map(Number);
       const ratio = (ratioParts[0] || 1) / (ratioParts[1] || 1);
 
       let targetWidth = Math.round(Math.sqrt(targetArea * ratio));
-
       if (targetWidth > MAX_SIDE) targetWidth = MAX_SIDE;
 
       if (metadata.width && metadata.width < targetWidth) {
         console.log(`[UPSCALE] Увеличение с ${metadata.width}px до ${targetWidth}px`);
-
         sharpInstance = sharpInstance
           .resize({
             width: targetWidth,
@@ -296,29 +264,24 @@ export async function generateImageCore({
           })
           .sharpen(is4KRequested ? 1.5 : 1.0, 0.5, 0.2);
       } else {
-        console.log(`[UPSCALE] Уже большой размер (${metadata.width}px)`);
+        console.log(`[UPSCALE] Изображение уже достаточного размера (${metadata.width}px), пропускаем увеличение`);
       }
     }
 
     processedBuffer = await sharpInstance
       .jpeg({
         quality: isProModel ? 100 : 85,
-        chromaSubsampling: isProModel ? "4:4:4" : "4:2:0",
+        chromaSubsampling: isProModel ? '4:4:4' : '4:2:0',
         mozjpeg: true,
         force: true
       })
       .toBuffer();
 
     console.log("GENERATION & UPSCALE COMPLETED SUCCESSFULLY");
-
   } catch (err) {
     console.error("Sharp Processing Error:", err);
     throw new Error("Ошибка улучшения изображения");
   }
-
-  // ============================================================
-  // ==================== STORAGE ================================
-  // ============================================================
 
   const fileName = generateFileName(userId);
 
@@ -362,6 +325,6 @@ export async function generateImageCore({
 
   return {
     imageUrl: publicUrl,
-    generationId: processingRecord.id
+    generationId: processingRecord.id //х
   };
 }
