@@ -206,8 +206,9 @@ export async function generateImageCore({
       ]
     };
 
+    // ИЗМЕНЁННЫЙ URL: вместо generativelanguage.googleapis.com используется прокси-воркер
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${cleanModelId}:generateContent?key=${apiKey}`,
+      `https://klex-proxy.lxklimenko.workers.dev/v1beta/models/${cleanModelId}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -317,8 +318,7 @@ export async function generateImageCore({
       status: "completed",
       image_url: publicUrl,
       storage_path: fileName,
-      generation_time_ms: generationTime,
-      cost: cost  // добавлено поле стоимости
+      generation_time_ms: generationTime
     })
     .eq("id", processingRecord.id);
 
@@ -326,6 +326,6 @@ export async function generateImageCore({
 
   return {
     imageUrl: publicUrl,
-    generationId: processingRecord.id //х
+    generationId: processingRecord.id
   };
 }
