@@ -860,6 +860,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("MAX ERROR ВНУТРИ NEXT.JS:", e);
-    return NextResponse.json({ ok: false });
+    return NextResponse.json({ ok: false });//gg
   }
 }
