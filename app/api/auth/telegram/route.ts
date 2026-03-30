@@ -70,26 +70,43 @@ export async function POST(req: NextRequest) {
     const email = `telegram_${telegramUser.id}@telegram.local`;
     const password = `secure_${telegramUser.id}`;
 
-    // 1. Ищем, есть ли уже такой пользователь в Supabase Auth
-    const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
-    const authUser = users?.find(u => u.email === email);
+    let userId: string
 
-    let userId: string;
+    // Сначала пробуем найти пользователя по email
+    const { data: { users } } = await supabaseAdmin.auth.admin.listUsers()
+    const authUser = users?.find(u => u.email === email)
 
-    if (!authUser) {
-      // Создаем нового пользователя в Auth, если его нет
+    if (authUser) {
+      // Пользователь уже есть — берём его ID
+      userId = authUser.id
+    } else {
+      // Пользователя нет — создаём нового
       const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
-      });
-      if (createError || !created.user) {
-        console.error('createUser failed:', JSON.stringify(createError))
+      })
+
+      if (createError) {
+        // Если email уже занят (race condition) — ищем ещё раз
+        if (createError.message?.includes('email') || (createError as any).code === 'email_exists') {
+          const { data: { users: users2 } } = await supabaseAdmin.auth.admin.listUsers()
+          const found = users2?.find(u => u.email === email)
+          if (found) {
+            userId = found.id
+          } else {
+            console.error('createUser failed:', JSON.stringify(createError))
+            throw new Error('Auth creation failed')
+          }
+        } else {
+          console.error('createUser failed:', JSON.stringify(createError))
+          throw new Error('Auth creation failed')
+        }
+      } else if (!created.user) {
         throw new Error('Auth creation failed')
+      } else {
+        userId = created.user.id
       }
-      userId = created.user.id;
-    } else {
-      userId = authUser.id;
     }
 
     // 2. 🔥 МАГИЯ СКЛЕЙКИ: Ищем существующий профиль по telegram_id
