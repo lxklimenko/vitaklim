@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     const email = `telegram_${telegramUser.id}@telegram.local`
     const password = `secure_${telegramUser.id}`
 
-    let userId: string
+    let userId!: string
 
     // Шаг 1: пробуем создать пользователя
     const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
