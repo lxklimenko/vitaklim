@@ -3,7 +3,7 @@ export async function GET() {
     const res = await fetch("https://api.max.ru/bot/setWebhook", {
       method: "POST",
       headers: {
-        "Authorization": "f9LHodD0cOLMc8UCrC62G1ec2CypSZR1hYdu5-DRyPm3Er_LKh5BjR-6NnnWiQqkDeviNqkKrxBsDsa-SK4V",
+        "Authorization": process.env.MAX_BOT_TOKEN!,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
