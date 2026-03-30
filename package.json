@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "bot": "tsx max-bot-polling.ts"
   },
   "dependencies": {
     "@a2seven/yoo-checkout": "^1.1.4",
@@ -35,6 +36,7 @@
     "eslint-config-next": "16.1.4",
     "supabase": "^2.72.9",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   },
   "browserslist": [
