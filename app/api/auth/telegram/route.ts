@@ -83,7 +83,10 @@ export async function POST(req: NextRequest) {
         password,
         email_confirm: true,
       });
-      if (createError || !created.user) throw new Error('Auth creation failed');
+      if (createError || !created.user) {
+        console.error('createUser failed:', JSON.stringify(createError))
+        throw new Error('Auth creation failed')
+      }
       userId = created.user.id;
     } else {
       userId = authUser.id;
