@@ -1,6 +1,6 @@
 export async function GET() {
   try {
-    const res = await fetch("https://api.max.ru/bot/setWebhook", {
+    const res = await fetch("https://platform-api.max.ru/subscriptions", {
       method: "POST",
       headers: {
         "Authorization": process.env.MAX_BOT_TOKEN!,
