@@ -6,8 +6,14 @@ import '@fontsource/inter/600.css';
 import ClientProviders from './ClientProviders'
 
 export const metadata: Metadata = {
-  title: "PromptVision | Маркетплейс премиальных промптов",
-  description: "Создавай шедевры с помощью ИИ. Лучшие промпты для Midjourney, Stable Diffusion и Flux.",
+  title: "KLEX.PRO | Маркетплейс премиальных промптов",
+  description: "Создавай шедевры с помощью ИИ. Лучшие промпты для генерации изображений.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "KLEX.PRO",
+  },
 };
 
 export default function RootLayout({
@@ -17,9 +23,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru" className="dark">
+      <head>
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+      </head>
       <body className="font-sans bg-[#0a0a0a] text-white antialiased selection:bg-white/20">
-        
-        <Script 
+
+        <Script
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"
         />
