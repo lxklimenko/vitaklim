@@ -107,6 +107,7 @@ export default async function AdminPage() {
       <nav className="flex gap-6 mb-12 bg-[#141414] p-4 rounded-2xl border border-white/5">
         <Link href="/admin" className="text-white hover:text-blue-400 font-medium">📈 Дашборд</Link>
         <Link href="/admin/users" className="text-white/60 hover:text-blue-400 transition">👥 Пользователи</Link>
+        <Link href="/admin/prompts" className="text-white/60 hover:text-blue-400 transition">➕ Добавить промпт</Link>
         <Link href="/admin/promos" className="text-white/20 cursor-not-allowed transition">🎟 Промокоды (скоро)</Link>
       </nav>
 
