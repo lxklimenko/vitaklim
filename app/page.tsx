@@ -1,10 +1,9 @@
 import ClientApp from './ClientApp';
 import { getPrompts } from '@/app/lib/getPrompts';
 
+export const dynamic = 'force-dynamic';
 
-export const dynamic = 'force-static';
-
-export default function Page() {
-  const prompts = getPrompts();
+export default async function Page() {
+  const prompts = await getPrompts();
   return <ClientApp prompts={prompts} />;
 }
