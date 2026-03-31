@@ -1,7 +1,7 @@
 {
-  "name": "PromptVision",
-  "short_name": "PromptVision",
-  "description": "Marketplace премиальных промптов для AI-фотографий",
+  "name": "KLEX.PRO",
+  "short_name": "KLEX",
+  "description": "Маркетплейс премиальных промптов",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
@@ -9,13 +9,18 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
+      "src": "/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/icon-512x512.png",
       "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
       "type": "image/png"
     }
   ]
