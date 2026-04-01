@@ -78,7 +78,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   if (!prompt || !prompt.image) return notFound();
 
   return (
-    <div className="h-screen max-h-screen bg-black text-white overflow-hidden flex flex-col touch-none select-none" style={{ position: 'fixed', inset: 0 }}>
+    <div className="h-screen bg-black text-white overflow-hidden flex flex-col">
 
       {/* Верхняя часть — картинка */}
       <div className="relative flex-1 min-h-0 overflow-hidden">
@@ -101,7 +101,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
       </div>
 
       {/* Нижняя часть — информация на чёрном фоне */}
-      <div className="shrink-0 bg-black px-5 pt-4 pb-8 space-y-3">
+      <div className="flex-shrink-0 bg-black px-5 pt-3 pb-6 space-y-3" style={{ maxHeight: '45vh' }}>
 
         {/* Мета */}
         <div className="flex items-center justify-between">
