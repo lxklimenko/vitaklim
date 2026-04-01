@@ -44,11 +44,11 @@ export const MainFeed = React.memo(function MainFeed({
           animate={{ opacity: 1, y: 0 }}
           className="mb-6 px-4 text-center"
         >
-          <h1 className="text-[32px] md:text-5xl font-bold tracking-tighter mb-1 text-white">
+          <h1 className="text-[32px] md:text-5xl font-bold tracking-tighter mb-2 bg-linear-to-r from-white via-white/90 to-white/60 bg-clip-text text-transparent">
             Создавай шедевры
           </h1>
           <p className="text-[13px] md:text-base text-white/40 max-w-xl mx-auto leading-relaxed">
-            Маркетплейс премиальных промптов.
+            Маркетплейс премиальных промптов для генерации ИИ-изображений
           </p>
         </motion.div>
       )}
@@ -106,7 +106,7 @@ export const MainFeed = React.memo(function MainFeed({
           <div className="mt-12 flex justify-center px-4">
             <button
               onClick={() => setVisibleCount((prev) => prev + 8)}
-              className="px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-white/60 font-medium active:scale-95 transition-all hover:bg-white/10 hover:text-white"
+              className="px-8 py-4 rounded-2xl bg-white text-black font-bold active:scale-95 transition-all hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.15)]"
             >
               Загрузить ещё
             </button>
