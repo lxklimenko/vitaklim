@@ -78,10 +78,12 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   if (!prompt || !prompt.image) return notFound();
 
   return (
-    <div className="h-screen bg-black text-white overflow-hidden flex flex-col">
-
-      {/* Верхняя часть — картинка */}
-      <div className="relative flex-1 min-h-0 overflow-hidden bg-black flex items-center justify-center">
+    <div
+      className="bg-black text-white flex flex-col overflow-hidden"
+      style={{ height: '100dvh' }}
+    >
+      {/* Картинка — занимает всё что осталось после нижней панели */}
+      <div className="relative overflow-hidden bg-black" style={{ height: '58dvh' }}>
         <Image
           src={prompt.image.src}
           alt={prompt.title}
@@ -96,13 +98,15 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         >
           <X size={18} className="text-white/80" />
         </button>
-        {/* Градиент снизу картинки для плавного перехода */}
-        <div className="absolute bottom-0 left-0 right-0 h-12 bg-linear-to-t from-black to-transparent" />
+        {/* Градиент снизу */}
+        <div className="absolute bottom-0 left-0 right-0 h-8 bg-linear-to-t from-black to-transparent" />
       </div>
 
-      {/* Нижняя часть — информация на чёрном фоне */}
-      <div className="flex-shrink-0 bg-black px-5 pt-3 pb-6 space-y-3" style={{ maxHeight: '45vh' }}>
-
+      {/* Нижняя панель — фиксированная высота 42dvh */}
+      <div
+        className="bg-black px-5 pt-4 pb-6 flex flex-col gap-3 overflow-hidden"
+        style={{ height: '42dvh' }}
+      >
         {/* Мета */}
         <div className="flex items-center justify-between">
           <div>
@@ -127,28 +131,27 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
         {/* Промпт */}
         <div
-          className="bg-white/4 border border-white/[0.07] rounded-2xl px-4 py-3 cursor-pointer"
+          className="flex-1 bg-white/[0.04] border border-white/[0.07] rounded-2xl px-4 py-3 overflow-hidden cursor-pointer"
           onClick={() => setIsPromptExpanded(!isPromptExpanded)}
         >
           <p className={`text-[12px] leading-relaxed text-white/60 ${
-            isPromptExpanded ? '' : 'line-clamp-2'
+            isPromptExpanded ? 'overflow-y-auto h-full' : 'line-clamp-3'
           }`}>
             {prompt.prompt}
           </p>
         </div>
 
         {/* Кнопки */}
-        <div className="flex gap-2 pt-1">
+        <div className="flex gap-2">
           <button
             onClick={() => actions.handleCopy(prompt.id, prompt.prompt, 0, setCopiedId)}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/6 border border-white/8 text-white/60 text-[13px] font-medium hover:bg-white/10 hover:text-white transition active:scale-95"
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/[0.06] border border-white/[0.08] text-white/60 text-[13px] font-medium hover:bg-white/10 hover:text-white transition active:scale-95"
           >
             {copiedId === prompt.id
               ? <><Check size={14} /> Скопировано</>
               : <><Copy size={14} /> Копировать</>
             }
           </button>
-
           <button
             onClick={() => {
               setGeneratePrompt(prompt.prompt);
