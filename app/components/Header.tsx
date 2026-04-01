@@ -46,15 +46,16 @@ export const Header: React.FC<HeaderProps> = ({
         <div
           onClick={onResetView}
           className={`flex-shrink-0 cursor-pointer active:scale-95 transition-all duration-300 ${
-            isSearchActive ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-8'
+            isSearchActive ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-7'
           }`}
         >
           <Image
             src="/icon-192x192.png"
             alt="KLEX"
-            width={32}
-            height={32}
-            className="rounded-lg"
+            width={28}
+            height={28}
+            className="rounded-md"
+            style={{ objectFit: 'cover' }}
           />
         </div>
 
