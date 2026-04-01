@@ -38,17 +38,9 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   const { user, favorites, setFavorites, fetchProfile } = useAuth();
 
   const {
-    generatePrompt,
-    setGeneratePrompt,
-    isGenerating,
-    modelId,
-    setModelId,
-    aspectRatio,
-    setAspectRatio,
-    referencePreview,
-    handleFileChange,
-    handleRemoveImage,
-    handleGenerate,
+    generatePrompt, setGeneratePrompt, isGenerating,
+    modelId, setModelId, aspectRatio, setAspectRatio,
+    referencePreview, handleFileChange, handleRemoveImage, handleGenerate,
   } = useImageGeneration(user, () => setIsGenerateOpen(false));
 
   const actions = useAppActions(user, setFavorites, fetchProfile, () => {});
@@ -57,19 +49,11 @@ export default function PromptClient({ prompts }: PromptClientProps) {
     if (staticPrompt) return;
     const fetchFromDb = async () => {
       setIsLoading(true);
-      const { data } = await supabase
-        .from('generations')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const { data } = await supabase.from('generations').select('*').eq('id', id).single();
       if (data) {
         setDbPrompt({
-          id: data.id,
-          title: 'Моя генерация',
-          tool: 'Vision AI',
-          category: 'История',
-          price: 0,
-          prompt: data.prompt,
+          id: data.id, title: 'Моя генерация', tool: 'Vision AI',
+          category: 'История', price: 0, prompt: data.prompt,
           image: { src: data.image_url, width: 1024, height: 1024, aspect: '1:1' },
           description: 'Сгенерировано пользователем'
         });
@@ -93,109 +77,103 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   if (!prompt || !prompt.image) return notFound();
 
   return (
-    <div className="h-screen bg-black text-white overflow-hidden flex flex-col">
+    <div className="h-screen bg-black text-white flex flex-col overflow-hidden">
 
-      {/* Кнопка назад */}
-      <div className="absolute top-4 left-4 z-50">
-        <button
-          onClick={() => router.back()}
-          className="w-10 h-10 flex items-center justify-center rounded-full bg-black/60 backdrop-blur-md border border-white/10 hover:bg-black/80 transition-all"
-        >
-          <X size={18} className="text-white/70" />
-        </button>
-      </div>
+      {/* Картинка — верхняя часть экрана */}
+      <div className="relative flex-1 min-h-0">
+        {/* Размытый фон */}
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `url(${prompt.image.src})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'blur(60px)',
+            opacity: 0.25,
+            transform: 'scale(1.1)',
+          }}
+        />
 
-      {/* Основной контент — горизонтально */}
-      <div className="flex flex-col md:flex-row h-full">
-
-        {/* Левая часть — картинка */}
-        <div className="relative flex-1 overflow-hidden">
-          {/* Размытый фон */}
-          <div
-            className="absolute inset-0 scale-110"
-            style={{
-              backgroundImage: `url(${prompt.image.src})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              filter: 'blur(40px)',
-              opacity: 0.3,
-            }}
+        {/* Картинка по центру */}
+        <div className="relative z-10 h-full flex items-center justify-center">
+          <Image
+            src={prompt.image.src}
+            alt={prompt.title}
+            width={600}
+            height={800}
+            className="h-full w-auto object-contain"
+            priority
           />
-          {/* Картинка */}
-          <div className="relative z-10 h-full flex items-center justify-center p-6 pt-16">
-            <Image
-              src={prompt.image.src}
-              alt={prompt.title}
-              width={800}
-              height={1000}
-              className="max-h-full w-auto object-contain rounded-2xl shadow-2xl"
-              priority
-            />
-          </div>
         </div>
 
-        {/* Правая часть — инфо */}
-        <div className="w-full md:w-[340px] flex flex-col justify-between p-6 pt-16 border-t md:border-t-0 md:border-l border-white/5">
+        {/* Кнопка назад */}
+        <button
+          onClick={() => router.back()}
+          className="absolute top-4 left-4 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-md border border-white/10 transition active:scale-95"
+        >
+          <X size={16} className="text-white/70" />
+        </button>
 
-          {/* Верх — мета */}
-          <div className="space-y-1 mb-4">
-            <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/30">
-              {prompt.category}
+        {/* Градиент снизу картинки */}
+        <div className="absolute bottom-0 left-0 right-0 h-16 bg-linear-to-t from-black to-transparent z-10" />
+      </div>
+
+      {/* Нижняя панель — фиксированная высота */}
+      <div className="flex-shrink-0 px-5 pt-4 pb-8 space-y-4 bg-black">
+
+        {/* Мета */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/30 mb-0.5">
+              {prompt.tool}
             </p>
-            <h1 className="text-[18px] font-bold text-white leading-tight">
+            <h1 className="text-[17px] font-bold text-white leading-tight">
               {prompt.title}
             </h1>
-            <p className="text-[12px] text-white/40">{prompt.tool}</p>
           </div>
 
-          {/* Промпт */}
-          <div className="flex-1 flex flex-col min-h-0 mb-4">
-            <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-white/25 mb-2">
-              Промпт
-            </p>
-            <div className="flex-1 overflow-y-auto no-scrollbar bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4">
-              <p className="text-[13px] leading-relaxed text-white/70 whitespace-pre-wrap select-all">
-                {prompt.prompt}
-              </p>
-            </div>
-          </div>
+          {/* Лайк */}
+          <button
+            onClick={(e) => actions.toggleFavorite(e, prompt.id, favorites)}
+            className={`w-10 h-10 flex items-center justify-center rounded-full border transition active:scale-95 ${
+              isFavorite
+                ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                : 'bg-white/5 border-white/10 text-white/40 hover:text-white'
+            }`}
+          >
+            <Heart size={16} className={isFavorite ? 'fill-current' : ''} />
+          </button>
+        </div>
 
-          {/* Кнопки действий */}
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <button
-                onClick={() => actions.handleCopy(prompt.id, prompt.prompt, 0, setCopiedId)}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/5 border border-white/8 text-white/60 text-[13px] font-medium hover:bg-white/10 hover:text-white transition active:scale-95"
-              >
-                {copiedId === prompt.id
-                  ? <><Check size={15} /> Скопировано</>
-                  : <><Copy size={15} /> Копировать</>
-                }
-              </button>
+        {/* Промпт */}
+        <div className="bg-white/[0.04] border border-white/[0.07] rounded-2xl px-4 py-3 max-h-24 overflow-y-auto no-scrollbar">
+          <p className="text-[12px] leading-relaxed text-white/60 whitespace-pre-wrap select-all">
+            {prompt.prompt}
+          </p>
+        </div>
 
-              <button
-                onClick={(e) => actions.toggleFavorite(e, prompt.id, favorites)}
-                className={`w-12 flex items-center justify-center rounded-2xl border transition active:scale-95 ${
-                  isFavorite
-                    ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                    : 'bg-white/5 border-white/8 text-white/50 hover:bg-white/10'
-                }`}
-              >
-                <Heart size={16} className={isFavorite ? 'fill-current' : ''} />
-              </button>
-            </div>
+        {/* Кнопки */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => actions.handleCopy(prompt.id, prompt.prompt, 0, setCopiedId)}
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/[0.06] border border-white/[0.08] text-white/60 text-[13px] font-medium hover:bg-white/10 hover:text-white transition active:scale-95"
+          >
+            {copiedId === prompt.id
+              ? <><Check size={14} /> Скопировано</>
+              : <><Copy size={14} /> Копировать</>
+            }
+          </button>
 
-            <button
-              onClick={() => {
-                setGeneratePrompt(prompt.prompt);
-                setIsGenerateOpen(true);
-              }}
-              className="w-full py-4 rounded-2xl bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-2 hover:bg-white/90 active:scale-[0.98] transition-all"
-            >
-              <Sparkles size={16} />
-              Сгенерировать
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              setGeneratePrompt(prompt.prompt);
+              setIsGenerateOpen(true);
+            }}
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white text-black font-semibold text-[13px] hover:bg-white/90 active:scale-[0.98] transition-all"
+          >
+            <Sparkles size={14} />
+            Сгенерировать
+          </button>
         </div>
       </div>
 
