@@ -80,7 +80,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
     <div className="h-screen bg-black text-white flex flex-col overflow-hidden">
 
       {/* Картинка — верхняя часть экрана */}
-      <div className="relative flex-1 min-h-0">
+      <div className="relative min-h-0" style={{ height: '58vh' }}>
         {/* Размытый фон */}
         <div
           className="absolute inset-0"
@@ -95,7 +95,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         />
 
         {/* Картинка по центру */}
-        <div className="relative z-10 h-full flex items-center justify-center">
+        <div className="relative z-10 h-full flex items-center justify-center overflow-hidden">
           <Image
             src={prompt.image.src}
             alt={prompt.title}
@@ -114,12 +114,12 @@ export default function PromptClient({ prompts }: PromptClientProps) {
           <X size={16} className="text-white/70" />
         </button>
 
-        {/* Градиент снизу картинки */}
+        {/* Градиент снизу */}
         <div className="absolute bottom-0 left-0 right-0 h-16 bg-linear-to-t from-black to-transparent z-10" />
       </div>
 
-      {/* Нижняя панель — фиксированная высота */}
-      <div className="flex-shrink-0 px-5 pt-4 pb-8 space-y-4 bg-black">
+      {/* Нижняя панель */}
+      <div className="flex-shrink-0 px-5 pt-4 pb-8 space-y-4 bg-black" style={{ height: '42vh' }}>
 
         {/* Мета */}
         <div className="flex items-center justify-between">
@@ -146,7 +146,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
 
         {/* Промпт */}
-        <div className="bg-white/[0.04] border border-white/[0.07] rounded-2xl px-4 py-3 max-h-24 overflow-y-auto no-scrollbar">
+        <div className="bg-white/4 border border-white/[0.07] rounded-2xl px-4 py-3 max-h-24 overflow-y-auto no-scrollbar">
           <p className="text-[12px] leading-relaxed text-white/60 whitespace-pre-wrap select-all">
             {prompt.prompt}
           </p>
@@ -156,7 +156,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         <div className="flex gap-2">
           <button
             onClick={() => actions.handleCopy(prompt.id, prompt.prompt, 0, setCopiedId)}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/[0.06] border border-white/[0.08] text-white/60 text-[13px] font-medium hover:bg-white/10 hover:text-white transition active:scale-95"
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/6 border border-white/8 text-white/60 text-[13px] font-medium hover:bg-white/10 hover:text-white transition active:scale-95"
           >
             {copiedId === prompt.id
               ? <><Check size={14} /> Скопировано</>

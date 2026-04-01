@@ -38,13 +38,13 @@ export const Header: React.FC<HeaderProps> = ({
       : "Войти";
 
   return (
-    <header className="relative z-10 border-b border-white/[0.05] bg-black/80 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-4 h-[56px] flex items-center gap-3">
+    <header className="relative z-10 border-b border-white/5 bg-black/80 backdrop-blur-xl">
+      <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
 
         {/* Логотип */}
         <div
           onClick={onResetView}
-          className={`flex-shrink-0 cursor-pointer active:scale-95 transition-all duration-300 ${
+          className={`shrink-0 cursor-pointer active:scale-95 transition-all duration-300 ${
             isSearchActive ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'
           }`}
         >
@@ -52,10 +52,10 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Поиск */}
-        <div className={`flex-grow flex items-center gap-2 bg-white/[0.07] rounded-full px-4 py-2 transition-all duration-300 ${
+        <div className={`grow flex items-center gap-2 bg-white/[0.07] rounded-full px-4 py-2 transition-all duration-300 ${
           isSearchActive ? 'ring-1 ring-white/20' : ''
         }`}>
-          <Search size={14} className="text-white/30 flex-shrink-0" />
+          <Search size={14} className="text-white/30 shrink-0" />
           <input
             type="text"
             placeholder="Поиск промптов..."
@@ -70,7 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Профиль */}
         <button
           onClick={onOpenProfile}
-          className="flex-shrink-0 text-[13px] font-medium text-white/60 hover:text-white transition-colors"
+          className="shrink-0 text-[13px] font-medium text-white/60 hover:text-white transition-colors"
         >
           {displayName || "Войти"}
         </button>
