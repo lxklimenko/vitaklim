@@ -78,62 +78,59 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   if (!prompt || !prompt.image) return notFound();
 
   return (
-    <div className="relative h-screen bg-black text-white overflow-hidden">
+    <div className="h-screen bg-black text-white overflow-hidden flex flex-col">
 
-      {/* Картинка — на весь экран */}
-      <div className="absolute inset-0">
+      {/* Верхняя часть — картинка */}
+      <div className="relative flex-1 min-h-0 overflow-hidden">
         <Image
           src={prompt.image.src}
           alt={prompt.title}
           fill
-          className="object-cover"
+          className="object-cover object-top"
           priority
         />
+        {/* Кнопка назад */}
+        <button
+          onClick={() => router.back()}
+          className="absolute top-4 left-4 z-20 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 transition active:scale-95"
+        >
+          <X size={18} className="text-white/80" />
+        </button>
+        {/* Градиент снизу картинки для плавного перехода */}
+        <div className="absolute bottom-0 left-0 right-0 h-12 bg-linear-to-t from-black to-transparent" />
       </div>
 
-      {/* Тёмный оверлей снизу */}
-      <div className="absolute inset-0 bg-linear-to-t from-black via-black/40 to-transparent" />
-
-      {/* Кнопка назад */}
-      <button
-        onClick={() => router.back()}
-        className="absolute top-4 left-4 z-20 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 transition active:scale-95"
-      >
-        <X size={18} className="text-white/80" />
-      </button>
-
-      {/* Нижняя панель поверх картинки */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 px-5 pb-8 pt-6 space-y-4">
+      {/* Нижняя часть — информация на чёрном фоне */}
+      <div className="shrink-0 bg-black px-5 pt-4 pb-8 space-y-3">
 
         {/* Мета */}
-        <div className="flex items-end justify-between">
+        <div className="flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/50 mb-1">
+            <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/30 mb-0.5">
               {prompt.tool}
             </p>
-            <h1 className="text-[22px] font-bold text-white leading-tight">
+            <h1 className="text-[18px] font-bold text-white">
               {prompt.title}
             </h1>
           </div>
-
           <button
             onClick={(e) => actions.toggleFavorite(e, prompt.id, favorites)}
-            className={`w-11 h-11 flex items-center justify-center rounded-full border transition active:scale-95 ${
+            className={`w-10 h-10 flex items-center justify-center rounded-full border transition active:scale-95 ${
               isFavorite
                 ? 'bg-red-500/20 border-red-500/40 text-red-400'
-                : 'bg-black/40 backdrop-blur-md border-white/20 text-white/60'
+                : 'bg-white/5 border-white/10 text-white/40 hover:text-white'
             }`}
           >
-            <Heart size={18} className={isFavorite ? 'fill-current' : ''} />
+            <Heart size={16} className={isFavorite ? 'fill-current' : ''} />
           </button>
         </div>
 
-        {/* Промпт — сворачиваемый */}
+        {/* Промпт */}
         <div
-          className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl px-4 py-3 cursor-pointer"
+          className="bg-white/4 border border-white/[0.07] rounded-2xl px-4 py-3 cursor-pointer"
           onClick={() => setIsPromptExpanded(!isPromptExpanded)}
         >
-          <p className={`text-[12px] leading-relaxed text-white/70 whitespace-pre-wrap select-all ${
+          <p className={`text-[12px] leading-relaxed text-white/60 ${
             isPromptExpanded ? '' : 'line-clamp-2'
           }`}>
             {prompt.prompt}
@@ -141,10 +138,10 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
 
         {/* Кнопки */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 pt-1">
           <button
             onClick={() => actions.handleCopy(prompt.id, prompt.prompt, 0, setCopiedId)}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-black/50 backdrop-blur-md border border-white/15 text-white/70 text-[13px] font-medium hover:bg-white/10 hover:text-white transition active:scale-95"
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/6 border border-white/8 text-white/60 text-[13px] font-medium hover:bg-white/10 hover:text-white transition active:scale-95"
           >
             {copiedId === prompt.id
               ? <><Check size={14} /> Скопировано</>
