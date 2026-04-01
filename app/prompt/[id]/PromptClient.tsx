@@ -105,7 +105,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
       {/* Нижняя панель — фиксированная высота 42dvh */}
       <div
         className="bg-black px-5 pt-4 pb-6 flex flex-col gap-3 overflow-hidden"
-        style={{ height: '42dvh' }}
+        style={{ height: 'auto', paddingBottom: 'env(safe-area-inset-bottom, 24px)' }}
       >
         {/* Мета */}
         <div className="flex items-center justify-between">
