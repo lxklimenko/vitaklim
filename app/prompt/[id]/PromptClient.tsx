@@ -78,7 +78,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   if (!prompt || !prompt.image) return notFound();
 
   return (
-    <div className="h-screen bg-black text-white overflow-hidden flex flex-col">
+    <div className="h-screen max-h-screen bg-black text-white overflow-hidden flex flex-col touch-none select-none" style={{ position: 'fixed', inset: 0 }}>
 
       {/* Верхняя часть — картинка */}
       <div className="relative flex-1 min-h-0 overflow-hidden">
