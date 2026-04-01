@@ -40,19 +40,16 @@ export const MainFeed = React.memo(function MainFeed({
       {/* Заголовок */}
       {!searchQuery && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="mb-10 px-6 text-center"
+          transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+          className="mb-6 px-6 pt-2"
         >
-          <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-white/30 mb-4">
-            Маркетплейс промптов
-          </p>
-          <h1 className="text-[40px] md:text-6xl font-bold tracking-tight mb-4 text-white leading-[1.05]">
-            Создавай<br />шедевры
+          <h1 className="text-[28px] font-bold tracking-tight text-white leading-tight mb-1">
+            Создавай шедевры
           </h1>
-          <p className="text-[15px] text-white/40 max-w-xs mx-auto leading-relaxed font-light">
-            Премиальные промпты для генерации изображений с ИИ
+          <p className="text-[13px] text-white/35 font-light">
+            Промпты для генерации ИИ-изображений
           </p>
         </motion.div>
       )}
