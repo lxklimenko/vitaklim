@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Search } from 'lucide-react';
-import Image from 'next/image';
 
 interface HeaderProps {
   user: any;
@@ -46,17 +45,10 @@ export const Header: React.FC<HeaderProps> = ({
         <div
           onClick={onResetView}
           className={`flex-shrink-0 cursor-pointer active:scale-95 transition-all duration-300 ${
-            isSearchActive ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-7'
+            isSearchActive ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'
           }`}
         >
-          <Image
-            src="/icon-192x192.png"
-            alt="KLEX"
-            width={28}
-            height={28}
-            className="rounded-md"
-            style={{ objectFit: 'cover' }}
-          />
+          <span className="text-[17px] font-bold tracking-tight text-white">KLEX</span>
         </div>
 
         {/* Поиск */}
