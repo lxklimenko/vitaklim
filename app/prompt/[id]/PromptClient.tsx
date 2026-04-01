@@ -88,7 +88,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
           src={prompt.image.src}
           alt={prompt.title}
           fill
-          className="object-contain"
+          className="object-cover object-top"
           priority
         />
         {/* Кнопка назад */}
@@ -131,7 +131,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
         {/* Промпт */}
         <div
-          className="flex-1 bg-white/[0.04] border border-white/[0.07] rounded-2xl px-4 py-3 overflow-hidden cursor-pointer"
+          className="bg-white/[0.04] border border-white/[0.07] rounded-2xl px-4 py-3 overflow-hidden cursor-pointer"
           onClick={() => setIsPromptExpanded(!isPromptExpanded)}
         >
           <p className={`text-[12px] leading-relaxed text-white/60 ${
