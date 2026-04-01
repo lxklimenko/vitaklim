@@ -81,12 +81,12 @@ export default function PromptClient({ prompts }: PromptClientProps) {
     <div className="h-screen bg-black text-white overflow-hidden flex flex-col">
 
       {/* Верхняя часть — картинка */}
-      <div className="relative flex-1 min-h-0 overflow-hidden">
+      <div className="relative flex-1 min-h-0 overflow-hidden bg-black flex items-center justify-center">
         <Image
           src={prompt.image.src}
           alt={prompt.title}
           fill
-          className="object-cover object-top"
+          className="object-contain"
           priority
         />
         {/* Кнопка назад */}
