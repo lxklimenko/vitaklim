@@ -2,20 +2,17 @@
 
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { notFound, useParams } from 'next/navigation';
-import { Loader2, X, Copy, Check, Heart } from 'lucide-react';
+import { Loader2, X, Copy, Check, Heart, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/app/lib/supabase';
-
 import { Prompt } from '../../types/prompt';
 import { useAuth } from '@/app/context/AuthContext';
 import { useAppActions } from '../../hooks/useAppActions';
 import { useImageGeneration } from '../../hooks/useImageGeneration';
-import { useTelegramBackButton } from '@/app/hooks/useTelegramBackButton'; // ✅ добавлено
+import { useTelegramBackButton } from '@/app/hooks/useTelegramBackButton';
 
-// Динамический импорт модалки (без SSR)
 const GenerateModal = dynamic(
   () => import('../../components/GenerateModal').then(m => m.GenerateModal),
   { ssr: false }
@@ -30,26 +27,16 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   const router = useRouter();
   const id = params.id as string;
 
-  // ✅ Интеграция кнопки "Назад" в Telegram
-  useTelegramBackButton(() => {
-    router.back();
-  });
+  useTelegramBackButton(() => router.back());
 
-  // 1. Ищем в статичных промптах
   const staticPrompt = prompts.find(p => p.id.toString() === id);
-
-  // 2. Стейт для данных из базы (если история)
   const [dbPrompt, setDbPrompt] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(!staticPrompt);
   const [copiedId, setCopiedId] = useState<number | null>(null);
-
-  // Стейт для открытия модалки генерации
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
 
-  // Хуки авторизации и действий (переносим вверх)
   const { user, favorites, setFavorites, fetchProfile } = useAuth();
 
-  // Хук генерации — теперь используем user и колбэк закрытия, fetchProfile удалён
   const {
     generatePrompt,
     setGeneratePrompt,
@@ -58,33 +45,23 @@ export default function PromptClient({ prompts }: PromptClientProps) {
     setModelId,
     aspectRatio,
     setAspectRatio,
-    referencePreview,        // ✅ заменено с referenceImage на referencePreview
+    referencePreview,
     handleFileChange,
     handleRemoveImage,
     handleGenerate,
-  } = useImageGeneration(
-    user,
-    () => {
-      setIsGenerateOpen(false);
-    }
-  );
+  } = useImageGeneration(user, () => setIsGenerateOpen(false));
 
-  const setIsProfileOpen = () => {};
-  const actions = useAppActions(user, setFavorites, fetchProfile, setIsProfileOpen);
+  const actions = useAppActions(user, setFavorites, fetchProfile, () => {});
 
-  // 3. Если нет в статике — грузим из Supabase
   useEffect(() => {
     if (staticPrompt) return;
-
     const fetchFromDb = async () => {
       setIsLoading(true);
-
       const { data } = await supabase
         .from('generations')
         .select('*')
         .eq('id', id)
         .single();
-
       if (data) {
         setDbPrompt({
           id: data.id,
@@ -93,19 +70,12 @@ export default function PromptClient({ prompts }: PromptClientProps) {
           category: 'История',
           price: 0,
           prompt: data.prompt,
-          image: {
-            src: data.image_url,
-            width: 1024,
-            height: 1024,
-            aspect: '1:1'
-          },
+          image: { src: data.image_url, width: 1024, height: 1024, aspect: '1:1' },
           description: 'Сгенерировано пользователем'
         });
       }
-
       setIsLoading(false);
     };
-
     fetchFromDb();
   }, [id, staticPrompt]);
 
@@ -114,147 +84,121 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-white">
-        <Loader2 className="animate-spin" size={32} />
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="animate-spin text-white/40" size={28} />
       </div>
     );
   }
 
-  if (!prompt || !prompt.image) {
-    return notFound();
-  }
+  if (!prompt || !prompt.image) return notFound();
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white pb-20">
-      {/* Кнопка закрытия (назад) — премиум-стиль */}
-      <div className="fixed top-6 right-6 z-50">
+    <div className="h-screen bg-black text-white overflow-hidden flex flex-col">
+
+      {/* Кнопка назад */}
+      <div className="absolute top-4 left-4 z-50">
         <button
           onClick={() => router.back()}
-          className="w-11 h-11 flex items-center justify-center 
-                     rounded-full 
-                     bg-black/50 
-                     backdrop-blur-md 
-                     border border-white/20 
-                     hover:bg-black/70 
-                     hover:scale-105
-                     transition-all duration-200"
+          className="w-10 h-10 flex items-center justify-center rounded-full bg-black/60 backdrop-blur-md border border-white/10 hover:bg-black/80 transition-all"
         >
-          <X size={20} />
+          <X size={18} className="text-white/70" />
         </button>
       </div>
 
-      {/* Image block — во всю ширину с фоном #0a0a0a */}
-      <div className="w-full bg-[#0a0a0a] flex justify-center">
-        <div className="w-full">
-          <Image
-            src={prompt.image.src}
-            alt={prompt.title}
-            width={1600}
-            height={1200}
-            className="w-full h-auto"
-            priority
+      {/* Основной контент — горизонтально */}
+      <div className="flex flex-col md:flex-row h-full">
+
+        {/* Левая часть — картинка */}
+        <div className="relative flex-1 overflow-hidden">
+          {/* Размытый фон */}
+          <div
+            className="absolute inset-0 scale-110"
+            style={{
+              backgroundImage: `url(${prompt.image.src})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              filter: 'blur(40px)',
+              opacity: 0.3,
+            }}
           />
+          {/* Картинка */}
+          <div className="relative z-10 h-full flex items-center justify-center p-6 pt-16">
+            <Image
+              src={prompt.image.src}
+              alt={prompt.title}
+              width={800}
+              height={1000}
+              className="max-h-full w-auto object-contain rounded-2xl shadow-2xl"
+              priority
+            />
+          </div>
         </div>
-      </div>
 
-      {/* Блок с описанием — обновлённый дизайн */}
-      <div className="max-w-4xl mx-auto px-6 mt-6">
-        <div className="bg-linear-to-b from-[#141414] to-[#0f0f0f]
-                      border border-white/10
-                      rounded-3xl
-                      p-6
-                      space-y-6
-                      transition-all duration-300
-                      hover:border-white/20">
+        {/* Правая часть — инфо */}
+        <div className="w-full md:w-[340px] flex flex-col justify-between p-6 pt-16 border-t md:border-t-0 md:border-l border-white/5">
 
-          {/* Заголовок */}
-          <div className="flex items-center justify-between">
-            <div className="text-white/40 text-xs tracking-widest uppercase">
-              Nano Banano Pro
-            </div>
-
-            {/* subtle декоративная точка */}
-            <div className="w-1.5 h-1.5 rounded-full bg-white/20"></div>
+          {/* Верх — мета */}
+          <div className="space-y-1 mb-4">
+            <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/30">
+              {prompt.category}
+            </p>
+            <h1 className="text-[18px] font-bold text-white leading-tight">
+              {prompt.title}
+            </h1>
+            <p className="text-[12px] text-white/40">{prompt.tool}</p>
           </div>
 
-          {/* Контейнер текста с кнопками действий */}
-          <div className="flex gap-4">
-            {/* Текст — фиксированная высота, внутренний отступ снизу */}
-            <div className="relative flex-1 h-44">
-              <div className="overflow-y-auto 
-                              hide-scrollbar
-                              pr-2 
-                              pb-4
-                              text-white/90 
-                              text-sm 
-                              leading-relaxed 
-                              whitespace-pre-wrap 
-                              h-full">
+          {/* Промпт */}
+          <div className="flex-1 flex flex-col min-h-0 mb-4">
+            <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-white/25 mb-2">
+              Промпт
+            </p>
+            <div className="flex-1 overflow-y-auto no-scrollbar bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4">
+              <p className="text-[13px] leading-relaxed text-white/70 whitespace-pre-wrap select-all">
                 {prompt.prompt}
-              </div>
-
-              {/* Верхний fade */}
-              <div className="pointer-events-none absolute top-0 left-0 right-0 h-6 
-                              bg-linear-to-b from-[#141414] to-transparent" />
-
-              {/* Нижний fade */}
-              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 
-                              bg-linear-to-t from-[#0f0f0f] to-transparent" />
+              </p>
             </div>
+          </div>
 
-            {/* Кнопки справа */}
-            <div className="flex flex-col gap-3">
-              {/* Copy */}
+          {/* Кнопки действий */}
+          <div className="space-y-3">
+            <div className="flex gap-2">
               <button
                 onClick={() => actions.handleCopy(prompt.id, prompt.prompt, 0, setCopiedId)}
-                className="w-10 h-10 flex items-center justify-center 
-                           rounded-xl 
-                           bg-white/5 
-                           hover:bg-white/10 
-                           transition"
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/5 border border-white/8 text-white/60 text-[13px] font-medium hover:bg-white/10 hover:text-white transition active:scale-95"
               >
-                {copiedId === prompt.id ? <Check size={18} /> : <Copy size={18} />}
+                {copiedId === prompt.id
+                  ? <><Check size={15} /> Скопировано</>
+                  : <><Copy size={15} /> Копировать</>
+                }
               </button>
 
-              {/* Favorite */}
               <button
                 onClick={(e) => actions.toggleFavorite(e, prompt.id, favorites)}
-                className={`w-10 h-10 flex items-center justify-center 
-                            rounded-xl 
-                            transition 
-                            ${isFavorite 
-                              ? 'bg-red-500/20 text-red-500' 
-                              : 'bg-white/5 hover:bg-white/10'}`}
+                className={`w-12 flex items-center justify-center rounded-2xl border transition active:scale-95 ${
+                  isFavorite
+                    ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                    : 'bg-white/5 border-white/8 text-white/50 hover:bg-white/10'
+                }`}
               >
-                <Heart size={18} className={isFavorite ? 'fill-current' : ''} />
+                <Heart size={16} className={isFavorite ? 'fill-current' : ''} />
               </button>
             </div>
+
+            <button
+              onClick={() => {
+                setGeneratePrompt(prompt.prompt);
+                setIsGenerateOpen(true);
+              }}
+              className="w-full py-4 rounded-2xl bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-2 hover:bg-white/90 active:scale-[0.98] transition-all"
+            >
+              <Sparkles size={16} />
+              Сгенерировать
+            </button>
           </div>
-
-          {/* Кнопка повторить — теперь не перекрывается */}
-          <button
-            onClick={() => {
-              setGeneratePrompt(prompt.prompt);
-              setIsGenerateOpen(true);
-            }}
-            className="w-full
-                       py-4
-                       rounded-2xl
-                       bg-linear-to-b from-white to-zinc-200
-                       text-black
-                       font-semibold
-                       shadow-lg shadow-white/10
-                       hover:shadow-white/20
-                       hover:-translate-y-0.5
-                       active:translate-y-0
-                       transition-all duration-300 ease-out">
-            Повторить генерацию
-          </button>
-
         </div>
       </div>
 
-      {/* Модалка генерации */}
       {isGenerateOpen && (
         <GenerateModal
           isOpen={isGenerateOpen}
@@ -267,7 +211,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
           setModelId={setModelId}
           aspectRatio={aspectRatio}
           setAspectRatio={setAspectRatio}
-          referencePreview={referencePreview}      // ✅ заменено с referenceImage на referencePreview
+          referencePreview={referencePreview}
           handleFileChange={handleFileChange}
           handleRemoveImage={handleRemoveImage}
         />
