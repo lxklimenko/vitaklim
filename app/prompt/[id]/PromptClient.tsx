@@ -79,8 +79,8 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
   return (
     <div
-      className="bg-black text-white flex flex-col overflow-hidden"
-      style={{ height: '100dvh' }}
+      className="bg-black text-white flex flex-col"
+      style={{ height: '100dvh', overflow: 'hidden' }}
     >
       {/* Картинка — занимает всё что осталось после нижней панели */}
       <div className="relative overflow-hidden bg-black" style={{ height: '58dvh' }}>
@@ -103,10 +103,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
       </div>
 
       {/* Нижняя панель — фиксированная высота 42dvh */}
-      <div
-        className="bg-black px-5 pt-4 pb-6 flex flex-col gap-3 overflow-hidden"
-        style={{ height: 'auto', paddingBottom: 'env(safe-area-inset-bottom, 24px)' }}
-      >
+      <div className="bg-black px-5 pt-4 pb-6 flex flex-col gap-3">
         {/* Мета */}
         <div className="flex items-center justify-between">
           <div>
