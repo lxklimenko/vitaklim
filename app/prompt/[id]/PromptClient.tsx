@@ -78,12 +78,13 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   if (!prompt || !prompt.image) return notFound();
 
   return (
-    <div
-      className="bg-black text-white flex flex-col"
-      style={{ height: '100dvh', overflow: 'hidden' }}
-    >
-      {/* Картинка — занимает всё что осталось после нижней панели */}
-      <div className="relative overflow-hidden bg-black" style={{ height: '58dvh' }}>
+    <div className="bg-black text-white" style={{ height: '100dvh', overflow: 'hidden', position: 'relative' }}>
+
+      {/* Картинка — занимает всё пространство кроме нижней панели */}
+      <div
+        className="absolute top-0 left-0 right-0 overflow-hidden bg-black"
+        style={{ bottom: '220px' }}
+      >
         <Image
           src={prompt.image.src}
           alt={prompt.title}
@@ -99,18 +100,21 @@ export default function PromptClient({ prompts }: PromptClientProps) {
           <X size={18} className="text-white/80" />
         </button>
         {/* Градиент снизу */}
-        <div className="absolute bottom-0 left-0 right-0 h-8 bg-linear-to-t from-black to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-10 bg-linear-to-t from-black to-transparent" />
       </div>
 
-      {/* Нижняя панель — фиксированная высота 42dvh */}
-      <div className="bg-black px-5 pt-4 pb-6 flex flex-col gap-3">
+      {/* Нижняя панель — всегда приклеена к низу */}
+      <div
+        className="absolute left-0 right-0 bottom-0 bg-black px-5 pt-4 flex flex-col gap-3"
+        style={{ height: '220px', paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}
+      >
         {/* Мета */}
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/30 mb-0.5">
               {prompt.tool}
             </p>
-            <h1 className="text-[18px] font-bold text-white">
+            <h1 className="text-[18px] font-bold text-white leading-tight">
               {prompt.title}
             </h1>
           </div>
@@ -128,12 +132,10 @@ export default function PromptClient({ prompts }: PromptClientProps) {
 
         {/* Промпт */}
         <div
-          className="bg-white/[0.04] border border-white/[0.07] rounded-2xl px-4 py-3 overflow-hidden cursor-pointer"
+          className="bg-white/[0.04] border border-white/[0.07] rounded-2xl px-4 py-3 cursor-pointer"
           onClick={() => setIsPromptExpanded(!isPromptExpanded)}
         >
-          <p className={`text-[12px] leading-relaxed text-white/60 ${
-            isPromptExpanded ? 'overflow-y-auto h-full' : 'line-clamp-3'
-          }`}>
+          <p className="text-[12px] leading-relaxed text-white/60 line-clamp-2">
             {prompt.prompt}
           </p>
         </div>
