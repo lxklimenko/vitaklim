@@ -3,10 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, LogOut, CreditCard, Mail, User as UserIcon, Loader2 } from 'lucide-react';
+import { LogOut, ChevronRight, Loader2, User as UserIcon, History, Mail, FileText, Shield } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { supabase } from '@/app/lib/supabase';
-
 import { useAuth } from '../hooks/useAuth';
 import { Navigation } from '../components/Navigation';
 
@@ -17,43 +16,26 @@ interface ProfileData {
   balance: number;
 }
 
-export default function ProfileClient({
-  initialProfile,
-}: {
-  initialProfile: ProfileData | null;
-}) {
-  // Берём только необходимое из хука авторизации
+export default function ProfileClient({ initialProfile }: { initialProfile: ProfileData | null }) {
   const { user, fetchProfile, authReady } = useAuth();
-
-  // Используем данные напрямую из пропса initialProfile
   const telegramUsername = initialProfile?.telegram_username ?? null;
   const telegramFirstName = initialProfile?.telegram_first_name ?? null;
   const telegramAvatarUrl = initialProfile?.telegram_avatar_url ?? null;
   const balance = initialProfile?.balance ?? 0;
-
-  const serverBalance = initialProfile?.balance ?? 0; // не используется, оставлено для совместимости
-
-  // Определяем, вошел ли пользователь через Telegram
   const isTelegramUser = !!telegramFirstName || !!telegramUsername;
-
   const router = useRouter();
 
-  // Состояния для формы входа
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
-  // Состояние для суммы пополнения – теперь строка, чтобы удобно стирать
   const [topUpAmount, setTopUpAmount] = useState<string>("100");
+  const [showTopUp, setShowTopUp] = useState(false);
 
-  // НОВАЯ ВЕРСИЯ useEffect (без интервала, с более агрессивной проверкой)
   useEffect(() => {
     if (!authReady) return;
-
-    // 1. Делаем функцию глобальной и "вечной"
     const onAuth = async (tgUser: any) => {
-      console.log("🚀 TELEGRAM CALLBACK CALLED:", tgUser); // ЕСЛИ ЭТОГО НЕТ В КОНСОЛИ - БЛОКИРУЕТ БРАУЗЕР
       setIsSubmitting(true);
       try {
         const res = await fetch('/api/auth/telegram', {
@@ -61,74 +43,50 @@ export default function ProfileClient({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ widgetData: tgUser }),
         });
-
         const data = await res.json();
         if (res.ok) {
           const email = `telegram_${tgUser.id}@telegram.local`;
           const password = `secure_${tgUser.id}`;
-          
           const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
           if (signInError) throw signInError;
-
           toast.success('Успешный вход!');
-          window.location.href = '/profile'; // Жесткий редирект для обновления состояния
+          window.location.href = '/profile';
         } else {
           toast.error(data.error || 'Ошибка входа');
         }
       } catch (err: any) {
-        console.error("FATAL AUTH ERROR:", err);
         toast.error('Ошибка соединения с сервером');
       } finally {
         setIsSubmitting(false);
       }
     };
-
-    // Привязываем к window
     (window as any).onTelegramAuth = onAuth;
-
-    // 2. Вставляем скрипт с защитой от дублей
     const container = document.getElementById('telegram-login-container');
     if (container && !container.querySelector('iframe')) {
-      container.innerHTML = ''; // Чистим на всякий случай
+      container.innerHTML = '';
       const script = document.createElement('script');
       script.src = 'https://telegram.org/js/telegram-widget.js?22';
       script.setAttribute('data-telegram-login', process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'klexprobot');
       script.setAttribute('data-size', 'large');
       script.setAttribute('data-radius', '12');
-      script.setAttribute('data-onauth', 'onTelegramAuth(user)'); // Добавили (user) для надежности
+      script.setAttribute('data-onauth', 'onTelegramAuth(user)');
       script.setAttribute('data-request-access', 'write');
       script.async = true;
       container.appendChild(script);
     }
-
-    // ВАЖНО: Мы не удаляем функцию в cleanup!
   }, [authMode, authReady]);
 
-  // Логика входа / регистрации
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
-    if (!email.includes('@')) {
-      toast.error('Введите корректный email');
-      setIsSubmitting(false);
-      return;
-    }
-    if (password.length < 6) {
-      toast.error('Пароль должен быть не менее 6 символов');
-      setIsSubmitting(false);
-      return;
-    }
-
+    if (!email.includes('@')) { toast.error('Введите корректный email'); setIsSubmitting(false); return; }
+    if (password.length < 6) { toast.error('Пароль минимум 6 символов'); setIsSubmitting(false); return; }
     try {
       if (authMode === 'login') {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success('С возвращением!');
-
-        if (data.user) {
-          fetchProfile(data.user.id);
-        }
+        if (data.user) fetchProfile(data.user.id);
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
@@ -149,286 +107,244 @@ export default function ProfileClient({
   };
 
   const handleTopUp = async () => {
-    const numericAmount = parseInt(topUpAmount); // Превращаем строку в число
-
-    if (!user) {
-      toast.error('Нужно войти в аккаунт');
-      return;
-    }
-
-    if (!numericAmount || numericAmount < 50) {
-      toast.error('Минимальная сумма — 50 ₽');
-      return;
-    }
-
+    const numericAmount = parseInt(topUpAmount);
+    if (!user) { toast.error('Нужно войти в аккаунт'); return; }
+    if (!numericAmount || numericAmount < 50) { toast.error('Минимальная сумма — 50 ₽'); return; }
     try {
       setIsTopUpLoading(true);
-
       const res = await fetch('/api/payment', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: numericAmount, // Отправляем число
-          userId: user.id,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: numericAmount, userId: user.id }),
       });
-
       const data = await res.json();
-
-      if (!res.ok) {
-        toast.error(data.error || 'Ошибка оплаты');
-        return;
-      }
-
-      console.log('Ответ сервера:', data);
-
+      if (!res.ok) { toast.error(data.error || 'Ошибка оплаты'); return; }
       if (data.confirmationUrl) {
-        if (typeof window !== 'undefined') {
-          const tg = (window as any).Telegram?.WebApp;
-          if (tg) {
-            tg.openLink(data.confirmationUrl);
-          } else {
-            window.location.href = data.confirmationUrl;
-          }
-        }
+        const tg = (window as any).Telegram?.WebApp;
+        if (tg) tg.openLink(data.confirmationUrl);
+        else window.location.href = data.confirmationUrl;
         return;
       }
-
       toast.error('Не удалось получить ссылку на оплату');
-    } catch (error) {
-      console.error(error);
-      toast.error('Ошибка соединения');
-    } finally {
-      setIsTopUpLoading(false);
-    }
+    } catch { toast.error('Ошибка соединения'); }
+    finally { setIsTopUpLoading(false); }
   };
 
   if (!authReady) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-white">
-        <Loader2 className="animate-spin" size={32} />
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="animate-spin text-white/30" size={28} />
       </div>
     );
   }
 
+  // ===== ФОРМА ВХОДА =====
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-black text-white flex flex-col">
+        <Toaster position="top-center" theme="dark" />
+
+        <div className="flex-1 flex flex-col justify-center px-6 py-12 max-w-sm mx-auto w-full">
+          {/* Лого */}
+          <div className="text-center mb-10">
+            <div className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mx-auto mb-5">
+              <UserIcon size={28} className="text-white/40" />
+            </div>
+            <h1 className="text-[26px] font-bold tracking-tight mb-2">
+              {authMode === 'login' ? 'Войти' : 'Регистрация'}
+            </h1>
+            <p className="text-[13px] text-white/35 leading-relaxed">
+              Сохраняй генерации и управляй балансом
+            </p>
+          </div>
+
+          {/* Форма */}
+          <form onSubmit={handleAuth} className="space-y-3">
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-white/[0.06] border border-white/[0.08] rounded-2xl px-4 py-3.5 text-white text-[15px] focus:outline-none focus:border-white/20 transition placeholder:text-white/25"
+            />
+            <input
+              type="password"
+              placeholder="Пароль"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-white/[0.06] border border-white/[0.08] rounded-2xl px-4 py-3.5 text-white text-[15px] focus:outline-none focus:border-white/20 transition placeholder:text-white/25"
+            />
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-white text-black font-semibold rounded-2xl py-3.5 text-[15px] hover:bg-white/90 transition disabled:opacity-50 flex justify-center items-center gap-2 mt-2"
+            >
+              {isSubmitting && <Loader2 className="animate-spin" size={16} />}
+              {authMode === 'login' ? 'Войти' : 'Создать аккаунт'}
+            </button>
+          </form>
+
+          {/* Telegram */}
+          {authMode === 'login' && (
+            <div className="flex flex-col items-center gap-3 mt-6">
+              <p className="text-[11px] text-white/25 uppercase tracking-widest">или войти через</p>
+              <div id="telegram-login-container" className="min-h-10 flex items-center justify-center" />
+            </div>
+          )}
+
+          {/* Переключатель */}
+          <button
+            onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
+            className="text-white/40 hover:text-white text-[13px] text-center mt-6 transition"
+          >
+            {authMode === 'login' ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'}
+          </button>
+        </div>
+
+        <Navigation />
+      </div>
+    );
+  }
+
+  // ===== ПРОФИЛЬ =====
+  const displayName = telegramFirstName || (telegramUsername ? `@${telegramUsername}` : user.email?.split('@')[0]);
+
   return (
-    <div className="min-h-screen bg-black text-white pb-28 font-sans">
+    <div className="min-h-screen bg-black text-white pb-28">
       <Toaster position="top-center" theme="dark" />
 
-      {/* Хедер */}
-      <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/10 px-4 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-white/10 transition">
-            <ChevronLeft size={24} />
-          </Link>
-          <h1 className="text-xl font-bold">Профиль</h1>
-        </div>
-
-        {user && (
-          <button onClick={handleLogout} className="text-red-400 hover:text-red-300">
-            <LogOut size={20} />
+      {/* Шапка профиля */}
+      <div className="px-6 pt-12 pb-8">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-[28px] font-bold tracking-tight">Профиль</h1>
+          <button onClick={handleLogout} className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition">
+            <LogOut size={16} />
           </button>
-        )}
-      </header>
-
-      <div className="px-4 py-8 max-w-md mx-auto">
-        {!user ? (
-          /* Форма входа */
-          <div className="flex flex-col gap-6">
-            <div className="text-center mb-4">
-              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10">
-                <UserIcon size={40} className="text-white/50" />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">
-                {authMode === 'login' ? 'Вход в аккаунт' : 'Регистрация'}
-              </h2>
-              <p className="text-white/40 text-sm">
-                Войдите, чтобы сохранять генерации и управлять подпиской
-              </p>
-            </div>
-
-            <form onSubmit={handleAuth} className="space-y-4">
-              <div>
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/30 transition"
-                />
-              </div>
-              <div>
-                <input
-                  type="password"
-                  placeholder="Пароль"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/30 transition"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full bg-white text-black font-bold rounded-xl py-3 hover:bg-gray-200 transition disabled:opacity-50 flex justify-center items-center gap-2"
-              >
-                {isSubmitting && <Loader2 className="animate-spin" size={18} />}
-                {authMode === 'login' ? 'Войти' : 'Создать аккаунт'}
-              </button>
-
-              {authMode === 'login' && (
-                <div className="flex flex-col items-center gap-3 mt-4">
-                  <p className="text-white/40 text-xs">Или войти через</p>
-                  {/* Контейнер с минимальной высотой для корректного рендера виджета */}
-                  <div id="telegram-login-container" className="min-h-10 flex items-center justify-center"></div>
-                </div>
-              )}
-            </form>
-
-            <div className="text-center mt-4">
-              <button
-                onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
-                className="text-white/60 hover:text-white text-sm"
-              >
-                {authMode === 'login'
-                  ? 'Нет аккаунта? Зарегистрироваться'
-                  : 'Уже есть аккаунт? Войти'}
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* Профиль пользователя */
-          <div className="flex flex-col gap-6">
-            <div className="bg-linear-to-br from-white/10 to-white/5 border border-white/10 rounded-2xl p-6">
-              <div className="flex items-center gap-4 mb-6">
-                {/* Аватар */}
-                <div className="w-16 h-16 rounded-full overflow-hidden bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xl font-bold">
-                  {telegramAvatarUrl ? (
-                    <img
-                      src={telegramAvatarUrl}
-                      alt="avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    user.email?.[0].toUpperCase()
-                  )}
-                </div>
-                <div className="overflow-hidden">
-                  <p className="text-white/40 text-xs uppercase tracking-wider font-medium mb-1">
-                    Аккаунт
-                  </p>
-                  <p className="font-medium truncate">
-                    {telegramFirstName
-                      ? telegramFirstName
-                      : telegramUsername
-                        ? `@${telegramUsername}`
-                        : user.email}
-                  </p>
-                  {!isTelegramUser && (
-                    <p className="text-white/40 text-xs mt-1 truncate">
-                      {user.email}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Блок баланса и выбора суммы пополнения */}
-              <div className="bg-black/20 rounded-xl p-4 flex flex-col gap-4 mb-4">
-                <div>
-                  <p className="text-white/40 text-xs mb-1">Баланс кредитов</p>
-                  <p className="text-2xl font-bold font-mono">{balance} 🍌</p>
-                </div>
-                
-                {/* Поле ввода суммы */}
-                <div className="space-y-2">
-                  <p className="text-white/40 text-xs">Сумма пополнения (₽)</p>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      placeholder="Введите сумму"
-                      value={topUpAmount}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        // Разрешаем вводить только цифры и пустую строку
-                        if (val === "" || /^\d+$/.test(val)) {
-                          setTopUpAmount(val);
-                        }
-                      }}
-                      className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-white/30"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    {[100, 500, 1000].map((val) => (
-                      <button
-                        key={val}
-                        onClick={() => setTopUpAmount(val.toString())}
-                        className={`flex-1 py-1 px-2 rounded-md text-xs border transition ${
-                          topUpAmount === val.toString() ? 'bg-white text-black border-white' : 'border-white/10 text-white/60 hover:border-white/30'
-                        }`}
-                      >
-                        {val} ₽
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={handleTopUp}
-                disabled={isTopUpLoading}
-                className="w-full bg-white text-black font-bold rounded-xl py-3 hover:bg-gray-200 transition flex justify-center items-center gap-2"
-              >
-                {isTopUpLoading ? <Loader2 className="animate-spin" size={18} /> : 'Пополнить баланс'}
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-lg font-bold mb-4">Настройки</h3>
-
-              <Link
-                href="/history"
-                className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition"
-              >
-                <span>История генераций</span>
-                <ChevronLeft className="rotate-180 text-white/40" size={20} />
-              </Link>
-
-              <a
-                href="mailto:support@example.com"
-                className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <Mail size={18} className="text-white/60" />
-                  <span>Поддержка</span>
-                </div>
-              </a>
-            </div>
-
-            <div className="pt-4">
-              <p className="text-center text-white/20 text-xs">ID: {user.id}</p>
-              <p className="text-center text-white/20 text-xs mt-1">Версия 1.0.2</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Юридический блок внизу страницы */}
-      <div className="mt-12 pt-8 border-t border-gray-800 text-center">
-        <div className="flex flex-col md:flex-row justify-center gap-4 text-sm text-gray-500">
-          <a href="/terms" className="hover:text-yellow-500 transition-colors">
-            Публичная оферта
-          </a>
-          <span className="hidden md:inline">•</span>
-          <a href="/privacy" className="hover:text-yellow-500 transition-colors">
-            Политика конфиденциальности
-          </a>
         </div>
-        <p className="mt-4 text-xs text-gray-600">
-          © 2026 KLEX.PRO — Генерация изображений с помощью ИИ
-        </p>
+
+        {/* Аватар + имя */}
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full overflow-hidden bg-white/10 flex items-center justify-center text-[22px] font-bold flex-shrink-0">
+            {telegramAvatarUrl ? (
+              <img src={telegramAvatarUrl} alt="avatar" className="w-full h-full object-cover" />
+            ) : (
+              <span>{displayName?.[0]?.toUpperCase()}</span>
+            )}
+          </div>
+          <div>
+            <p className="text-[18px] font-semibold">{displayName}</p>
+            {!isTelegramUser && (
+              <p className="text-[13px] text-white/35 mt-0.5">{user.email}</p>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Баланс */}
+      <div className="px-6 mb-6">
+        <div
+          className="bg-white/[0.04] border border-white/[0.07] rounded-3xl p-5 cursor-pointer"
+          onClick={() => setShowTopUp(!showTopUp)}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/30">Баланс</p>
+            <ChevronRight size={16} className={`text-white/20 transition-transform ${showTopUp ? 'rotate-90' : ''}`} />
+          </div>
+          <p className="text-[32px] font-bold tracking-tight">{balance} <span className="text-[24px]">🍌</span></p>
+        </div>
+
+        {/* Пополнение — разворачивается */}
+        {showTopUp && (
+          <div className="bg-white/[0.03] border border-white/[0.06] rounded-3xl p-5 mt-2 space-y-4">
+            <p className="text-[12px] text-white/30 uppercase tracking-widest">Пополнение (₽)</p>
+            <div className="flex gap-2">
+              {[100, 500, 1000].map((val) => (
+                <button
+                  key={val}
+                  onClick={() => setTopUpAmount(val.toString())}
+                  className={`flex-1 py-2 rounded-xl text-[13px] font-medium border transition ${
+                    topUpAmount === val.toString()
+                      ? 'bg-white text-black border-white'
+                      : 'border-white/10 text-white/50 hover:border-white/20'
+                  }`}
+                >
+                  {val} ₽
+                </button>
+              ))}
+            </div>
+            <input
+              type="number"
+              placeholder="Другая сумма"
+              value={topUpAmount}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "" || /^\d+$/.test(val)) setTopUpAmount(val);
+              }}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-[14px] focus:outline-none focus:border-white/20 placeholder:text-white/20"
+            />
+            <button
+              onClick={handleTopUp}
+              disabled={isTopUpLoading}
+              className="w-full bg-white text-black font-semibold rounded-2xl py-3.5 text-[15px] hover:bg-white/90 transition disabled:opacity-50 flex justify-center items-center gap-2"
+            >
+              {isTopUpLoading ? <Loader2 className="animate-spin" size={16} /> : 'Пополнить'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Меню */}
+      <div className="px-6 space-y-2">
+        <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/25 mb-3 px-1">Аккаунт</p>
+
+        <Link href="/history" className="flex items-center justify-between p-4 bg-white/[0.04] border border-white/[0.06] rounded-2xl hover:bg-white/[0.07] transition">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center">
+              <History size={15} className="text-white/50" />
+            </div>
+            <span className="text-[15px]">История генераций</span>
+          </div>
+          <ChevronRight size={16} className="text-white/20" />
+        </Link>
+
+        <a href="mailto:support@klex.pro" className="flex items-center justify-between p-4 bg-white/[0.04] border border-white/[0.06] rounded-2xl hover:bg-white/[0.07] transition">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center">
+              <Mail size={15} className="text-white/50" />
+            </div>
+            <span className="text-[15px]">Поддержка</span>
+          </div>
+          <ChevronRight size={16} className="text-white/20" />
+        </a>
+      </div>
+
+      {/* Юридические ссылки */}
+      <div className="px-6 mt-8 space-y-2">
+        <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/25 mb-3 px-1">Документы</p>
+
+        <Link href="/terms" className="flex items-center justify-between p-4 bg-white/[0.04] border border-white/[0.06] rounded-2xl hover:bg-white/[0.07] transition">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center">
+              <FileText size={15} className="text-white/50" />
+            </div>
+            <span className="text-[15px]">Публичная оферта</span>
+          </div>
+          <ChevronRight size={16} className="text-white/20" />
+        </Link>
+
+        <Link href="/privacy" className="flex items-center justify-between p-4 bg-white/[0.04] border border-white/[0.06] rounded-2xl hover:bg-white/[0.07] transition">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center">
+              <Shield size={15} className="text-white/50" />
+            </div>
+            <span className="text-[15px]">Политика конфиденциальности</span>
+          </div>
+          <ChevronRight size={16} className="text-white/20" />
+        </Link>
+      </div>
+
+      {/* Версия */}
+      <p className="text-center text-white/15 text-[11px] mt-10 pb-4">KLEX.PRO · Версия 1.0.2</p>
 
       <Navigation />
     </div>
