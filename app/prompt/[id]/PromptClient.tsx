@@ -144,7 +144,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         <div className="flex gap-2">
           <button
             onClick={() => actions.handleCopy(prompt.id, prompt.prompt, 0, setCopiedId)}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/[0.06] border border-white/[0.08] text-white/60 text-[13px] font-medium hover:bg-white/10 hover:text-white transition active:scale-95"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/[0.06] border border-white/[0.08] text-white/60 text-[13px] font-medium hover:bg-white/10 hover:text-white transition active:scale-95"
           >
             {copiedId === prompt.id
               ? <><Check size={14} /> Скопировано</>
@@ -156,7 +156,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
               setGeneratePrompt(prompt.prompt);
               setIsGenerateOpen(true);
             }}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white text-black font-semibold text-[13px] hover:bg-white/90 active:scale-[0.98] transition-all"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white text-black font-semibold text-[13px] hover:bg-white/90 active:scale-[0.98] transition-all"
           >
             <Sparkles size={14} />
             Сгенерировать
