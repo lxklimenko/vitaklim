@@ -131,11 +131,8 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
 
         {/* Промпт */}
-        <div
-          className="bg-white/[0.04] border border-white/[0.07] rounded-2xl px-4 py-3 cursor-pointer"
-          onClick={() => setIsPromptExpanded(!isPromptExpanded)}
-        >
-          <p className={`text-[12px] leading-relaxed text-white/60 ${isPromptExpanded ? '' : 'line-clamp-2'}`}>
+        <div className="bg-white/[0.04] border border-white/[0.07] rounded-2xl px-4 py-3 overflow-y-auto" style={{ maxHeight: '60px' }}>
+          <p className="text-[12px] leading-relaxed text-white/60">
             {prompt.prompt}
           </p>
         </div>
