@@ -63,6 +63,7 @@ export async function POST(req: Request) {
     }
     const modelId = formData.get('modelId')?.toString();
     const imageFile = formData.get('image') as File | null;
+    const isPublic = formData.get('isPublic') === 'true';
 
     if (!prompt?.trim()) {
       return NextResponse.json(
@@ -183,7 +184,8 @@ export async function POST(req: Request) {
         processingRecord,
         supabase,
         uploadedFiles,
-        startTime
+        startTime,
+        isPublic
       });
     }
 
@@ -197,7 +199,8 @@ export async function POST(req: Request) {
         processingRecord,
         supabase,
         uploadedFiles,
-        startTime
+        startTime,
+        isPublic
       });
     }
 
@@ -454,7 +457,8 @@ high resolution
           storage_path: fileName,
           reference_image_url: referencePublicUrl,
           reference_storage_path: referenceFileName,
-          generation_time_ms: generationTime
+          generation_time_ms: generationTime,
+          is_public: isPublic
         })
         .eq('id', processingRecord.id);
     }
@@ -534,7 +538,8 @@ async function generateImagenUltra({
   processingRecord,
   supabase,
   uploadedFiles,
-  startTime
+  startTime,
+  isPublic
 }: any) {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) {
@@ -630,7 +635,8 @@ async function generateImagenUltra({
       status: 'completed',
       image_url: publicUrl,
       storage_path: fileName,
-      generation_time_ms: generationTime
+      generation_time_ms: generationTime,
+      is_public: isPublic
     })
     .eq('id', processingRecord.id);
 
@@ -651,7 +657,8 @@ async function generateOpenAI({
   processingRecord,
   supabase,
   uploadedFiles,
-  startTime
+  startTime,
+  isPublic
 }: any) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("API ключ OpenAI не настроен");
@@ -746,7 +753,8 @@ async function generateOpenAI({
       status: 'completed',
       image_url: publicUrl,
       storage_path: fileName,
-      generation_time_ms: generationTime
+      generation_time_ms: generationTime,
+      is_public: isPublic
     })
     .eq('id', processingRecord.id);
 
