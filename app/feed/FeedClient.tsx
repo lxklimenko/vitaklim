@@ -91,8 +91,12 @@ export default function FeedClient({ generations }: { generations: Generation[] 
                 <div className="absolute inset-x-0 bottom-0 h-12 bg-linear-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
 
                 {/* Аватар автора */}
-                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <div className="w-4 h-4 rounded-full overflow-hidden bg-white/20 shrink-0">
+                <Link
+                  href={`/user/${gen.user_id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute bottom-1.5 left-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                >
+                  <div className="w-4 h-4 rounded-full overflow-hidden bg-white/20 flex-shrink-0">
                     {gen.profiles?.telegram_avatar_url ? (
                       <img
                         src={gen.profiles.telegram_avatar_url}
@@ -105,10 +109,10 @@ export default function FeedClient({ generations }: { generations: Generation[] 
                       </div>
                     )}
                   </div>
-                  <span className="text-[9px] text-white font-medium truncate max-w-12.5 drop-shadow">
+                  <span className="text-[9px] text-white font-medium truncate max-w-[50px] drop-shadow">
                     {authorName}
                   </span>
-                </div>
+                </Link>
               </Link>
             )
           })}
