@@ -34,6 +34,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
   const [isLoading, setIsLoading] = useState(!staticPrompt);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
+  const [isPublic, setIsPublic] = useState(false);
   const [isPromptExpanded, setIsPromptExpanded] = useState(false);
 
   const { user, favorites, setFavorites, fetchProfile } = useAuth();
@@ -131,7 +132,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         </div>
 
         {/* Промпт */}
-        <div className="bg-white/[0.04] border border-white/[0.07] rounded-2xl px-4 py-3 overflow-y-auto" style={{ maxHeight: '60px' }}>
+        <div className="bg-white/4 border border-white/[0.07] rounded-2xl px-4 py-3 overflow-y-auto" style={{ maxHeight: '60px' }}>
           <p className="text-[12px] leading-relaxed text-white/60">
             {prompt.prompt}
           </p>
@@ -141,7 +142,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
         <div className="flex gap-2">
           <button
             onClick={() => actions.handleCopy(prompt.id, prompt.prompt, 0, setCopiedId)}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/[0.06] border border-white/[0.08] text-white/60 text-[13px] font-medium hover:bg-white/10 hover:text-white transition active:scale-95"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/6 border border-white/8 text-white/60 text-[13px] font-medium hover:bg-white/10 hover:text-white transition active:scale-95"
           >
             {copiedId === prompt.id
               ? <><Check size={14} /> Скопировано</>
@@ -176,6 +177,8 @@ export default function PromptClient({ prompts }: PromptClientProps) {
           referencePreview={referencePreview}
           handleFileChange={handleFileChange}
           handleRemoveImage={handleRemoveImage}
+          isPublic={isPublic}
+          setIsPublic={setIsPublic}
         />
       )}
     </div>

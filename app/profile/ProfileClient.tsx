@@ -165,14 +165,14 @@ export default function ProfileClient({ initialProfile }: { initialProfile: Prof
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-white/[0.06] border border-white/8 rounded-2xl px-4 py-3.5 text-white text-[15px] focus:outline-none focus:border-white/20 transition placeholder:text-white/25"
+              className="w-full bg-white/6 border border-white/8 rounded-2xl px-4 py-3.5 text-white text-[15px] focus:outline-none focus:border-white/20 transition placeholder:text-white/25"
             />
             <input
               type="password"
               placeholder="Пароль"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-white/6 border border-white/[0.08] rounded-2xl px-4 py-3.5 text-white text-[15px] focus:outline-none focus:border-white/20 transition placeholder:text-white/25"
+              className="w-full bg-white/6 border border-white/8 rounded-2xl px-4 py-3.5 text-white text-[15px] focus:outline-none focus:border-white/20 transition placeholder:text-white/25"
             />
             <button
               type="submit"
@@ -224,7 +224,7 @@ export default function ProfileClient({ initialProfile }: { initialProfile: Prof
 
         {/* Аватар + имя */}
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full overflow-hidden bg-white/10 flex items-center justify-center text-[22px] font-bold flex-shrink-0">
+          <div className="w-16 h-16 rounded-full overflow-hidden bg-white/10 flex items-center justify-center text-[22px] font-bold shrink-0">
             {telegramAvatarUrl ? (
               <img src={telegramAvatarUrl} alt="avatar" className="w-full h-full object-cover" />
             ) : (
@@ -243,7 +243,7 @@ export default function ProfileClient({ initialProfile }: { initialProfile: Prof
       {/* Баланс */}
       <div className="px-6 mb-6">
         <div
-          className="bg-white/[0.04] border border-white/[0.07] rounded-3xl p-5 cursor-pointer"
+          className="bg-white/4 border border-white/[0.07] rounded-3xl p-5 cursor-pointer"
           onClick={() => setShowTopUp(!showTopUp)}
         >
           <div className="flex items-center justify-between mb-1">
@@ -297,7 +297,7 @@ export default function ProfileClient({ initialProfile }: { initialProfile: Prof
       <div className="px-6 space-y-2">
         <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/25 mb-3 px-1">Аккаунт</p>
 
-        <Link href="/history" className="flex items-center justify-between p-4 bg-white/[0.04] border border-white/[0.06] rounded-2xl hover:bg-white/[0.07] transition">
+        <Link href="/history" className="flex items-center justify-between p-4 bg-white/4 border border-white/[0.06] rounded-2xl hover:bg-white/[0.07] transition">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center">
               <History size={15} className="text-white/50" />

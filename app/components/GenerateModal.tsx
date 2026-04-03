@@ -267,7 +267,7 @@ export function GenerateModal({
             {/* Переключатель публичности */}
             <div
               onClick={() => setIsPublic(!isPublic)}
-              className="flex items-center justify-between px-4 py-3 bg-white/[0.04] border border-white/[0.07] rounded-2xl cursor-pointer active:scale-[0.99] transition-all"
+              className="flex items-center justify-between px-4 py-3 bg-white/4 border border-white/[0.07] rounded-2xl cursor-pointer active:scale-[0.99] transition-all"
             >
               <div>
                 <p className="text-[14px] font-medium text-white">Опубликовать в ленту</p>
