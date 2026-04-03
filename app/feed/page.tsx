@@ -4,7 +4,7 @@ import FeedClient from './FeedClient'
 export const dynamic = 'force-dynamic'
 
 export default async function FeedPage() {
-  const { data: generations } = await supabaseAdmin
+  const { data: generations, error } = await supabaseAdmin
     .from('generations')
     .select(`
       id,
@@ -23,6 +23,10 @@ export default async function FeedPage() {
     .not('image_url', 'is', null)
     .order('created_at', { ascending: false })
     .limit(30)
+
+  console.log('FEED generations count:', generations?.length)
+  console.log('FEED error:', error)
+  console.log('FEED first item:', generations?.[0])
 
   const mapped = (generations || []).map((g: any) => ({
     ...g,
