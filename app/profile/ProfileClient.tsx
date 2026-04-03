@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogOut, ChevronRight, Loader2, User as UserIcon, History, Mail, FileText, Shield } from 'lucide-react';
+import { LogOut, ChevronRight, Loader2, User as UserIcon, History, Mail, FileText, Shield, Heart } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { supabase } from '@/app/lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -165,14 +165,14 @@ export default function ProfileClient({ initialProfile }: { initialProfile: Prof
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-white/[0.06] border border-white/[0.08] rounded-2xl px-4 py-3.5 text-white text-[15px] focus:outline-none focus:border-white/20 transition placeholder:text-white/25"
+              className="w-full bg-white/[0.06] border border-white/8 rounded-2xl px-4 py-3.5 text-white text-[15px] focus:outline-none focus:border-white/20 transition placeholder:text-white/25"
             />
             <input
               type="password"
               placeholder="Пароль"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-white/[0.06] border border-white/[0.08] rounded-2xl px-4 py-3.5 text-white text-[15px] focus:outline-none focus:border-white/20 transition placeholder:text-white/25"
+              className="w-full bg-white/6 border border-white/[0.08] rounded-2xl px-4 py-3.5 text-white text-[15px] focus:outline-none focus:border-white/20 transition placeholder:text-white/25"
             />
             <button
               type="submit"
@@ -303,6 +303,15 @@ export default function ProfileClient({ initialProfile }: { initialProfile: Prof
               <History size={15} className="text-white/50" />
             </div>
             <span className="text-[15px]">История генераций</span>
+          </div>
+          <ChevronRight size={16} className="text-white/20" />
+        </Link>
+        <Link href="/favorites" className="flex items-center justify-between p-4 bg-white/[0.04] border border-white/[0.06] rounded-2xl hover:bg-white/[0.07] transition">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center">
+              <Heart size={15} className="text-white/50" />
+            </div>
+            <span className="text-[15px]">Избранное</span>
           </div>
           <ChevronRight size={16} className="text-white/20" />
         </Link>
