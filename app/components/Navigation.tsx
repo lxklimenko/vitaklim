@@ -3,15 +3,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Star, Plus, Clock, User } from 'lucide-react';
-
-interface NavigationProps {}
+import { Home, Tv, Plus, Clock, User } from 'lucide-react';
 
 export const Navigation: React.FC = () => {
   const pathname = usePathname();
   
   const isHomePage = pathname === '/';
-  const isFavoritesPage = pathname === '/favorites';
+  const isFeedPage = pathname === '/feed';
   const isHistoryPage = pathname === '/history';
   const isProfilePage = pathname === '/profile';
 
@@ -26,9 +24,9 @@ export const Navigation: React.FC = () => {
           <NavItem icon={<Home size={22} />} label="Главная" active={isHomePage} />
         </Link>
 
-        {/* 2. ИЗБРАННОЕ */}
-        <Link href="/favorites" className="min-w-12.5 flex justify-center">
-           <NavItem icon={<Star size={22} />} label="Избранное" active={isFavoritesPage} />
+        {/* 2. ЛЕНТА */}
+        <Link href="/feed" className="min-w-12.5 flex justify-center">
+          <NavItem icon={<Tv size={22} />} label="Лента" active={isFeedPage} />
         </Link>
 
         {/* 3. ГЕНЕРАТОР */}
@@ -43,12 +41,12 @@ export const Navigation: React.FC = () => {
 
         {/* 4. ИСТОРИЯ */}
         <Link href="/history" className="min-w-12.5 flex justify-center">
-           <NavItem icon={<Clock size={22} />} label="История" active={isHistoryPage} />
+          <NavItem icon={<Clock size={22} />} label="История" active={isHistoryPage} />
         </Link>
 
         {/* 5. ПРОФИЛЬ */}
         <Link href="/profile" className="min-w-12.5 flex justify-center">
-           <NavItem icon={<User size={22} />} label="Профиль" active={isProfilePage} />
+          <NavItem icon={<User size={22} />} label="Профиль" active={isProfilePage} />
         </Link>
 
       </div>
