@@ -142,6 +142,7 @@ export function useImageGeneration(
     setBalance,
     router,
     isGenerating,
+    isPublic,
   ]);
 
   return {
