@@ -161,7 +161,7 @@ export default function FeedClient({ generations }: { generations: Generation[] 
                 {/* Лайк */}
                 <button
                   onClick={(e) => toggleLike(e, gen.id)}
-                  className="absolute top-2 right-2 flex flex-col items-center gap-0.5 z-10"
+                  className="absolute top-1.5 right-1.5 flex flex-col items-center gap-0.5 z-10 bg-black/30 backdrop-blur-sm rounded-full p-1"
                 >
                   <Heart
                     size={18}
