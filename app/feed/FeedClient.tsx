@@ -63,7 +63,7 @@ export default function FeedClient({ generations }: { generations: Generation[] 
           <p className="text-[13px] mt-1">Будь первым — сгенерируй и опубликуй!</p>
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-[2px]">
+        <div className="grid grid-cols-3 gap-0.5">
           {generations.map((gen) => {
             if (!gen.image_url) return null
 
@@ -92,7 +92,7 @@ export default function FeedClient({ generations }: { generations: Generation[] 
 
                 {/* Аватар автора */}
                 <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <div className="w-4 h-4 rounded-full overflow-hidden bg-white/20 flex-shrink-0">
+                  <div className="w-4 h-4 rounded-full overflow-hidden bg-white/20 shrink-0">
                     {gen.profiles?.telegram_avatar_url ? (
                       <img
                         src={gen.profiles.telegram_avatar_url}
@@ -105,7 +105,7 @@ export default function FeedClient({ generations }: { generations: Generation[] 
                       </div>
                     )}
                   </div>
-                  <span className="text-[9px] text-white font-medium truncate max-w-[50px] drop-shadow">
+                  <span className="text-[9px] text-white font-medium truncate max-w-12.5 drop-shadow">
                     {authorName}
                   </span>
                 </div>
