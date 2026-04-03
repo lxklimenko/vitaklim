@@ -6,31 +6,28 @@ export const dynamic = 'force-dynamic'
 export default async function FeedPage() {
   const { data: generations, error } = await supabaseAdmin
     .from('generations')
-    .select(`
-      id,
-      image_url,
-      prompt,
-      created_at,
-      user_id,
-      profiles (
-        telegram_first_name,
-        telegram_username,
-        telegram_avatar_url
-      )
-    `)
+    .select('id, image_url, prompt, created_at, user_id')
     .eq('is_public', true)
     .eq('status', 'completed')
     .not('image_url', 'is', null)
     .order('created_at', { ascending: false })
     .limit(30)
 
-  console.log('FEED generations count:', generations?.length)
-  console.log('FEED error:', error)
-  console.log('FEED first item:', generations?.[0])
+  if (error) console.error('FEED error:', error)
 
-  const mapped = (generations || []).map((g: any) => ({
+  // Загружаем профили отдельно
+  const userIds = [...new Set((generations || []).map(g => g.user_id))]
+  
+  const { data: profiles } = await supabaseAdmin
+    .from('profiles')
+    .select('id, telegram_first_name, telegram_username, telegram_avatar_url')
+    .in('id', userIds)
+
+  const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]))
+
+  const mapped = (generations || []).map(g => ({
     ...g,
-    profiles: Array.isArray(g.profiles) ? g.profiles[0] ?? null : g.profiles,
+    profiles: profileMap[g.user_id] ?? null,
   }))
 
   return <FeedClient generations={mapped} />
