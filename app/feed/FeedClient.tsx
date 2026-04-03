@@ -65,12 +65,10 @@ export default function FeedClient({ generations }: { generations: Generation[] 
               href={`/generation/${gen.id}`}
               className="relative aspect-square bg-white/5 overflow-hidden group"
             >
-              <Image
+              <img
                 src={gen.image_url}
                 alt={gen.prompt}
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-500"
-                sizes="33vw"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
 
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300" />
