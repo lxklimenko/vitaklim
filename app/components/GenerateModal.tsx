@@ -27,6 +27,8 @@ interface GenerateModalProps {
   referencePreview: string | null;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleRemoveImage: () => void;
+  isPublic: boolean;
+  setIsPublic: (v: boolean) => void;
 }
 
 export function GenerateModal({
@@ -42,7 +44,9 @@ export function GenerateModal({
   setAspectRatio,
   referencePreview,
   handleFileChange,
-  handleRemoveImage
+  handleRemoveImage,
+  isPublic,
+  setIsPublic,
 }: GenerateModalProps) {
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [isRatioMenuOpen, setIsRatioMenuOpen] = useState(false);
@@ -258,7 +262,27 @@ export function GenerateModal({
           </div>
 
           {/* Кнопка генерации */}
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-[#111] border-t border-white/5 pb-safe">
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-[#111] border-t border-white/5 pb-safe space-y-3">
+
+            {/* Переключатель публичности */}
+            <div
+              onClick={() => setIsPublic(!isPublic)}
+              className="flex items-center justify-between px-4 py-3 bg-white/[0.04] border border-white/[0.07] rounded-2xl cursor-pointer active:scale-[0.99] transition-all"
+            >
+              <div>
+                <p className="text-[14px] font-medium text-white">Опубликовать в ленту</p>
+                <p className="text-[11px] text-white/35 mt-0.5">
+                  {isPublic ? 'Генерация будет видна всем' : 'Только для вас'}
+                </p>
+              </div>
+              <div className={`w-12 h-6 rounded-full transition-all duration-300 flex items-center px-1 ${
+                isPublic ? 'bg-white' : 'bg-white/10'
+              }`}>
+                <div className={`w-4 h-4 rounded-full transition-all duration-300 ${
+                  isPublic ? 'bg-black translate-x-6' : 'bg-white/40 translate-x-0'
+                }`} />
+              </div>
+            </div>
             <button
               onClick={handleGenerate}
               disabled={isGenerating || isPromptEmpty}
