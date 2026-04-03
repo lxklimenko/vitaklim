@@ -9,46 +9,45 @@ export default async function GenerationPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  if (!id) notFound()
+  if (!id) { console.log('NO ID'); notFound() }
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  console.log('USER:', user?.id)
 
-  // Загружаем генерацию через admin (без RLS)
-  const { data: generation } = await supabaseAdmin
+  const { data: generation, error } = await supabaseAdmin
     .from('generations')
-    .select('*, profiles(telegram_first_name, telegram_username, telegram_avatar_url)')
+    .select('id, prompt, storage_path, is_public, user_id')
     .eq('id', id)
     .maybeSingle()
 
-  if (!generation || !generation.storage_path) notFound()
+  console.log('GENERATION:', generation?.id, 'ERROR:', error?.message)
 
-  // Проверяем доступ:
-  // - публичная генерация — видна всем
-  // - приватная — только владельцу
+  if (!generation) { console.log('NO GENERATION'); notFound() }
+  if (!generation.storage_path) { console.log('NO STORAGE PATH'); notFound() }
+
   const isOwner = user?.id === generation.user_id
   const isPublic = generation.is_public
 
-  if (!isPublic && !isOwner) notFound()
+  console.log('isOwner:', isOwner, 'isPublic:', isPublic)
 
-  // Генерируем signed URL
-  const { data: signedData } = await supabaseAdmin.storage
+  if (!isPublic && !isOwner) { console.log('ACCESS DENIED'); notFound() }
+
+  const { data: signedData, error: signedError } = await supabaseAdmin.storage
     .from('generations-private')
     .createSignedUrl(generation.storage_path, 3600)
 
-  if (!signedData?.signedUrl) notFound()
+  console.log('SIGNED URL:', !!signedData?.signedUrl, 'ERROR:', signedError?.message)
 
-  // Получаем профиль автора
-  const profiles = generation.profiles
-  const authorProfile = Array.isArray(profiles) ? profiles[0] : profiles
+  if (!signedData?.signedUrl) { console.log('NO SIGNED URL'); notFound() }
 
   return (
     <GenerationClient
       imageUrl={signedData.signedUrl}
       prompt={generation.prompt}
       isOwner={isOwner}
-      authorName={authorProfile?.telegram_first_name || authorProfile?.telegram_username || null}
-      authorAvatar={authorProfile?.telegram_avatar_url || null}
+      authorName={null}
+      authorAvatar={null}
       authorId={generation.user_id}
     />
   )

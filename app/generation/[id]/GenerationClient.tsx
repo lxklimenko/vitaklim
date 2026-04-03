@@ -82,9 +82,9 @@ export default function GenerationClient({ imageUrl, prompt, isOwner, authorName
       <div className="max-w-4xl mx-auto px-6 mt-6">
         <Link
           href={`/user/${authorId}`}
-          className="flex items-center gap-3 p-4 bg-white/[0.04] border border-white/[0.07] rounded-2xl hover:bg-white/[0.07] transition"
+          className="flex items-center gap-3 p-4 bg-white/4 border border-white/[0.07] rounded-2xl hover:bg-white/[0.07] transition"
         >
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 flex-shrink-0 flex items-center justify-center font-bold">
+          <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 shrink-0 flex items-center justify-center font-bold">
             {authorAvatar ? (
               <img src={authorAvatar} alt="" className="w-full h-full object-cover" />
             ) : (
