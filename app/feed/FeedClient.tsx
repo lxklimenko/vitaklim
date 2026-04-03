@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
 import { Navigation } from '../components/Navigation'
 import { Header } from '../components/Header'
@@ -26,6 +25,12 @@ export default function FeedClient({ generations }: { generations: Generation[] 
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchActive, setIsSearchActive] = useState(false)
+
+  // Фильтруем только те у которых есть картинка
+  const validGenerations = generations.filter(g => 
+    g.image_url && !g.image_url.includes('sign/generations-private') || 
+    g.image_url?.includes('token=')
+  )
 
   return (
     <div className="bg-black text-white min-h-screen pb-28">
@@ -58,41 +63,55 @@ export default function FeedClient({ generations }: { generations: Generation[] 
           <p className="text-[13px] mt-1">Будь первым — сгенерируй и опубликуй!</p>
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-0.5">
-          {generations.map((gen) => (
-            <Link
-              key={gen.id}
-              href={`/generation/${gen.id}`}
-              className="relative aspect-square bg-white/5 overflow-hidden group"
-            >
-              <img
-                src={gen.image_url}
-                alt={gen.prompt}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
+        <div className="grid grid-cols-3 gap-[2px]">
+          {generations.map((gen) => {
+            if (!gen.image_url) return null
 
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300" />
+            const authorName = gen.profiles?.telegram_first_name || 
+                              gen.profiles?.telegram_username || 
+                              'Аноним'
 
-              <div className="absolute bottom-2 left-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <div className="w-5 h-5 rounded-full overflow-hidden bg-white/20 shrink-0">
-                  {gen.profiles?.telegram_avatar_url ? (
-                    <img
-                      src={gen.profiles.telegram_avatar_url}
-                      alt="avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-white/10 flex items-center justify-center text-[8px] font-bold">
-                      {(gen.profiles?.telegram_first_name || 'A')[0].toUpperCase()}
-                    </div>
-                  )}
+            return (
+              <Link
+                key={gen.id}
+                href={`/generation/${gen.id}`}
+                className="relative aspect-square bg-white/5 overflow-hidden group block"
+              >
+                <img
+                  src={gen.image_url}
+                  alt=""
+                  className="w-full h-full object-cover group-active:scale-95 transition-transform duration-200"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    target.parentElement!.style.display = 'none'
+                  }}
+                />
+
+                {/* Оверлей снизу */}
+                <div className="absolute inset-x-0 bottom-0 h-12 bg-linear-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+
+                {/* Аватар автора */}
+                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="w-4 h-4 rounded-full overflow-hidden bg-white/20 flex-shrink-0">
+                    {gen.profiles?.telegram_avatar_url ? (
+                      <img
+                        src={gen.profiles.telegram_avatar_url}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-white/30 flex items-center justify-center text-[7px] font-bold">
+                        {authorName[0].toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-[9px] text-white font-medium truncate max-w-[50px] drop-shadow">
+                    {authorName}
+                  </span>
                 </div>
-                <span className="text-[10px] text-white font-medium truncate max-w-15">
-                  {gen.profiles?.telegram_first_name || gen.profiles?.telegram_username || 'Аноним'}
-                </span>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            )
+          })}
         </div>
       )}
 
