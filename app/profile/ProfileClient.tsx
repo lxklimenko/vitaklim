@@ -255,7 +255,7 @@ export default function ProfileClient({ initialProfile }: { initialProfile: Prof
 
         {/* Пополнение — разворачивается */}
         {showTopUp && (
-          <div className="bg-white/[0.03] border border-white/[0.06] rounded-3xl p-5 mt-2 space-y-4">
+          <div className="bg-white/3 border border-white/6 rounded-3xl p-5 mt-2 space-y-4">
             <p className="text-[12px] text-white/30 uppercase tracking-widest">Пополнение (₽)</p>
             <div className="flex gap-2">
               {[100, 500, 1000].map((val) => (
@@ -297,7 +297,7 @@ export default function ProfileClient({ initialProfile }: { initialProfile: Prof
       <div className="px-6 space-y-2">
         <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/25 mb-3 px-1">Аккаунт</p>
 
-        <Link href="/history" className="flex items-center justify-between p-4 bg-white/4 border border-white/[0.06] rounded-2xl hover:bg-white/[0.07] transition">
+        <Link href="/history" className="flex items-center justify-between p-4 bg-white/4 border border-white/6 rounded-2xl hover:bg-white/[0.07] transition">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center">
               <History size={15} className="text-white/50" />
@@ -306,7 +306,7 @@ export default function ProfileClient({ initialProfile }: { initialProfile: Prof
           </div>
           <ChevronRight size={16} className="text-white/20" />
         </Link>
-        <Link href="/favorites" className="flex items-center justify-between p-4 bg-white/[0.04] border border-white/[0.06] rounded-2xl hover:bg-white/[0.07] transition">
+        <Link href="/favorites" className="flex items-center justify-between p-4 bg-white/4 border border-white/6 rounded-2xl hover:bg-white/[0.07] transition">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center">
               <Heart size={15} className="text-white/50" />
@@ -316,7 +316,7 @@ export default function ProfileClient({ initialProfile }: { initialProfile: Prof
           <ChevronRight size={16} className="text-white/20" />
         </Link>
 
-        <a href="mailto:support@klex.pro" className="flex items-center justify-between p-4 bg-white/[0.04] border border-white/[0.06] rounded-2xl hover:bg-white/[0.07] transition">
+        <a href="mailto:support@klex.pro" className="flex items-center justify-between p-4 bg-white/4 border border-white/[0.06] rounded-2xl hover:bg-white/[0.07] transition">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center">
               <Mail size={15} className="text-white/50" />

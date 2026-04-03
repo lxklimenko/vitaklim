@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/hooks/useAuth';
 import { useImageGeneration } from '@/app/hooks/useImageGeneration';
@@ -8,6 +9,7 @@ import { GenerateModal } from '@/app/components/GenerateModal';
 export default function GeneratePage() {
   const router = useRouter();
   const { user } = useAuth();
+  const [isPublic, setIsPublic] = useState(false);
 
   const {
     generatePrompt,
@@ -38,6 +40,8 @@ export default function GeneratePage() {
       referencePreview={referencePreview}
       handleFileChange={handleFileChange}
       handleRemoveImage={handleRemoveImage}
+      isPublic={isPublic}
+      setIsPublic={setIsPublic}
     />
   );
 }
