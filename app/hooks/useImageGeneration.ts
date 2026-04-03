@@ -13,7 +13,8 @@ interface User {
 
 export function useImageGeneration(
   user: User | null,
-  onGenerationComplete: () => void
+  onGenerationComplete: () => void,
+  isPublic: boolean = false
 ) {
   const { balance, setBalance } = useBalance();
   const router = useRouter();
@@ -103,6 +104,7 @@ export function useImageGeneration(
       formData.append('prompt', generatePrompt);
       formData.append('modelId', modelId);
       formData.append('aspectRatio', aspectRatio === 'auto' ? '1:1' : aspectRatio);
+      formData.append('isPublic', isPublic ? 'true' : 'false');
 
       // Добавляем файл, если он есть
       if (referenceFile) {

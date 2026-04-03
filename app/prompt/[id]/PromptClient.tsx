@@ -43,7 +43,7 @@ export default function PromptClient({ prompts }: PromptClientProps) {
     generatePrompt, setGeneratePrompt, isGenerating,
     modelId, setModelId, aspectRatio, setAspectRatio,
     referencePreview, handleFileChange, handleRemoveImage, handleGenerate,
-  } = useImageGeneration(user, () => setIsGenerateOpen(false));
+  } = useImageGeneration(user, () => setIsGenerateOpen(false), isPublic);
 
   const actions = useAppActions(user, setFavorites, fetchProfile, () => {});
 

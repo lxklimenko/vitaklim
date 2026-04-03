@@ -23,7 +23,7 @@ export default function GeneratePage() {
     handleFileChange,
     handleRemoveImage,
     handleGenerate
-  } = useImageGeneration(user, () => {});
+  } = useImageGeneration(user, () => {}, isPublic);
 
   return (
     <GenerateModal
