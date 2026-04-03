@@ -1,12 +1,10 @@
-import { createClient } from '@/app/lib/supabase-server'
+import { supabaseAdmin } from '@/app/lib/supabase-admin'
 import FeedClient from './FeedClient'
 
 export const dynamic = 'force-dynamic'
 
 export default async function FeedPage() {
-  const supabase = await createClient()
-
-  const { data: generations } = await supabase
+  const { data: generations } = await supabaseAdmin
     .from('generations')
     .select(`
       id,
@@ -22,6 +20,7 @@ export default async function FeedPage() {
     `)
     .eq('is_public', true)
     .eq('status', 'completed')
+    .not('image_url', 'is', null)
     .order('created_at', { ascending: false })
     .limit(30)
 
