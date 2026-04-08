@@ -40,77 +40,96 @@ export const MainFeed = React.memo(function MainFeed({
       {/* Заголовок */}
       {!searchQuery && (
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6 px-4 text-center"
+          transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+          className="mb-6 px-6 pt-2"
         >
-          <h1 className="text-[32px] md:text-5xl font-bold tracking-tighter mb-1 text-white">
+          <h1 className="text-[28px] font-bold tracking-tight text-white leading-tight mb-1">
             Создавай шедевры
           </h1>
-          <p className="text-[13px] md:text-base text-white/40 max-w-xl mx-auto leading-relaxed">
-            Маркетплейс премиальных промптов.
+          <p className="text-[13px] text-white/35 font-light">
+            Промпты для генерации ИИ-изображений
           </p>
         </motion.div>
       )}
 
       {/* Категории */}
-      <nav className="max-w-7xl mx-auto mb-6 flex justify-start md:justify-center gap-1.5 overflow-x-auto no-scrollbar px-6">
-        {CATEGORIES.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`px-5 py-2 rounded-full text-[13px] font-semibold tracking-tight border transition-all duration-300 flex-shrink-0 ${
-              activeCategory === cat
-                ? 'bg-white text-black border-white shadow-lg'
-                : 'bg-white/5 text-white/40 border-transparent hover:bg-white/10'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </nav>
+      <div className="relative mb-8">
+        <nav className="flex gap-2 overflow-x-auto no-scrollbar px-6">
+          {CATEGORIES.map((cat) => (
+            <motion.button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              whileTap={{ scale: 0.96 }}
+              className={`px-4 py-2 rounded-full text-[13px] font-medium transition-all duration-300 shrink-0 ${
+                activeCategory === cat
+                  ? 'bg-white text-black'
+                  : 'bg-white/6 text-white/50 hover:bg-white/10 hover:text-white/80'
+              }`}
+            >
+              {cat}
+            </motion.button>
+          ))}
+        </nav>
+        <div className="absolute right-0 top-0 bottom-0 w-10 bg-linear-to-l from-black to-transparent pointer-events-none" />
+      </div>
 
-      {/* Сетка промптов */}
-      <section className="max-w-7xl mx-auto min-h-[400px]">
+      {/* Сетка */}
+      <section className="max-w-7xl mx-auto">
         {!isLoading && filteredPrompts.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-white/20">
-            <SearchX size={48} className="mb-4" />
-            <p className="text-sm">По вашему запросу ничего не найдено</p>
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center py-24 text-white/20"
+          >
+            <SearchX size={40} className="mb-3" />
+            <p className="text-sm font-light">Ничего не найдено</p>
+          </motion.div>
         )}
 
-        <div className="grid grid-cols-3 gap-2 px-2 md:grid-cols-4 md:gap-4 md:px-6">
+        <div className="grid grid-cols-3 gap-0.75 px-0 md:grid-cols-4 md:gap-1 md:px-6">
           {isLoading && filteredPrompts.length === 0 ? (
-            Array.from({ length: 8 }).map((_, i) => (
+            Array.from({ length: 6 }).map((_, i) => (
               <SkeletonCard key={`skeleton-${i}`} />
             ))
           ) : (
             <AnimatePresence mode="popLayout">
               {filteredPrompts.slice(0, visibleCount).map((p, index) => (
-                <PromptCard
+                <motion.div
                   key={p.id}
-                  prompt={p}
-                  priority={index < 4}
-                  favorites={favorites}
-                  toggleFavorite={toggleFavorite}
-                  handleCopy={handleCopy}
-                  copiedId={copiedId}
-                />
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4, delay: index * 0.04 }}
+                >
+                  <PromptCard
+                    prompt={p}
+                    priority={index < 4}
+                    favorites={favorites}
+                    toggleFavorite={toggleFavorite}
+                    handleCopy={handleCopy}
+                    copiedId={copiedId}
+                  />
+                </motion.div>
               ))}
             </AnimatePresence>
           )}
         </div>
 
-        {/* Кнопка "Показать ещё" */}
+        {/* Кнопка */}
         {filteredPrompts.length > visibleCount && !isLoading && (
-          <div className="mt-12 flex justify-center px-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-10 mb-2 flex justify-center px-6"
+          >
             <button
-              onClick={() => setVisibleCount((prev) => prev + 8)}
-              className="px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-white/60 font-medium active:scale-95 transition-all hover:bg-white/10 hover:text-white"
+              onClick={() => setVisibleCount((prev) => prev + 6)}
+              className="w-full max-w-sm py-4 rounded-2xl bg-white/6 text-white/60 text-[15px] font-medium active:scale-[0.98] transition-all hover:bg-white/10 hover:text-white border border-white/6"
             >
-              Загрузить ещё
+              Показать ещё
             </button>
-          </div>
+          </motion.div>
         )}
       </section>
     </>

@@ -38,7 +38,7 @@ export function PromptDetailModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 overflow-x-hidden overscroll-none">
+      <div className="fixed inset-0 z-200 flex items-center justify-center p-4 overflow-x-hidden overscroll-none">
         <motion.div 
           className="absolute inset-0 bg-black/90 backdrop-blur-md touch-none"
           onClick={onClose} 
@@ -68,17 +68,17 @@ export function PromptDetailModal({
                 className="relative z-10 max-h-full w-auto object-contain"
                 alt="prompt-img"
               />
-              <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+              <div className="absolute inset-x-0 bottom-0 h-28 bg-linear-to-t from-black/60 to-transparent pointer-events-none" />
             </div>
             
             {/* Правая часть с текстом */}
             <div className="md:w-1/2 relative flex flex-col justify-end">
-              <div className="absolute -inset-x-6 -bottom-6 h-[50vh] bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none z-0" />
+              <div className="absolute -inset-x-6 -bottom-6 h-[50vh] bg-linear-to-t from-black via-black/80 to-transparent pointer-events-none z-0" />
 
               <div className="relative z-10 p-5 md:p-10 space-y-3">
                 <div className="flex gap-3 h-32">
                   <div className="flex-1 bg-white/4 border border-white/8 rounded-xl px-4 py-3 overflow-y-auto">
-                    <p className="text-[13px] leading-relaxed text-white/80 whitespace-pre-wrap select-all min-w-0 break-words">
+                    <p className="text-[13px] leading-relaxed text-white/80 whitespace-pre-wrap select-all min-w-0 wrap-break-word">
                       {selectedPrompt.prompt}
                     </p>
                   </div>

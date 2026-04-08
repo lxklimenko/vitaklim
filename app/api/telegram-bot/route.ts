@@ -545,9 +545,9 @@ export async function POST(req: Request) {
 
         if (!refError) {
           if (result === 'success') {
-            await sendMessage(chatId, "🎁 Привет! Вы зашли по приглашению. Вашему другу начислено 30 🍌!");
+            await sendMessage(chatId, "🎁 Привет! Вы зашли по приглашению. Вашему другу начислено 20 🍌!");
             // Уведомление администратору о новом реферале
-            await sendMessage(ADMIN_ID, `🔔 *Реферал!* \nКто-то только что пришел по ссылке. Пригласившему начислено 30 🍌`);
+            await sendMessage(ADMIN_ID, `🔔 *Реферал!* \nКто-то только что пришел по ссылке. Пригласившему начислено 20 🍌`);
           } else if (result === 'self_referral') {
             await sendMessage(chatId, "🍌 Это ваша собственная ссылка. Приглашайте друзей, чтобы получать бонусы!");
           }
