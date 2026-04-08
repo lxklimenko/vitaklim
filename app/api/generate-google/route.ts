@@ -127,7 +127,8 @@ export async function POST(req: Request) {
       .insert({
         user_id: user.id,
         prompt,
-        status: 'pending'
+        status: 'pending',
+        model_id: modelId
       })
       .select()
       .single();
@@ -458,7 +459,9 @@ high resolution
           reference_image_url: referencePublicUrl,
           reference_storage_path: referenceFileName,
           generation_time_ms: generationTime,
-          is_public: isPublic
+          is_public: isPublic,
+          cost: cost,
+          model_id: modelId
         })
         .eq('id', processingRecord.id);
     }
@@ -636,7 +639,9 @@ async function generateImagenUltra({
       image_url: publicUrl,
       storage_path: fileName,
       generation_time_ms: generationTime,
-      is_public: isPublic
+      is_public: isPublic,
+      cost: 5,
+      model_id: 'imagen-4-ultra'
     })
     .eq('id', processingRecord.id);
 
@@ -754,7 +759,9 @@ async function generateOpenAI({
       image_url: publicUrl,
       storage_path: fileName,
       generation_time_ms: generationTime,
-      is_public: isPublic
+      is_public: isPublic,
+      cost: 5,
+      model_id: 'dall-e-3'
     })
     .eq('id', processingRecord.id);
 
