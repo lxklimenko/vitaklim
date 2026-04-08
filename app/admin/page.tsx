@@ -97,6 +97,14 @@ export default async function AdminPage() {
     .from('profiles')
     .select('*', { count: 'exact', head: true })
 
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const { count: newUsersToday } = await supabaseAdmin
+    .from('profiles')
+    .select('*', { count: 'exact', head: true })
+    .gte('created_at', today.toISOString())
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-6 md:p-10">
       {/* Навигация */}
@@ -112,7 +120,7 @@ export default async function AdminPage() {
       {/* Основные метрики */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Card title="Всего пользователей" value={totalUsers ?? 0} />
-        <Card title="Публичных генераций" value={publicCount ?? 0} />
+        <Card title="Новых сегодня" value={newUsersToday ?? 0} />
         <Card title="Лайков" value={likesCount ?? 0} />
         <Card title="Комментариев" value={commentsCount ?? 0} />
       </div>
