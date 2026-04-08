@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createClient } from "@/app/lib/supabase-server";
 import { supabaseAdmin } from "@/app/lib/supabase-admin";
 import { notFound } from "next/navigation";
+import AddBalanceButton from './AddBalanceButton'
 
 // В Next.js 15 searchParams — это Promise
 export default async function AdminUsersPage({
@@ -125,6 +126,7 @@ export default async function AdminUsersPage({
               <th className="pb-4">Траты</th>
               <th className="pb-4">Рефералы</th>
               <th className="pb-4">Регистрация</th>
+              <th className="pb-4">Начислить</th>
             </tr>
           </thead>
           <tbody>
@@ -162,6 +164,9 @@ export default async function AdminUsersPage({
                 </td>
                 <td className="py-4 text-sm text-white/40">
                   {new Date(u.created_at).toLocaleDateString()}
+                </td>
+                <td className="py-4">
+                  <AddBalanceButton userId={u.id} />
                 </td>
               </tr>
             ))}

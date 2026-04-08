@@ -105,6 +105,37 @@ export default async function AdminPage() {
     .select('*', { count: 'exact', head: true })
     .gte('created_at', today.toISOString())
 
+  // Пополнения сегодня
+  const { data: todayPayments } = await supabaseAdmin
+    .from('payments')
+    .select('user_id, amount, created_at')
+    .eq('status', 'succeeded')
+    .gte('created_at', today.toISOString())
+    .order('created_at', { ascending: false })
+
+  // Загружаем профили для платежей
+  const paymentUserIds = [...new Set((todayPayments || []).map(p => p.user_id))]
+  const { data: paymentProfiles } = await supabaseAdmin
+    .from('profiles')
+    .select('id, telegram_first_name, telegram_username, telegram_avatar_url')
+    .in('id', paymentUserIds.length > 0 ? paymentUserIds : ['none'])
+  const paymentProfileMap = Object.fromEntries((paymentProfiles || []).map(p => [p.id, p]))
+
+  // Новые пользователи по дням за 7 дней
+  const { data: newUsersByDay } = await supabaseAdmin
+    .from('profiles')
+    .select('created_at')
+    .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+    .order('created_at', { ascending: true })
+
+  // Группируем по дням
+  const usersByDay: Record<string, number> = {}
+  newUsersByDay?.forEach(u => {
+    const day = new Date(u.created_at).toLocaleDateString('ru', { day: 'numeric', month: 'short' })
+    usersByDay[day] = (usersByDay[day] || 0) + 1
+  })
+  const newUsersChartData = Object.entries(usersByDay).map(([date, count]) => ({ date, count }))
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-6 md:p-10">
       {/* Навигация */}
@@ -151,6 +182,78 @@ export default async function AdminPage() {
           <UsersChart data={dau} />
         </div>
       )}
+
+      {/* Пополнения сегодня */}
+      <div className="mt-10">
+        <h2 className="text-xl font-bold mb-4">
+          Пополнения сегодня
+          <span className="text-white/40 text-base font-normal ml-2">
+            {todayPayments?.length || 0} платежей · {todayPayments?.reduce((s, p) => s + p.amount, 0) || 0} ₽
+          </span>
+        </h2>
+        {!todayPayments?.length ? (
+          <p className="text-white/30 text-sm">Пополнений сегодня нет</p>
+        ) : (
+          <div className="bg-[#141414] border border-white/10 rounded-2xl overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="text-white/40 border-b border-white/10">
+                  <th className="p-4">Пользователь</th>
+                  <th className="p-4">Сумма</th>
+                  <th className="p-4">Время</th>
+                </tr>
+              </thead>
+              <tbody>
+                {todayPayments.map((p: any) => {
+                  const profile = paymentProfileMap[p.user_id]
+                  const name = profile?.telegram_first_name || profile?.telegram_username || 'Аноним'
+                  return (
+                    <tr key={p.id} className="border-t border-white/5 hover:bg-white/[0.02]">
+                      <td className="p-4">
+                        <Link href={`/user/${p.user_id}`} className="flex items-center gap-2 hover:text-white/80">
+                          <div className="w-7 h-7 rounded-full overflow-hidden bg-white/10 flex-shrink-0 flex items-center justify-center text-[10px] font-bold">
+                            {profile?.telegram_avatar_url ? (
+                              <img src={profile.telegram_avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : name[0].toUpperCase()}
+                          </div>
+                          <span>{name}</span>
+                        </Link>
+                      </td>
+                      <td className="p-4 font-semibold text-green-400">{p.amount} ₽</td>
+                      <td className="p-4 text-white/40 text-[12px]">
+                        {new Date(p.created_at).toLocaleString('ru', { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* График новых пользователей */}
+      <div className="mt-10">
+        <h2 className="text-xl font-bold mb-4">Новые пользователи за 7 дней</h2>
+        <div className="bg-[#141414] border border-white/10 rounded-2xl p-6">
+          <div className="flex items-end gap-2 h-32">
+            {newUsersChartData.map((d, i) => {
+              const max = Math.max(...newUsersChartData.map(x => x.count))
+              const height = max > 0 ? (d.count / max) * 100 : 0
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                  <span className="text-[10px] text-white/40">{d.count}</span>
+                  <div
+                    className="w-full bg-white/20 rounded-sm transition-all"
+                    style={{ height: `${height}%`, minHeight: '4px' }}
+                  />
+                  <span className="text-[9px] text-white/30 truncate w-full text-center">{d.date}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
 
       {/* Последние генерации */}
       <div className="mt-10">
