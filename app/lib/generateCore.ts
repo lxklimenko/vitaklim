@@ -86,7 +86,8 @@ export async function generateImageCore({
     .insert({
       user_id: userId,
       prompt,
-      status: "pending"
+      status: "pending",
+      model_id: modelId
     })
     .select()
     .single();
@@ -317,7 +318,9 @@ export async function generateImageCore({
       status: "completed",
       image_url: publicUrl,
       storage_path: fileName,
-      generation_time_ms: generationTime
+      generation_time_ms: generationTime,
+      cost: cost,
+      model_id: modelId
     })
     .eq("id", processingRecord.id);
 
