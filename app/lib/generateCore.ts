@@ -103,11 +103,11 @@ export async function generateImageCore({
   let cost = 5; // По умолчанию Nano 2
 
   if (modelId.includes("-4k")) {
-    cost = 15; // Nano Banano Pro (4K)
+    cost = 20; // Nano Banano Pro (4K)
   } else if (modelId === "gemini-3-pro-image-preview") {
     cost = 10; // Nano Banana Pro
   } else if (modelId === "imagen-4-ultra" || modelId === "dall-e-3") {
-    cost = 15; // Для Ultra и DALL-E
+    cost = 5; // Для Ultra и DALL-E
   }
 
   // 3️⃣ Всегда списываем баланс через RPC
