@@ -613,6 +613,7 @@ export async function POST(req: Request) {
               [{ text: MODELS.NANO2 }],
               [{ text: MODELS.PRO }],
               [{ text: MODELS.PRO4K }],
+              [{ text: "❓ В чем разница?" }],
               [{ text: "⬅️ Назад" }],
             ],
             resize_keyboard: true,
