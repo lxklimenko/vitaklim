@@ -155,7 +155,11 @@ export async function POST(req: Request) {
     processingRecord = newProcessingRecord;
 
     // 💰 Определяем стоимость в зависимости от модели
-    const cost = (modelId === 'imagen-4-ultra' || modelId === 'dall-e-3') ? 5 : GENERATION_COST;
+    let cost = GENERATION_COST;
+    if (modelId === 'gemini-3-pro-image-preview') cost = 10;
+    else if (modelId === 'gemini-3-pro-image-preview-4k' || modelId.includes('-4k')) cost = 20;
+    else if (modelId === 'gemini-3.1-flash-image-preview') cost = 5;
+    else if (modelId === 'imagen-4-ultra' || modelId === 'dall-e-3') cost = 5;
     usedCost = cost;
 
     // 💰 Списываем баланс ДО генерации
