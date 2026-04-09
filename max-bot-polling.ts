@@ -14,13 +14,13 @@ const bot = new Bot(MAX_TOKEN);
 const MODELS = {
   NANO2: "🍌 Nano Banano 2 (Gemini 3.1 Flash) — 5 🍌",
   PRO: "🍌 Nano Banana Pro (Gemini 3 Pro) — 10 🍌",
-  PRO4K: "🔥 Nano Banano Pro (4K) — 15 🍌"
+  PRO4K: "🔥 Nano Banano Pro (4K) — 20 🍌"
 };
 
 const PRICES: Record<string, number> = {
   [MODELS.NANO2]: 5,
   [MODELS.PRO]: 10,
-  [MODELS.PRO4K]: 15
+  [MODELS.PRO4K]: 20
 };
 
 const MODEL_NAME_TO_ID: Record<string, string> = {
