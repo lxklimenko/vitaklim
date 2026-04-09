@@ -69,7 +69,7 @@ async function handleUserStart(ctx: any) {
         id: authUser.user.id,
         max_user_id: maxUserId,
         telegram_first_name: senderName,
-        balance: 30,
+        balance: 10,
         bot_state: "idle",
       }).select().single();
       profile = newProfile;
