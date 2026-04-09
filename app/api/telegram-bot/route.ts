@@ -489,7 +489,7 @@ export async function POST(req: Request) {
           id: userId,
           telegram_id: telegramId,
           telegram_username: username,
-          balance: 30, // Бонус начислится, только если записи не было
+          balance: 10,
           bot_state: "idle",
           bot_selected_model: null,
           bot_reference_url: null,
@@ -545,9 +545,9 @@ export async function POST(req: Request) {
 
         if (!refError) {
           if (result === 'success') {
-            await sendMessage(chatId, "🎁 Привет! Вы зашли по приглашению. Вашему другу начислено 20 🍌!");
+            await sendMessage(chatId, "🎁 Привет! Вы зашли по приглашению. Вашему другу начислено 10 🍌!");
             // Уведомление администратору о новом реферале
-            await sendMessage(ADMIN_ID, `🔔 *Реферал!* \nКто-то только что пришел по ссылке. Пригласившему начислено 20 🍌`);
+            await sendMessage(ADMIN_ID, `🔔 *Реферал!* \nКто-то только что пришел по ссылке. Пригласившему начислено 10 🍌`);
           } else if (result === 'self_referral') {
             await sendMessage(chatId, "🍌 Это ваша собственная ссылка. Приглашайте друзей, чтобы получать бонусы!");
           }
@@ -639,7 +639,7 @@ export async function POST(req: Request) {
       const balanceText = 
         `💰 *Ваш баланс:* ${profile.balance} 🍌\n\n` +
         `👥 *Приглашено друзей:* ${profile.referrals_count || 0}\n` +
-        `🎁 За каждого друга: *30 🍌*\n\n` +
+        `🎁 За каждого друга: *10 🍌*\n\n` +
         `🔗 *Ваша ссылка для приглашения:* \n\`${refLink}\` \n\n` +
         `───\n` +
         `⚖️ [Публичная оферта](https://telegra.ph/PUBLICHNAYA-OFERTA-03-06-6)\n` +
