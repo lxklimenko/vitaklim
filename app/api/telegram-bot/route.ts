@@ -19,7 +19,7 @@ console.log("SERVICE ROLE EXISTS:", !!SUPABASE_SERVICE_ROLE_KEY);
 // ==================== ЗОЛОТОЙ СТАНДАРТ НАЗВАНИЙ ====================
 const MODELS = {
   NANO2: "🍌 Nano Banano 2 (Gemini 3.1 Flash) — 5 🍌",
-  PRO: "🍌 Nano Banana Pro (Gemini 3 Pro) — 10 🍌",
+  PRO: "🍌 Nano Banano Pro (Gemini 3 Pro) — 10 🍌",
   PRO4K: "🔥 Nano Banano Pro (4K) — 15 🍌"
 };
 
@@ -581,6 +581,7 @@ export async function POST(req: Request) {
               [{ text: MODELS.NANO2 }],
               [{ text: MODELS.PRO }],
               [{ text: MODELS.PRO4K }],
+              [{ text: "❓ В чем разница?" }],
               [{ text: "⬅️ Назад" }],
             ],
             resize_keyboard: true,
@@ -612,6 +613,7 @@ export async function POST(req: Request) {
               [{ text: MODELS.NANO2 }],
               [{ text: MODELS.PRO }],
               [{ text: MODELS.PRO4K }],
+              [{ text: "❓ В чем разница?" }],
               [{ text: "⬅️ Назад" }],
             ],
             resize_keyboard: true,
@@ -704,6 +706,38 @@ export async function POST(req: Request) {
           link_preview_options: { is_disabled: true },
         }),
       });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (text === "❓ В чем разница?") {
+      const diffText =
+        `🤖 *Какую модель выбрать?*\n\n` +
+        `Разные задачи требуют разных мощностей. Выбирайте то, что нужно именно вам:\n\n` +
+        `🍌 *Nano Banano 2 (5 монет)*\n` +
+        `⚡️ Скорость и экономия\n` +
+        `Самая быстрая нейросеть для простых задач. Идеально подходит для мемов, стикеров, аниме-артов и быстрых зарисовок. Выдает результат за пару секунд.\n` +
+        `👉 Когда выбирать: хотите просто поиграться, проверить идею или сделать забавную картинку для друзей.\n\n` +
+        `🍌 *Nano Banana Pro (10 монет)*\n` +
+        `🧠 Детализация и интеллект\n` +
+        `Продвинутая модель, которая внимательно читает длинные тексты. Отлично справляется со сложной анатомией, правильным светом и мелкими деталями.\n` +
+        `👉 Когда выбирать: нужен красивый, проработанный арт или иллюстрация, где важна каждая деталь из вашего описания.\n\n` +
+        `🔥 *Nano Banano Pro (4K) (15 монет)*\n` +
+        `💎 Бескомпромиссный фотореализм\n` +
+        `Вся мощь версии Pro, умноженная на сверхвысокое 4K-разрешение. Кристальная четкость, реалистичная текстура кожи и студийное качество.\n` +
+        `👉 Когда выбирать: нужны обои на телефон, фотореалистичный портрет или профессиональное изображение для работы.\n\n` +
+        `💡 *Лайфхак:* Проверьте свой промпт на дешевой модели за 5 монет. Если композиция вас устраивает — смело включайте Pro 4K, чтобы превратить набросок в шедевр!`;
+
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: diffText,
+          parse_mode: "Markdown",
+          link_preview_options: { is_disabled: true },
+        }),
+      });
+
       return NextResponse.json({ ok: true });
     }
 
