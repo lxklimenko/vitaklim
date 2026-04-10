@@ -430,6 +430,106 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
+      // Повторить последнюю генерацию
+      if (cbData === "repeat_generation") {
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ callback_query_id: cb.id }),
+        });
+
+        const lastData = cbProfile.last_generation_data;
+        if (!lastData?.prompt || !lastData?.modelStr) {
+          await sendMessage(cbChatId, "❌ Не удалось найти данные последней генерации.");
+          return NextResponse.json({ ok: true });
+        }
+
+        const [modelDisplayNameRepeat] = lastData.modelStr.split('|');
+        const repeatCost = PRICES[modelDisplayNameRepeat] || 5;
+
+        if (cbProfile.balance < repeatCost) {
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: cbChatId,
+              text: `❌ Недостаточно средств. Нужно ${repeatCost} 🍌, у вас ${cbProfile.balance} 🍌.`,
+              reply_markup: {
+                inline_keyboard: [[{ text: "💳 Пополнить баланс", callback_data: "start_payment" }]]
+              }
+            }),
+          });
+          return NextResponse.json({ ok: true });
+        }
+
+        await sendMessage(cbChatId, "🎨 Повторяю генерацию...");
+
+        const repeatModelId = MODEL_NAME_TO_ID[modelDisplayNameRepeat];
+        const [, repeatFormat] = lastData.modelStr.split('|');
+
+        try {
+          let repeatImageBuffers: Buffer[] | undefined;
+          if (lastData.referenceUrls && lastData.referenceUrls.length > 0) {
+            repeatImageBuffers = await fetchImageBuffers(lastData.referenceUrls);
+          }
+
+          const repeatResult = await generateImageCore({
+            userId: cbProfile.id,
+            prompt: lastData.prompt,
+            modelId: repeatModelId,
+            aspectRatio: repeatFormat || "1:1",
+            supabase,
+            imageBuffers: repeatImageBuffers,
+          });
+
+          await supabase.from("profiles").update({
+            last_generation_data: { ...lastData, imageUrl: repeatResult.imageUrl }
+          }).eq("id", cbProfile.id);
+
+          await sendPhotoBuffer(cbChatId, repeatResult.imageUrl);
+
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: cbChatId,
+              text: "✨ Готово! Что дальше?",
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: `🔄 Повторить этот запрос (${repeatCost} 🍌)`, callback_data: "repeat_generation" }],
+                  [{ text: "📝 Новый запрос", callback_data: "new_generation" }]
+                ]
+              }
+            }),
+          });
+
+          await sendDocumentBuffer(cbChatId, repeatResult.imageUrl);
+        } catch (err: any) {
+          console.error("REPEAT GENERATION ERROR:", err);
+          await supabase.rpc('increment_balance', { user_id: cbProfile.id, amount_to_add: repeatCost });
+          await sendMessage(cbChatId, "Хьюстон, у нас фильтры! 🛑 ИИ посчитал запрос небезопасным. Бананы возвращены!");
+        }
+
+        return NextResponse.json({ ok: true });
+      }
+
+      // Новый запрос
+      if (cbData === "new_generation") {
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ callback_query_id: cb.id }),
+        });
+
+        await supabase
+          .from("profiles")
+          .update({ bot_state: "idle" })
+          .eq("id", cbProfile.id);
+
+        await sendMainMenu(cbChatId);
+        return NextResponse.json({ ok: true });
+      }
+
       // Если другие callback'и – можно добавить позже
     }
 
@@ -1108,10 +1208,43 @@ export async function POST(req: Request) {
         });
 
         console.log("SENDING PHOTO:", result.imageUrl);
-        
+
+        // Сохраняем данные последней генерации
+        await supabase
+          .from("profiles")
+          .update({
+            last_generation_data: {
+              prompt: text,
+              modelStr: savedModel,
+              imageUrl: result.imageUrl
+            }
+          })
+          .eq("id", profile.id);
+
         await sendPhotoBuffer(chatId, result.imageUrl);
-        await sendDocumentBuffer(chatId, result.imageUrl);
-        
+
+        // Сначала кнопки
+        const [modelDisplayNameBtn] = savedModel.split('|');
+        const costBtn = PRICES[modelDisplayNameBtn] || 5;
+
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "✨ Готово! Что дальше?",
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: `🔄 Повторить этот запрос (${costBtn} 🍌)`, callback_data: "repeat_generation" }],
+                [{ text: "📝 Новый запрос", callback_data: "new_generation" }]
+              ]
+            }
+          }),
+        });
+
+        // Документ в конце — не блокирует показ кнопок
+        sendDocumentBuffer(chatId, result.imageUrl).catch(console.error);
+
         console.log("PHOTO AND DOCUMENT SENT");
 
         await supabase
@@ -1198,8 +1331,34 @@ export async function POST(req: Request) {
           imageBuffers,
         });
 
+        // Сохраняем данные последней генерации
+        await supabase.from("profiles").update({
+          last_generation_data: { prompt: text, modelStr: savedModel, referenceUrls, imageUrl: result.imageUrl }
+        }).eq("id", profile.id);
+
         await sendPhotoBuffer(chatId, result.imageUrl);
-        await sendDocumentBuffer(chatId, result.imageUrl);
+
+        // Сначала кнопки
+        const [modelDisplayNameBtn] = savedModel.split('|');
+        const costBtn = PRICES[modelDisplayNameBtn] || 5;
+
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "✨ Готово! Что дальше?",
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: `🔄 Повторить этот запрос (${costBtn} 🍌)`, callback_data: "repeat_generation" }],
+                [{ text: "📝 Новый запрос", callback_data: "new_generation" }]
+              ]
+            }
+          }),
+        });
+
+        // Документ в конце — не блокирует показ кнопок
+        sendDocumentBuffer(chatId, result.imageUrl).catch(console.error);
 
         await supabase
           .from("profiles")
