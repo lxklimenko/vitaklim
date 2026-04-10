@@ -1223,7 +1223,7 @@ export async function POST(req: Request) {
 
         await sendPhotoBuffer(chatId, result.imageUrl);
 
-        // Отправляем сообщение с inline кнопками
+        // Сначала кнопки
         const [modelDisplayNameBtn] = savedModel.split('|');
         const costBtn = PRICES[modelDisplayNameBtn] || 5;
 
@@ -1242,7 +1242,8 @@ export async function POST(req: Request) {
           }),
         });
 
-        await sendDocumentBuffer(chatId, result.imageUrl);
+        // Документ в конце — не блокирует показ кнопок
+        sendDocumentBuffer(chatId, result.imageUrl).catch(console.error);
 
         console.log("PHOTO AND DOCUMENT SENT");
 
@@ -1337,6 +1338,7 @@ export async function POST(req: Request) {
 
         await sendPhotoBuffer(chatId, result.imageUrl);
 
+        // Сначала кнопки
         const [modelDisplayNameBtn] = savedModel.split('|');
         const costBtn = PRICES[modelDisplayNameBtn] || 5;
 
@@ -1355,7 +1357,8 @@ export async function POST(req: Request) {
           }),
         });
 
-        await sendDocumentBuffer(chatId, result.imageUrl);
+        // Документ в конце — не блокирует показ кнопок
+        sendDocumentBuffer(chatId, result.imageUrl).catch(console.error);
 
         await supabase
           .from("profiles")
