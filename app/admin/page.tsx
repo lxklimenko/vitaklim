@@ -121,6 +121,35 @@ export default async function AdminPage() {
     .in('id', paymentUserIds.length > 0 ? paymentUserIds : ['none'])
   const paymentProfileMap = Object.fromEntries((paymentProfiles || []).map(p => [p.id, p]))
 
+  // Повторные пополнения
+  const { data: repeatPayments } = await supabaseAdmin
+    .from('payments')
+    .select('user_id, amount, created_at')
+    .eq('status', 'succeeded')
+    .order('created_at', { ascending: false })
+
+  // Считаем количество пополнений по каждому пользователю
+  const repeatMap: Record<string, { count: number, total: number }> = {}
+  repeatPayments?.forEach(p => {
+    if (!repeatMap[p.user_id]) repeatMap[p.user_id] = { count: 0, total: 0 }
+    repeatMap[p.user_id].count++
+    repeatMap[p.user_id].total += p.amount
+  })
+
+  // Оставляем только тех кто пополнял больше 1 раза
+  const repeatUsers = Object.entries(repeatMap)
+    .filter(([_, v]) => v.count > 1)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 20)
+
+  // Загружаем профили повторных плательщиков
+  const repeatUserIds = repeatUsers.map(([id]) => id)
+  const { data: repeatProfiles } = await supabaseAdmin
+    .from('profiles')
+    .select('id, telegram_first_name, telegram_username, telegram_avatar_url')
+    .in('id', repeatUserIds.length > 0 ? repeatUserIds : ['none'])
+  const repeatProfileMap = Object.fromEntries((repeatProfiles || []).map(p => [p.id, p]))
+
   // Новые пользователи по дням за 7 дней
   const { data: newUsersByDay } = await supabaseAdmin
     .from('profiles')
@@ -223,6 +252,57 @@ export default async function AdminPage() {
                       <td className="p-4 text-white/40 text-[12px]">
                         {new Date(p.created_at).toLocaleString('ru', { hour: '2-digit', minute: '2-digit' })}
                       </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Повторные пополнения */}
+      <div className="mt-10">
+        <h2 className="text-xl font-bold mb-4">
+          Повторные пополнения
+          <span className="text-white/40 text-base font-normal ml-2">
+            {repeatUsers.length} пользователей
+          </span>
+        </h2>
+        {repeatUsers.length === 0 ? (
+          <p className="text-white/30 text-sm">Повторных пополнений нет</p>
+        ) : (
+          <div className="bg-[#141414] border border-white/10 rounded-2xl overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="text-white/40 border-b border-white/10">
+                  <th className="p-4">#</th>
+                  <th className="p-4">Пользователь</th>
+                  <th className="p-4">Пополнений</th>
+                  <th className="p-4">Всего потрачено</th>
+                </tr>
+              </thead>
+              <tbody>
+                {repeatUsers.map(([userId, data], i) => {
+                  const p = repeatProfileMap[userId]
+                  const name = p?.telegram_first_name || p?.telegram_username || 'Аноним'
+                  return (
+                    <tr key={userId} className="border-t border-white/5 hover:bg-white/[0.02]">
+                      <td className="p-4 text-white/30">{i + 1}</td>
+                      <td className="p-4">
+                        <Link href={`/user/${userId}`} className="flex items-center gap-2 hover:text-white/80">
+                          <div className="w-7 h-7 rounded-full overflow-hidden bg-white/10 flex-shrink-0 flex items-center justify-center text-[10px] font-bold">
+                            {p?.telegram_avatar_url ? (
+                              <img src={p.telegram_avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : name[0].toUpperCase()}
+                          </div>
+                          <span>{name}</span>
+                        </Link>
+                      </td>
+                      <td className="p-4">
+                        <span className="text-yellow-400 font-semibold">{data.count}x</span>
+                      </td>
+                      <td className="p-4 font-semibold text-green-400">{data.total} ₽</td>
                     </tr>
                   )
                 })}
