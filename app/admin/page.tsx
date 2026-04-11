@@ -52,6 +52,7 @@ export default async function AdminPage() {
     .from('generations')
     .select('cost, user_id')
     .eq('status', 'completed')
+    .gt('cost', 0)
 
   const spendingMap: Record<string, any> = {}
   userSpending?.forEach((g: any) => {
