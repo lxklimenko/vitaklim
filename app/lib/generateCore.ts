@@ -123,6 +123,7 @@ export async function generateImageCore({
   console.log("BALANCE CHARGED");
 
   // ------------------- ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ -------------------
+  const isProModel = cleanModelId === "gemini-3-pro-image-preview" || cleanModelId === "imagen-4-ultra";
   let buffer: Buffer;
 
   if (modelId === "dall-e-3") {
@@ -171,8 +172,6 @@ export async function generateImageCore({
     console.log("CALLING GOOGLE API WITH MULTIPLE PHOTOS");
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) throw new Error("API key не настроен");
-
-    const isProModel = cleanModelId === "gemini-3-pro-image-preview" || cleanModelId === "imagen-4-ultra";
 
     // Формируем массив частей: текстовый промпт + все фото
     const parts: any[] = [{ text: prompt }];
@@ -231,8 +230,6 @@ export async function generateImageCore({
   // 🚀 Улучшение качества (upscale) для Pro моделей
   let processedBuffer: Buffer;
   try {
-    const isProModel = cleanModelId === "gemini-3-pro-image-preview" || cleanModelId === "imagen-4-ultra";
-   
     let sharpInstance = sharp(buffer);
    
     if (isProModel) {
