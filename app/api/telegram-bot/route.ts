@@ -1165,7 +1165,7 @@ export async function POST(req: Request) {
           }),
         });
 
-        sendDocumentBuffer(chatId, result.imageUrl).catch(console.error);
+        await sendDocumentBuffer(chatId, result.imageUrl);
 
         await supabase
           .from("profiles")
@@ -1268,7 +1268,7 @@ export async function POST(req: Request) {
           }),
         });
 
-        sendDocumentBuffer(chatId, result.imageUrl).catch(console.error);
+        await sendDocumentBuffer(chatId, result.imageUrl);
 
         await supabase
           .from("profiles")
