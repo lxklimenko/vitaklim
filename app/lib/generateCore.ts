@@ -100,12 +100,12 @@ export async function generateImageCore({
   console.log("PENDING CREATED:", processingRecord.id);
 
   // ========== Определение стоимости ==========
-  let cost = 5; // По умолчанию Nano 2
+  let cost = 10; // По умолчанию Nano 2
 
   if (modelId.includes("-4k")) {
     cost = 20; // Nano Banano Pro (4K)
   } else if (modelId === "gemini-3-pro-image-preview") {
-    cost = 10; // Nano Banana Pro
+    cost = 15; // Nano Banana Pro
   } else if (modelId === "imagen-4-ultra" || modelId === "dall-e-3") {
     cost = 5; // Для Ultra и DALL-E
   }

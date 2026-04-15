@@ -13,7 +13,7 @@ export const MODELS: Model[] = [
     badge: 'NEW',
     color: 'from-blue-400 to-cyan-500',
     desc: 'Быстрая генерация для простых задач',
-    price: 5
+    price: 10
   },
   {
     id: 'gemini-3-pro-image-preview',
@@ -21,7 +21,7 @@ export const MODELS: Model[] = [
     badge: 'PRO',
     color: 'from-yellow-300 to-yellow-500',
     desc: 'Детализация и интеллект для сложных задач',
-    price: 10
+    price: 15
   },
   {
     id: 'gemini-3-pro-image-preview-4k',
