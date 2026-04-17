@@ -180,8 +180,8 @@ export default async function AdminPage() {
 
       {/* Основные метрики */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <Card title="Всего пользователей" value={totalUsers ?? 0} />
-        <Card title="Новых сегодня" value={newUsersToday ?? 0} />
+        <Card title="Всего пользователей" value={totalUsers ?? 0} href="/admin/users" />
+        <Card title="Новых сегодня" value={newUsersToday ?? 0} href="/admin/users?filter=new_today" />
         <Card title="Лайков" value={likesCount ?? 0} />
         <Card title="Комментариев" value={commentsCount ?? 0} />
       </div>
@@ -189,11 +189,11 @@ export default async function AdminPage() {
       {/* Статистика за сегодня */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-          <Card title="Генераций сегодня" value={stats.total_generations} />
-          <Card title="Успешных" value={stats.completed} />
-          <Card title="Ошибок" value={stats.failed} />
+          <Card title="Генераций сегодня" value={stats.total_generations} href="/admin/generations?filter=today" />
+          <Card title="Успешных" value={stats.completed} href="/admin/generations?filter=today&status=completed" />
+          <Card title="Ошибок" value={stats.failed} href="/admin/generations?filter=today&status=failed" />
           <Card title="Выручка сегодня" value={`${stats.total_revenue ?? 0} ₽`} />
-          <Card title="Активных юзеров" value={stats.active_users} />
+          <Card title="Активных юзеров" value={stats.active_users} href="/admin/users?filter=active_today" />
           <Card title="ARPU" value={Number(stats.arpu ?? 0).toFixed(2)} />
         </div>
       )}
@@ -444,7 +444,16 @@ export default async function AdminPage() {
   )
 }
 
-function Card({ title, value }: { title: string; value: any }) {
+function Card({ title, value, href }: { title: string; value: any; href?: string }) {
+  if (href) {
+    return (
+      <Link href={href} className="bg-[#141414] border border-white/10 rounded-2xl p-5 hover:border-white/30 hover:bg-white/[0.03] transition-all cursor-pointer block">
+        <div className="text-white/40 text-xs mb-2 uppercase tracking-wider">{title}</div>
+        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-[10px] text-white/20 mt-2">Нажмите для деталей →</div>
+      </Link>
+    )
+  }
   return (
     <div className="bg-[#141414] border border-white/10 rounded-2xl p-5">
       <div className="text-white/40 text-xs mb-2 uppercase tracking-wider">{title}</div>

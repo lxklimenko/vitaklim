@@ -31,6 +31,13 @@ export default async function AdminUsersPage({
     query = query.ilike("telegram_username", `%${search.trim()}%`)
   }
 
+  // Фильтр новые сегодня
+  if (filter === "new_today") {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    query = query.gte("created_at", today.toISOString());
+  }
+
   // Фильтр активные сегодня
   if (filter === "active_today") {
     const today = new Date();
