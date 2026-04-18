@@ -596,6 +596,126 @@ export async function POST(req: Request) {
 
     // ================== ОБРАБОТКА КОМАНД ==================
 
+    // Команда /generate
+    if (isText && safeText === "/generate") {
+      await supabase
+        .from("profiles")
+        .update({ bot_state: "choosing_model", bot_reference_url: null })
+        .eq("id", profile.id);
+
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: "Выберите модель:",
+          reply_markup: {
+            keyboard: [
+              [{ text: MODELS.NANO2 }],
+              [{ text: MODELS.PRO }],
+              [{ text: MODELS.PRO4K }],
+              [{ text: "❓ В чем разница?" }],
+              [{ text: "⬅️ Назад" }],
+            ],
+            resize_keyboard: true,
+          },
+        }),
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    // Команда /photo
+    if (isText && safeText === "/photo") {
+      await supabase
+        .from("profiles")
+        .update({
+          bot_state: "choosing_photo_model",
+          bot_selected_model: null,
+          bot_reference_url: null,
+        })
+        .eq("id", profile.id);
+
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: "Выберите модель для генерации по фото:",
+          reply_markup: {
+            keyboard: [
+              [{ text: MODELS.NANO2 }],
+              [{ text: MODELS.PRO }],
+              [{ text: MODELS.PRO4K }],
+              [{ text: "❓ В чем разница?" }],
+              [{ text: "⬅️ Назад" }],
+            ],
+            resize_keyboard: true,
+          },
+        }),
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    // Команда /balance
+    if (isText && safeText === "/balance") {
+      await supabase
+        .from("profiles")
+        .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
+        .eq("id", profile.id);
+
+      const botInfo = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getMe`).then(res => res.json());
+      const botUsername = botInfo.result.username;
+      const refCode = profile.referral_code || username;
+      const refLink = `https://t.me/${botUsername}?start=${refCode}`;
+
+      const balanceText =
+        `💰 *Ваш баланс:* ${profile.balance} 🍌\n\n` +
+        `👥 *Приглашено друзей:* ${profile.referrals_count || 0}\n` +
+        `🎁 За каждого друга: *10 🍌*\n\n` +
+        `🔗 *Ваша ссылка для приглашения:* \n\`${refLink}\` \n\n` +
+        `───\n` +
+        `⚖️ [Публичная оферта](https://telegra.ph/PUBLICHNAYA-OFERTA-03-06-6)\n` +
+        `🔒 [Политика конфиденциальности](https://telegra.ph/Politika-konfidencialnosti-03-06-35)`;
+
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: balanceText,
+          parse_mode: "Markdown",
+          link_preview_options: { is_disabled: true },
+          reply_markup: {
+            inline_keyboard: [[{ text: "💳 Пополнить баланс", callback_data: "start_payment" }]]
+          },
+        }),
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    // Команда /help
+    if (isText && safeText === "/help") {
+      const helpText =
+        `🚀 *Шпаргалка по KLEX.PRO*\n\n` +
+        `• */generate* — создать картинку\n` +
+        `• */photo* — сгенерировать по фото\n` +
+        `• */balance* — пополнение счета\n\n` +
+        `⚖️ [Публичная оферта](https://telegra.ph/PUBLICHNAYA-OFERTA-03-06-6)\n` +
+        `🔒 [Политика конфиденциальности](https://telegra.ph/Politika-konfidencialnosti-03-06-35)`;
+
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: helpText,
+          parse_mode: "Markdown",
+          link_preview_options: { is_disabled: true },
+        }),
+      });
+      return NextResponse.json({ ok: true });
+    }
+
     // /start
     if (isText && safeText.startsWith("/start")) {
       const parts = safeText.split(" ");
