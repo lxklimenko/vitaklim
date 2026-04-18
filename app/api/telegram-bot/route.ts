@@ -627,10 +627,31 @@ export async function POST(req: Request) {
         }
       }
 
-      await sendMessage(
-        chatId,
-        "Привет! ИИ-бот KLEX.PRO открывает вам доступ к лучшим нейросетям для создания изображений."
-      );
+      const welcomeText =
+        `🎨 *Добро пожаловать в KLEX.PRO!*\n\n` +
+        `Здесь ты можешь создавать потрясающие изображения с помощью искусственного интеллекта.\n\n` +
+        `🍌 *Что такое бананы?*\n` +
+        `Бананы - это внутренняя валюта бота. Каждая генерация стоит определённое количество бананов. При регистрации ты получаешь *10 🍌* бесплатно!\n\n` +
+        `🤖 *Как это работает?*\n` +
+        `1. Нажми "🎨 Создать картинку"\n` +
+        `2. Выбери модель и формат\n` +
+        `3. Опиши что хочешь увидеть\n` +
+        `4. Получи результат!\n\n` +
+        `💡 *Три модели на выбор:*\n` +
+        `• Nano Banano 2 — быстро и дёшево (10 🍌)\n` +
+        `• Nano Banana Pro — детально и качественно (15 🍌)\n` +
+        `• Nano Banano Pro 4K — фотореализм высшего качества (20 🍌)\n\n` +
+        `👥 Пригласи друга и получи *10 🍌* бонус!`;
+
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: welcomeText,
+          parse_mode: "Markdown",
+        }),
+      });
 
       await sendMainMenu(chatId);
       return NextResponse.json({ ok: true });
