@@ -1,3 +1,14 @@
 {
-  "regions": ["fra1"]
+  "regions": ["fra1"],
+  "functions": {
+    "app/api/telegram-bot/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/generate-google/route.ts": {
+      "maxDuration": 300
+    },
+    "app/lib/generateCore.ts": {
+      "maxDuration": 300
+    }
+  }
 }
