@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { supabaseAdmin } from '@/app/lib/supabase-admin'
+import { syncProfile } from '@/app/lib/vps-sync'
 
 function validateTelegramInitData(initData: string) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN
@@ -141,6 +142,7 @@ export async function POST(req: NextRequest) {
         telegram_avatar_url: telegramUser.photo_url || null,
       })
     }
+    await syncProfile(supabaseAdmin, userId)
 
     return NextResponse.json({ success: true })
   } catch (err: any) {

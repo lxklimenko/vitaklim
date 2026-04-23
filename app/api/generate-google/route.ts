@@ -4,6 +4,7 @@ import sharp from "sharp";
 import crypto from 'crypto';
 import { STORAGE_BUCKET } from '@/app/constants/storage';
 import OpenAI from "openai";
+import { syncGeneration, syncProfile, syncSupabaseRow } from '@/app/lib/vps-sync';
 
 // Константы
 const GENERATION_COST = parseInt(process.env.GENERATION_COST || "1", 10);
@@ -153,6 +154,7 @@ export async function POST(req: Request) {
     }
 
     processingRecord = newProcessingRecord;
+    await syncGeneration(supabase, processingRecord.id);
 
     // 💰 Определяем стоимость в зависимости от модели
     let cost = GENERATION_COST;
@@ -178,6 +180,7 @@ export async function POST(req: Request) {
     if (!result.success) {
       throw new Error(result.error || "Не удалось списать средства");
     }
+    await syncProfile(supabase, user.id);
 
     // 🧠 Если выбрана модель Imagen Ultra, обрабатываем отдельно
     if (modelId === 'imagen-4-ultra') {
@@ -468,6 +471,7 @@ high resolution
           model_id: modelId
         })
         .eq('id', processingRecord.id);
+      await syncGeneration(supabase, processingRecord.id);
     }
 
     // 12. Возвращаем generationId клиенту
@@ -495,6 +499,7 @@ high resolution
           .from('generations')
           .update({ status: 'failed' })
           .eq('id', processingRecord.id);
+        await syncGeneration(supabase, processingRecord.id);
       } catch (statusError) {
         console.error("Failed to update generation status:", statusError);
       }
@@ -508,6 +513,7 @@ high resolution
           p_user_id: user.id,
           p_amount: usedCost
         });
+        await syncProfile(supabase, user.id);
       } catch (refundError) {
         console.error("Refund error:", refundError);
       }
@@ -515,13 +521,14 @@ high resolution
 
     // 🧾 Логируем ошибку в БД
     try {
-      await supabase.from('app_errors').insert({
+      const { data: appError } = await supabase.from('app_errors').insert({
         user_id: user?.id ?? null,
         generation_id: processingRecord?.id ?? null,
         error_message: error instanceof Error ? error.message : 'Unknown error',
         error_stack: error instanceof Error ? error.stack ?? null : null,
         context: 'generate-google'
-      });
+      }).select().single();
+      await syncSupabaseRow(supabase, 'app_errors', appError?.id);
     } catch (logError) {
       console.error('Error logging failed:', logError);
     }
@@ -648,6 +655,7 @@ async function generateImagenUltra({
       model_id: 'imagen-4-ultra'
     })
     .eq('id', processingRecord.id);
+  await syncGeneration(supabase, processingRecord.id);
 
   return NextResponse.json({
     generationId: processingRecord.id
@@ -768,6 +776,7 @@ async function generateOpenAI({
       model_id: 'dall-e-3'
     })
     .eq('id', processingRecord.id);
+  await syncGeneration(supabase, processingRecord.id);
 
   return NextResponse.json({
     generationId: processingRecord.id

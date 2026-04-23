@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient } from "@/app/lib/supabase-server";
+import { syncProfile } from "@/app/lib/vps-sync";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -70,6 +71,7 @@ export async function POST(req: Request) {
       .from("profiles")
       .update({ balance: profile.balance - 1 })
       .eq("id", user.id);
+    await syncProfile(supabase, user.id);
 
     return NextResponse.json({
       imageUrl: result.data[0].url,

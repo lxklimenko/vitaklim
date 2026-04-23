@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { generateImageCore } from "@/app/lib/generateCore";
 import { Bot as MaxBot } from '@maxhub/max-bot-api';
+import { syncProfile } from "@/app/lib/vps-sync";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -583,6 +584,7 @@ export async function POST(req: Request) {
       }
 
       profile = newProfile;
+      await syncProfile(supabase, userId);
     }
 
     const currentState = profile.bot_state ?? "idle";

@@ -2,6 +2,7 @@ import sharp from "sharp";
 import crypto from "crypto";
 import { STORAGE_BUCKET } from "@/app/constants/storage";
 import OpenAI from "openai";
+import { syncGeneration, syncProfile } from "@/app/lib/vps-sync";
 
 const GENERATION_COST = parseInt(process.env.GENERATION_COST || "1", 10);
 const FETCH_TIMEOUT = 60000; // 60 seconds (оставлен для возможного использования, но в Google-части не применяется)
@@ -98,6 +99,7 @@ export async function generateImageCore({
   }
 
   console.log("PENDING CREATED:", processingRecord.id);
+  await syncGeneration(supabase, processingRecord.id);
 
   // ========== Определение стоимости ==========
   let cost = 10; // По умолчанию Nano 2
@@ -121,6 +123,7 @@ export async function generateImageCore({
     throw new Error(rpcResult?.error || "Не удалось списать средства");
   }
   console.log("BALANCE CHARGED");
+  await syncProfile(supabase, userId);
 
   // ------------------- ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ -------------------
   const isProModel = cleanModelId === "gemini-3-pro-image-preview" || cleanModelId === "imagen-4-ultra";
@@ -320,6 +323,7 @@ export async function generateImageCore({
       model_id: modelId
     })
     .eq("id", processingRecord.id);
+  await syncGeneration(supabase, processingRecord.id);
 
   console.log("GENERATION COMPLETED");
 

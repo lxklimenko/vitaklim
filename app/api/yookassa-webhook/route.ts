@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { YooCheckout } from '@a2seven/yoo-checkout';
 import { Bot } from '@maxhub/max-bot-api';
+import { syncProfile, syncSupabaseRow } from '@/app/lib/vps-sync';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -71,6 +72,14 @@ export async function POST(req: Request) {
         console.error('❌ RPC error:', rpcError);
         return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
       }
+      await syncProfile(supabase, userId);
+
+      const { data: processedPayment } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('yookassa_id', paymentId)
+        .maybeSingle();
+      await syncSupabaseRow(supabase, 'payments', processedPayment?.id);
 
       console.log('✅ Balance updated for user:', userId);
 

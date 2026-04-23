@@ -1,6 +1,7 @@
 import { Bot, Keyboard } from '@maxhub/max-bot-api';
 import { supabaseAdmin } from "@/app/lib/supabase-admin";
 import { generateImageCore } from "@/app/lib/generateCore";
+import { syncProfile } from "@/app/lib/vps-sync";
 
 // ==================== КОНСТАНТЫ ====================
 const MAX_TOKEN = process.env.MAX_BOT_TOKEN!;
@@ -73,6 +74,7 @@ async function handleUserStart(ctx: any) {
         bot_state: "idle",
       }).select().single();
       profile = newProfile;
+      await syncProfile(supabaseAdmin, authUser.user.id);
     }
   }
 

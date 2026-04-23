@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase-server'
 import { supabaseAdmin } from '@/app/lib/supabase-admin'
+import { syncProfile } from '@/app/lib/vps-sync'
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!
 
@@ -42,6 +43,7 @@ export async function POST(req: Request) {
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  await syncProfile(supabaseAdmin, userId)
 
   // Получаем telegram_id пользователя
   const { data: targetProfile } = await supabaseAdmin
