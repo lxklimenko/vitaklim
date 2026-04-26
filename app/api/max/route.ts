@@ -3,6 +3,7 @@ import { Bot, Keyboard } from '@maxhub/max-bot-api';
 import { supabaseAdmin } from "@/app/lib/supabase-admin";
 import { generateImageCore } from "@/app/lib/generateCore";
 import { syncProfile } from "@/app/lib/vps-sync";
+import { getProfileByMaxUserId } from "@/app/lib/vps-read";
 
 // ==================== КОНСТАНТЫ ====================
 const MAX_TOKEN = process.env.MAX_BOT_TOKEN!; 
@@ -74,7 +75,10 @@ async function handleUserStart(ctx: any) {
                      'друг';
 
   // Проверяем/создаем профиль
-  let { data: profile } = await supabaseAdmin.from('profiles').select('*').eq('max_user_id', maxUserId).maybeSingle();
+  const vpsProfile = await getProfileByMaxUserId(maxUserId);
+  let { data: profile } = vpsProfile
+    ? { data: vpsProfile }
+    : await supabaseAdmin.from('profiles').select('*').eq('max_user_id', maxUserId).maybeSingle();
 
   if (!profile) {
     const email = `max_${maxUserId}@klex.pro`;

@@ -31,3 +31,7 @@ export async function getGenerationFromVps(id: string) {
 export async function getGenerationsFromVps(userId: string, limit = 20, offset = 0) {
   return vpsGet(`/generations?userId=${userId}&limit=${limit}&offset=${offset}`);
 }
+
+export async function getProfileByMaxUserId(maxUserId: string | number) {
+  return vpsGet(`/profile-by-max/${maxUserId}`);
+}
