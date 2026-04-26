@@ -299,6 +299,20 @@ export async function generateImageCore({
 
   console.log("UPLOADED TO STORAGE:", fileName);
 
+  // Параллельно сохраняем картинку на VPS
+  fetch(`${process.env.VPS_IMAGES_URL}/upload`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${process.env.VPS_SYNC_SECRET}`,
+    },
+    body: JSON.stringify({
+      fileName,
+      imageBase64: processedBuffer.toString("base64"),
+    }),
+    signal: AbortSignal.timeout(10000),
+  }).catch((err) => console.error("VPS image upload failed:", err));
+
   const { data: signedUrlData, error: signedError } =
     await supabase.storage
       .from(STORAGE_BUCKET)
