@@ -526,10 +526,11 @@ export async function POST(req: Request) {
     }
 
     // ========== ПОЛУЧАЕМ ИЛИ СОЗДАЁМ ПРОФИЛЬ ==========
-    const vpsProfile = await getProfileByTelegramId(telegramId);
-    const { data: profileData, error: profileError } = vpsProfile
-      ? { data: vpsProfile, error: null }
-      : await supabase.from("profiles").select("*").eq("telegram_id", telegramId).maybeSingle();
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("telegram_id", telegramId)
+      .maybeSingle();
 
     if (profileError) {
       console.error("PROFILE SELECT ERROR:", profileError);
