@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { generateImageCore } from "@/app/lib/generateCore";
 import { Bot as MaxBot } from '@maxhub/max-bot-api';
 import { syncProfile } from "@/app/lib/vps-sync";
+import { getProfileByTelegramId } from "@/app/lib/vps-read";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -525,11 +526,10 @@ export async function POST(req: Request) {
     }
 
     // ========== ПОЛУЧАЕМ ИЛИ СОЗДАЁМ ПРОФИЛЬ ==========
-    const { data: profileData, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("telegram_id", telegramId)
-      .maybeSingle();
+    const vpsProfile = await getProfileByTelegramId(telegramId);
+    const { data: profileData, error: profileError } = vpsProfile
+      ? { data: vpsProfile, error: null }
+      : await supabase.from("profiles").select("*").eq("telegram_id", telegramId).maybeSingle();
 
     if (profileError) {
       console.error("PROFILE SELECT ERROR:", profileError);
