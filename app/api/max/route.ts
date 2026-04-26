@@ -43,12 +43,25 @@ function getUserId(ctx: any): string | null {
 }
 
 async function updateBotState(maxUserId: string, state: string, model: string | null = null) {
-  const { error } = await supabaseAdmin
+  const fields = { bot_state: state, bot_selected_model: model, bot_reference_url: null };
+  const { error, data } = await supabaseAdmin
     .from("profiles")
-    .update({ bot_state: state, bot_selected_model: model, bot_reference_url: null })
-    .eq("max_user_id", maxUserId);
-
+    .update(fields)
+    .eq("max_user_id", maxUserId)
+    .select("id")
+    .single();
   if (error) console.error(`❌ Ошибка БД при смене статуса:`, error);
+  if (data?.id) {
+    fetch(`${process.env.VPS_SYNC_URL}/sync`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.VPS_SYNC_SECRET}`,
+      },
+      body: JSON.stringify({ table: "profiles", payload: { id: data.id, ...fields } }),
+      signal: AbortSignal.timeout(3000),
+    }).catch(() => null);
+  }
 }
 
 // ==================== УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ДЛЯ СТАРТА ====================
@@ -571,13 +584,23 @@ bot.on('message_created', async (ctx: any) => {
       return;
     }
 
-    await supabaseAdmin
+    const { data: profileForSync1 } = await supabaseAdmin
       .from("profiles")
       .update({
         bot_state: "awaiting_payment_amount",
         bot_selected_model: email, 
       })
-      .eq("max_user_id", maxUserId);
+      .eq("max_user_id", maxUserId)
+      .select("id")
+      .single();
+    if (profileForSync1?.id) {
+      fetch(`${process.env.VPS_SYNC_URL}/sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.VPS_SYNC_SECRET}` },
+        body: JSON.stringify({ table: "profiles", payload: { id: profileForSync1.id, bot_state: "awaiting_payment_amount", bot_selected_model: email, bot_reference_url: null } }),
+        signal: AbortSignal.timeout(3000),
+      }).catch(() => null);
+    }
 
     const keyboard = Keyboard.inlineKeyboard([[Keyboard.button.callback("⬅️ Назад", "action_back")]]);
     await ctx.reply("Введите сумму пополнения в рублях ✍️\n(Например: 100, 200 или 500)", { 
@@ -663,13 +686,23 @@ bot.on('message_created', async (ctx: any) => {
       const currentUrls = profile.bot_reference_url || [];
       const updatedUrls = [...currentUrls, fileUrl];
 
-      await supabaseAdmin
+      const { data: profileForSync2 } = await supabaseAdmin
         .from("profiles")
         .update({ 
           bot_state: "awaiting_photo_prompt", 
           bot_reference_url: updatedUrls 
         })
-        .eq("max_user_id", maxUserId);
+        .eq("max_user_id", maxUserId)
+        .select("id")
+        .single();
+      if (profileForSync2?.id) {
+        fetch(`${process.env.VPS_SYNC_URL}/sync`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.VPS_SYNC_SECRET}` },
+          body: JSON.stringify({ table: "profiles", payload: { id: profileForSync2.id, bot_state: "awaiting_photo_prompt", bot_reference_url: updatedUrls } }),
+          signal: AbortSignal.timeout(3000),
+        }).catch(() => null);
+      }
 
       const keyboard = Keyboard.inlineKeyboard([[Keyboard.button.callback("⬅️ Назад", "action_back")]]);
       await ctx.reply("📸 Фото принято!\n\nТеперь **напишите описание** (промпт) для генерации 🎨", {
