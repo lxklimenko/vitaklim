@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { generateImageCore } from "@/app/lib/generateCore";
 import { Bot as MaxBot } from '@maxhub/max-bot-api';
 import { syncProfile } from "@/app/lib/vps-sync";
-import { getProfileByTelegramId } from "@/app/lib/vps-read";
+
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -14,6 +14,22 @@ const MAX_BOT_TOKEN = process.env.MAX_BOT_TOKEN!;
 const maxBot = new MaxBot(MAX_BOT_TOKEN);
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+async function updateProfile(profileId: string, fields: Record<string, any>) {
+  const [supabaseResult] = await Promise.allSettled([
+    supabase.from("profiles").update(fields).eq("id", profileId),
+    fetch(`${process.env.VPS_SYNC_URL}/sync`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.VPS_SYNC_SECRET}`,
+      },
+      body: JSON.stringify({ table: "profiles", payload: { id: profileId, ...fields } }),
+      signal: AbortSignal.timeout(3000),
+    }).catch(() => null),
+  ]);
+  return supabaseResult;
+}
 
 console.log("SUPABASE URL:", SUPABASE_URL);
 console.log("SERVICE ROLE EXISTS:", !!SUPABASE_SERVICE_ROLE_KEY);
@@ -171,18 +187,12 @@ async function handleBackNavigation(chatId: number, profile: any) {
   switch (currentState) {
     case "choosing_model":
     case "choosing_photo_model":
-      await supabase
-        .from("profiles")
-        .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
-        .eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "idle", bot_selected_model: null, bot_reference_url: null });
       await sendMainMenu(chatId);
       break;
 
     case "choosing_format":
-      await supabase
-        .from("profiles")
-        .update({ bot_state: "choosing_model" })
-        .eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "choosing_model" });
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -203,10 +213,7 @@ async function handleBackNavigation(chatId: number, profile: any) {
       break;
 
     case "choosing_photo_format":
-      await supabase
-        .from("profiles")
-        .update({ bot_state: "choosing_photo_model", bot_reference_url: null })
-        .eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "choosing_photo_model", bot_reference_url: null });
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -227,10 +234,7 @@ async function handleBackNavigation(chatId: number, profile: any) {
       break;
 
     case "awaiting_prompt":
-      await supabase
-        .from("profiles")
-        .update({ bot_state: "choosing_format" })
-        .eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "choosing_format" });
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -250,10 +254,7 @@ async function handleBackNavigation(chatId: number, profile: any) {
       break;
 
     case "awaiting_photo":
-      await supabase
-        .from("profiles")
-        .update({ bot_state: "choosing_photo_format" })
-        .eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "choosing_photo_format" });
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -273,10 +274,7 @@ async function handleBackNavigation(chatId: number, profile: any) {
       break;
 
     case "awaiting_photo_prompt":
-      await supabase
-        .from("profiles")
-        .update({ bot_state: "awaiting_photo" })
-        .eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "awaiting_photo" });
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -292,10 +290,7 @@ async function handleBackNavigation(chatId: number, profile: any) {
       break;
 
     case "awaiting_payment_email":
-      await supabase
-        .from("profiles")
-        .update({ bot_state: "idle", bot_selected_model: null })
-        .eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "idle", bot_selected_model: null });
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -313,10 +308,7 @@ async function handleBackNavigation(chatId: number, profile: any) {
       break;
 
     case "awaiting_payment_amount":
-      await supabase
-        .from("profiles")
-        .update({ bot_state: "awaiting_payment_email", bot_selected_model: null })
-        .eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "awaiting_payment_email", bot_selected_model: null });
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -332,10 +324,7 @@ async function handleBackNavigation(chatId: number, profile: any) {
       break;
 
     default:
-      await supabase
-        .from("profiles")
-        .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
-        .eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "idle", bot_selected_model: null, bot_reference_url: null });
       await sendMainMenu(chatId);
   }
 }
@@ -376,13 +365,10 @@ export async function POST(req: Request) {
       }
 
       if (cbData === "start_payment") {
-        await supabase
-          .from("profiles")
-          .update({
+        await updateProfile(cbProfile.id, {
             bot_state: "awaiting_payment_email",
             bot_selected_model: null,
-          })
-          .eq("id", cbProfile.id);
+          });
 
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
           method: "POST",
@@ -457,9 +443,9 @@ export async function POST(req: Request) {
             imageBuffers: repeatImageBuffers,
           });
 
-          await supabase.from("profiles").update({
+          await updateProfile(cbProfile.id, {
             last_generation_data: { ...lastData, imageUrl: repeatResult.imageUrl }
-          }).eq("id", cbProfile.id);
+          });
 
           await sendPhotoBuffer(cbChatId, repeatResult.imageUrl);
 
@@ -495,10 +481,7 @@ export async function POST(req: Request) {
           body: JSON.stringify({ callback_query_id: cb.id }),
         });
 
-        await supabase
-          .from("profiles")
-          .update({ bot_state: "idle" })
-          .eq("id", cbProfile.id);
+        await updateProfile(cbProfile.id, { bot_state: "idle" });
 
         await sendMainMenu(cbChatId);
         return NextResponse.json({ ok: true });
@@ -601,10 +584,7 @@ export async function POST(req: Request) {
 
     // Команда /generate
     if (isText && safeText === "/generate") {
-      await supabase
-        .from("profiles")
-        .update({ bot_state: "choosing_model", bot_reference_url: null })
-        .eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "choosing_model", bot_reference_url: null });
 
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
@@ -629,14 +609,11 @@ export async function POST(req: Request) {
 
     // Команда /photo
     if (isText && safeText === "/photo") {
-      await supabase
-        .from("profiles")
-        .update({
+      await updateProfile(profile.id, {
           bot_state: "choosing_photo_model",
           bot_selected_model: null,
           bot_reference_url: null,
-        })
-        .eq("id", profile.id);
+        });
 
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
@@ -661,10 +638,7 @@ export async function POST(req: Request) {
 
     // Команда /balance
     if (isText && safeText === "/balance") {
-      await supabase
-        .from("profiles")
-        .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
-        .eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "idle", bot_selected_model: null, bot_reference_url: null });
 
       const botInfo = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getMe`).then(res => res.json());
       const botUsername = botInfo.result.username;
@@ -724,13 +698,10 @@ export async function POST(req: Request) {
       const parts = safeText.split(" ");
       const refCodeFromUrl = parts.length > 1 ? parts[1] : null;
 
-      await supabase
-        .from("profiles")
-        .update({ 
+      await updateProfile(profile.id, { 
           bot_state: "idle",
           referral_code: username
-        })
-        .eq("id", profile.id);
+        });
 
       const isNewUser = !profile.referrer_id;
 
@@ -782,10 +753,7 @@ export async function POST(req: Request) {
 
     // 🎨 Создать картинку
     if (isText && safeText === "🎨 Создать картинку") {
-      await supabase
-        .from("profiles")
-        .update({ bot_state: "choosing_model", bot_reference_url: null })
-        .eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "choosing_model", bot_reference_url: null });
 
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
@@ -811,14 +779,11 @@ export async function POST(req: Request) {
 
     // 🖼 Сгенерировать по фото
     if (isText && safeText === "🖼 Сгенерировать по фото") {
-      await supabase
-        .from("profiles")
-        .update({
+      await updateProfile(profile.id, {
           bot_state: "choosing_photo_model",
           bot_selected_model: null,
           bot_reference_url: null,
-        })
-        .eq("id", profile.id);
+        });
 
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
@@ -844,10 +809,7 @@ export async function POST(req: Request) {
 
     // 💰 Баланс
     if (isText && safeText === "💰 Баланс") {
-      await supabase
-        .from("profiles")
-        .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
-        .eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "idle", bot_selected_model: null, bot_reference_url: null });
 
       const botInfo = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getMe`).then(res => res.json());
       const botUsername = botInfo.result.username;
@@ -883,10 +845,7 @@ export async function POST(req: Request) {
 
     // 📜 История
     if (isText && safeText === "📜 История") {
-      await supabase
-        .from("profiles")
-        .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
-        .eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "idle", bot_selected_model: null, bot_reference_url: null });
 
       const historyUrl = `https://klex.pro/history?u=${profile.id}`;
       
@@ -996,14 +955,14 @@ export async function POST(req: Request) {
 
     // 📢 Рассылка в Telegram (админ)
     if (isText && safeText === "📢 Рассылка в Telegram" && telegramId === ADMIN_ID) {
-      await supabase.from("profiles").update({ bot_state: "awaiting_broadcast_tg" }).eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "awaiting_broadcast_tg" });
       await sendMessage(chatId, "📝 *Рассылка: Telegram*\n\nВведите текст сообщения для всех пользователей TG-бота:");
       return NextResponse.json({ ok: true });
     }
 
     // 📢 Рассылка в MAX (админ)
     if (isText && safeText === "📢 Рассылка в MAX" && telegramId === ADMIN_ID) {
-      await supabase.from("profiles").update({ bot_state: "awaiting_broadcast_max" }).eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "awaiting_broadcast_max" });
       await sendMessage(chatId, "📝 *Рассылка: MAX*\n\nВведите текст сообщения для всех пользователей в MAX:");
       return NextResponse.json({ ok: true });
     }
@@ -1036,10 +995,7 @@ export async function POST(req: Request) {
         const currentUrls = profile.bot_reference_url || [];
         const updatedUrls = [...currentUrls, fileUrl];
 
-        await supabase
-          .from("profiles")
-          .update({ bot_reference_url: updatedUrls })
-          .eq("id", profile.id);
+        await updateProfile(profile.id, { bot_reference_url: updatedUrls });
 
         await sendMessage(chatId, `📸 Фото добавлено (всего ${updatedUrls.length}). Можете добавить ещё или нажать "Готово".`);
         return NextResponse.json({ ok: true });
@@ -1064,13 +1020,10 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      await supabase
-        .from("profiles")
-        .update({
+      await updateProfile(profile.id, {
           bot_state: "choosing_photo_format",
           bot_selected_model: normalizedText,
-        })
-        .eq("id", profile.id);
+        });
 
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
@@ -1101,14 +1054,11 @@ export async function POST(req: Request) {
 
       const newModelStr = `${profile.bot_selected_model}|${selectedFormat}`;
 
-      await supabase
-        .from("profiles")
-        .update({
+      await updateProfile(profile.id, {
           bot_state: "awaiting_photo",
           bot_selected_model: newModelStr,
           bot_reference_url: null,
-        })
-        .eq("id", profile.id);
+        });
 
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
@@ -1139,10 +1089,7 @@ export async function POST(req: Request) {
           return NextResponse.json({ ok: true });
         }
 
-        await supabase
-          .from("profiles")
-          .update({ bot_state: "awaiting_photo_prompt" })
-          .eq("id", profile.id);
+        await updateProfile(profile.id, { bot_state: "awaiting_photo_prompt" });
 
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
           method: "POST",
@@ -1174,13 +1121,10 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      await supabase
-        .from("profiles")
-        .update({
+      await updateProfile(profile.id, {
           bot_state: "choosing_format",
           bot_selected_model: normalizedText,
-        })
-        .eq("id", profile.id);
+        });
 
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
@@ -1211,13 +1155,10 @@ export async function POST(req: Request) {
 
       const newModelStr = `${profile.bot_selected_model}|${selectedFormat}`;
 
-      await supabase
-        .from("profiles")
-        .update({
+      await updateProfile(profile.id, {
           bot_state: "awaiting_prompt",
           bot_selected_model: newModelStr
-        })
-        .eq("id", profile.id);
+        });
 
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
@@ -1248,10 +1189,7 @@ export async function POST(req: Request) {
           `❌ Недостаточно средств.\n\nВы выбрали модель за ${cost} 🍌, а у вас всего ${profile.balance} 🍌.\n\nПополните баланс в меню или выберите модель дешевле.`
         );
 
-        await supabase
-          .from("profiles")
-          .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
-          .eq("id", profile.id);
+        await updateProfile(profile.id, { bot_state: "idle", bot_selected_model: null, bot_reference_url: null });
 
         return NextResponse.json({ ok: true });
       }
@@ -1264,10 +1202,7 @@ export async function POST(req: Request) {
       const finalRatio = detectedRatio !== "1:1" ? detectedRatio : (formatFromDb || "1:1");
 
       try {
-        await supabase
-          .from("profiles")
-          .update({ bot_reference_url: null })
-          .eq("id", profile.id);
+        await updateProfile(profile.id, { bot_reference_url: null });
 
         const result = await generateImageCore({
           userId: profile.id,
@@ -1278,16 +1213,13 @@ export async function POST(req: Request) {
           imageBuffers: []
         });
 
-        await supabase
-          .from("profiles")
-          .update({
+        await updateProfile(profile.id, {
             last_generation_data: {
               prompt: safeText,
               modelStr: savedModel,
               imageUrl: result.imageUrl
             }
-          })
-          .eq("id", profile.id);
+          });
 
         await sendPhotoBuffer(chatId, result.imageUrl);
 
@@ -1311,10 +1243,7 @@ export async function POST(req: Request) {
 
         await sendDocumentBuffer(chatId, result.imageUrl);
 
-        await supabase
-          .from("profiles")
-          .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
-          .eq("id", profile.id);
+        await updateProfile(profile.id, { bot_state: "idle", bot_selected_model: null, bot_reference_url: null });
         await sendMainMenu(chatId);
 
       } catch (error: any) {
@@ -1328,10 +1257,7 @@ export async function POST(req: Request) {
         const friendlyError = "Хьюстон, у нас фильтры! 🛑 ИИ посчитал этот запрос или фото небезопасным. Попробуй изменить описание — бананы мы тебе вернули!";
         await sendMessage(chatId, friendlyError);
 
-        await supabase
-          .from("profiles")
-          .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
-          .eq("id", profile.id);
+        await updateProfile(profile.id, { bot_state: "idle", bot_selected_model: null, bot_reference_url: null });
         await sendMainMenu(chatId);
       }
 
@@ -1350,10 +1276,7 @@ export async function POST(req: Request) {
           `❌ Недостаточно средств.\n\nВы выбрали модель за ${cost} 🍌, а у вас всего ${profile.balance} 🍌.\n\nПополните баланс в меню или выберите модель дешевле.`
         );
 
-        await supabase
-          .from("profiles")
-          .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
-          .eq("id", profile.id);
+        await updateProfile(profile.id, { bot_state: "idle", bot_selected_model: null, bot_reference_url: null });
 
         return NextResponse.json({ ok: true });
       }
@@ -1361,10 +1284,7 @@ export async function POST(req: Request) {
       const referenceUrls = profile.bot_reference_url;
       if (!referenceUrls || referenceUrls.length === 0) {
         await sendMessage(chatId, "Ошибка: не найдено ни одного фото. Начните заново.");
-        await supabase
-          .from("profiles")
-          .update({ bot_state: "idle", bot_reference_url: null })
-          .eq("id", profile.id);
+        await updateProfile(profile.id, { bot_state: "idle", bot_reference_url: null });
         await sendMainMenu(chatId);
         return NextResponse.json({ ok: true });
       }
@@ -1388,9 +1308,9 @@ export async function POST(req: Request) {
           imageBuffers,
         });
 
-        await supabase.from("profiles").update({
+        await updateProfile(profile.id, {
           last_generation_data: { prompt: safeText, modelStr: savedModel, referenceUrls, imageUrl: result.imageUrl }
-        }).eq("id", profile.id);
+        });
 
         await sendPhotoBuffer(chatId, result.imageUrl);
 
@@ -1414,10 +1334,7 @@ export async function POST(req: Request) {
 
         await sendDocumentBuffer(chatId, result.imageUrl);
 
-        await supabase
-          .from("profiles")
-          .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
-          .eq("id", profile.id);
+        await updateProfile(profile.id, { bot_state: "idle", bot_selected_model: null, bot_reference_url: null });
         await sendMainMenu(chatId);
 
       } catch (error: any) {
@@ -1431,10 +1348,7 @@ export async function POST(req: Request) {
         const friendlyError = "Хьюстон, у нас фильтры! 🛑 ИИ посчитал этот запрос или фото небезопасным. Попробуй изменить описание — бананы мы тебе вернули!";
         await sendMessage(chatId, friendlyError);
 
-        await supabase
-          .from("profiles")
-          .update({ bot_state: "idle", bot_selected_model: null, bot_reference_url: null })
-          .eq("id", profile.id);
+        await updateProfile(profile.id, { bot_state: "idle", bot_selected_model: null, bot_reference_url: null });
         await sendMainMenu(chatId);
       }
 
@@ -1449,13 +1363,10 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      await supabase
-        .from("profiles")
-        .update({
+      await updateProfile(profile.id, {
           bot_state: "awaiting_payment_amount",
           bot_selected_model: email,
-        })
-        .eq("id", profile.id);
+        });
 
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
@@ -1486,10 +1397,7 @@ export async function POST(req: Request) {
 
       const userEmail = profile.bot_selected_model;
       if (!userEmail) {
-        await supabase
-          .from("profiles")
-          .update({ bot_state: "awaiting_payment_email", bot_selected_model: null })
-          .eq("id", profile.id);
+        await updateProfile(profile.id, { bot_state: "awaiting_payment_email", bot_selected_model: null });
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1544,10 +1452,7 @@ export async function POST(req: Request) {
         }),
       });
 
-      await supabase
-        .from("profiles")
-        .update({ bot_state: "idle", bot_selected_model: null })
-        .eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "idle", bot_selected_model: null });
 
       return NextResponse.json({ ok: true });
     }
@@ -1571,7 +1476,7 @@ export async function POST(req: Request) {
         }
       }
       await sendMessage(chatId, `✅ Рассылка в TG завершена!\nУспешно: ${success}`);
-      await supabase.from("profiles").update({ bot_state: "idle" }).eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "idle" });
       await sendMainMenu(chatId);
       return NextResponse.json({ ok: true });
     }
@@ -1591,7 +1496,7 @@ export async function POST(req: Request) {
         }
       }
       await sendMessage(chatId, `✅ Рассылка в MAX завершена!\nУспешно: ${success}`);
-      await supabase.from("profiles").update({ bot_state: "idle" }).eq("id", profile.id);
+      await updateProfile(profile.id, { bot_state: "idle" });
       await sendMainMenu(chatId);
       return NextResponse.json({ ok: true });
     }
