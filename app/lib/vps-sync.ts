@@ -88,3 +88,39 @@ export async function syncProfile(supabase: SupabaseLikeClient, userId: string |
 export async function syncGeneration(supabase: SupabaseLikeClient, generationId: string | null | undefined) {
   await syncSupabaseRow(supabase, "generations", generationId);
 }
+
+export async function syncPayment(supabase: SupabaseLikeClient, paymentId: string | null | undefined) {
+  await syncSupabaseRow(supabase, "payments", paymentId);
+}
+
+export async function syncLike(supabase: SupabaseLikeClient, likeId: string | null | undefined) {
+  await syncSupabaseRow(supabase, "likes", likeId);
+}
+
+export async function syncComment(supabase: SupabaseLikeClient, commentId: string | null | undefined) {
+  await syncSupabaseRow(supabase, "comments", commentId);
+}
+
+export async function syncFavorite(supabase: SupabaseLikeClient, favoriteId: string | null | undefined) {
+  await syncSupabaseRow(supabase, "favorites", favoriteId);
+}
+
+export async function syncPurchase(supabase: SupabaseLikeClient, purchaseId: string | null | undefined) {
+  await syncSupabaseRow(supabase, "purchases", purchaseId);
+}
+
+export async function syncPrompt(supabase: SupabaseLikeClient, promptId: string | null | undefined) {
+  await syncSupabaseRow(supabase, "prompts", promptId);
+}
+
+export async function syncAppError(supabase: SupabaseLikeClient, errorId: string | null | undefined) {
+  await syncSupabaseRow(supabase, "app_errors", errorId);
+}
+
+export async function syncHistory(supabase: SupabaseLikeClient, historyId: string | null | undefined) {
+  await syncSupabaseRow(supabase, "history", historyId);
+}
+
+export async function syncTelegramPayment(supabase: SupabaseLikeClient, telegramPaymentId: string | null | undefined) {
+  await syncSupabaseRow(supabase, "telegram_payments", telegramPaymentId);
+}
