@@ -313,16 +313,26 @@ export async function generateImageCore({
     signal: AbortSignal.timeout(10000),
   }).catch((err) => console.error("VPS image upload failed:", err));
 
-  const { data: signedUrlData, error: signedError } =
-    await supabase.storage
-      .from(STORAGE_BUCKET)
-      .createSignedUrl(fileName, 60 * 60);
 
-  if (signedError || !signedUrlData?.signedUrl) {
-    throw new Error("Не удалось создать signed URL");
+  // Используем VPS URL если доступен, иначе signed URL от Supabase
+  let publicUrl: string;
+  const vpsImageName = fileName.replace("/", "_");
+  const vpsUrl = process.env.VPS_IMAGES_URL
+    ? `${process.env.VPS_IMAGES_URL}/prompts-images/${vpsImageName}`
+    : null;
+
+  if (vpsUrl) {
+    publicUrl = vpsUrl;
+  } else {
+    const { data: signedUrlData, error: signedError } =
+      await supabase.storage
+        .from(STORAGE_BUCKET)
+        .createSignedUrl(fileName, 60 * 60);
+    if (signedError || !signedUrlData?.signedUrl) {
+      throw new Error("Не удалось создать signed URL");
+    }
+    publicUrl = signedUrlData.signedUrl;
   }
-
-  const publicUrl = signedUrlData.signedUrl;
 
   const generationTime = Date.now() - startTime;
 
