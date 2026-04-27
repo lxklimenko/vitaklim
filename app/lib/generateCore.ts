@@ -299,30 +299,43 @@ export async function generateImageCore({
 
   console.log("UPLOADED TO STORAGE:", fileName);
 
-  // Параллельно сохраняем картинку на VPS
-  fetch(`${process.env.VPS_SYNC_URL}/upload`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${process.env.VPS_SYNC_SECRET}`,
-    },
-    body: JSON.stringify({
-      fileName,
-      imageBase64: processedBuffer.toString("base64"),
-    }),
-    signal: AbortSignal.timeout(10000),
-  }).catch((err) => console.error("VPS image upload failed:", err));
-
-
-  // Используем VPS URL если доступен, иначе signed URL от Supabase
-  let publicUrl: string;
+  // ✅ Ждём VPS upload перед тем как использовать VPS URL
+  let vpsUploadSuccess = false;
   const vpsImageName = fileName.replace("/", "_");
-  const vpsUrl = process.env.VPS_IMAGES_URL
-    ? `${process.env.VPS_IMAGES_URL}/prompts-images/${vpsImageName}`
-    : null;
 
-  if (vpsUrl) {
-    publicUrl = vpsUrl;
+  if (process.env.VPS_SYNC_URL && process.env.VPS_IMAGES_URL) {
+    try {
+      const vpsRes = await fetch(`${process.env.VPS_SYNC_URL}/upload`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.VPS_SYNC_SECRET}`,
+        },
+        body: JSON.stringify({
+          fileName,
+          imageBase64: processedBuffer.toString("base64"),
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (vpsRes.ok) {
+        vpsUploadSuccess = true;
+        console.log("VPS UPLOAD SUCCESS:", vpsImageName);
+      } else {
+        const errText = await vpsRes.text();
+        console.error("VPS UPLOAD FAILED:", vpsRes.status, errText);
+      }
+    } catch (err) {
+      console.error("VPS image upload failed:", err);
+    }
+  }
+
+  // Используем VPS URL только если upload прошёл успешно
+  let publicUrl: string;
+
+  if (vpsUploadSuccess) {
+    publicUrl = `${process.env.VPS_IMAGES_URL}/prompts-images/${vpsImageName}`;
+    console.log("USING VPS URL:", publicUrl);
   } else {
     const { data: signedUrlData, error: signedError } =
       await supabase.storage
@@ -332,6 +345,7 @@ export async function generateImageCore({
       throw new Error("Не удалось создать signed URL");
     }
     publicUrl = signedUrlData.signedUrl;
+    console.log("USING SUPABASE FALLBACK URL:", publicUrl);
   }
 
   const generationTime = Date.now() - startTime;
