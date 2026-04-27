@@ -300,7 +300,7 @@ export async function generateImageCore({
   console.log("UPLOADED TO STORAGE:", fileName);
 
   // Параллельно сохраняем картинку на VPS
-  fetch(`${process.env.VPS_IMAGES_URL}/upload`, {
+  fetch(`${process.env.VPS_SYNC_URL}/upload`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
