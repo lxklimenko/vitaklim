@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { YooCheckout } from '@a2seven/yoo-checkout';
 import { randomUUID } from 'crypto';
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { createClient as createServerSupabaseClient } from '@/app/lib/supabase-server';
 
-// Инициализация Supabase с сервисным ключом (для доступа к профилям)
-const supabase = createClient(
+// Инициализация Supabase с сервисным ключом (для доступа к профилям по telegram_id)
+const supabaseService = createServiceClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
@@ -36,13 +37,13 @@ export async function POST(req: Request) {
     const checkout = new YooCheckout({ shopId, secretKey });
 
     const body = await req.json();
-    const { amount, telegramUserId, email, from } = body; // добавили from
+    const { amount, telegramUserId, email, from } = body;
 
     let userId: string | null = null;
 
     // 1️⃣ Если пришёл Telegram пользователь — ищем по telegram_id, затем по max_user_id
     if (telegramUserId) {
-      let { data: profile } = await supabase
+      let { data: profile } = await supabaseService
         .from("profiles")
         .select("id")
         .eq("telegram_id", telegramUserId)
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
 
       // Если не нашли по telegram_id, пробуем по max_user_id
       if (!profile) {
-        const { data: maxProfile } = await supabase
+        const { data: maxProfile } = await supabaseService
           .from("profiles")
           .select("id")
           .eq("max_user_id", telegramUserId.toString())
@@ -68,11 +69,9 @@ export async function POST(req: Request) {
       userId = profile.id;
     }
 
-    // 2️⃣ Если обычный сайт (без telegramUserId)
+    // 2️⃣ Если обычный сайт (без telegramUserId) — авторизация через сессию
     else {
-      const { createRouteHandlerClient } = require('@supabase/auth-helpers-nextjs');
-      const { cookies } = require('next/headers');
-      const supabaseRoute = createRouteHandlerClient({ cookies });
+      const supabaseRoute = await createServerSupabaseClient();
       const { data: { user } } = await supabaseRoute.auth.getUser();
 
       if (!user) {
@@ -102,9 +101,9 @@ export async function POST(req: Request) {
     }
 
     // 🔒 Ограничение суммы пополнения
-    if (numericAmount < 50 || numericAmount > 10000) {
+    if (numericAmount < 100 || numericAmount > 10000) {
       return NextResponse.json(
-        { error: 'Сумма должна быть от 50 до 10000 ₽' },
+        { error: 'Сумма должна быть от 100 до 10000 ₽' },
         { status: 400 }
       );
     }
@@ -120,6 +119,12 @@ export async function POST(req: Request) {
     // Generate a proper idempotence key (UUID v4)
     const idempotenceKey = randomUUID();
 
+    // Определяем return_url в зависимости от источника платежа
+    const isFromSite = from === 'site' || !telegramUserId;
+    const returnUrl = isFromSite
+      ? 'https://klex.pro/profile'
+      : `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}`;
+
     const payment = await checkout.createPayment(
       {
         amount: {
@@ -128,18 +133,18 @@ export async function POST(req: Request) {
         },
         confirmation: {
           type: 'redirect',
-          return_url: `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}`, // изменено на Telegram бота
+          return_url: returnUrl,
         },
         capture: true,
         description: `Пополнение баланса пользователем ${userId}`,
         metadata: {
           userId,
-          from: from || 'tg', // <-- Сохраняем источник платежа (по умолчанию 'tg')
+          from: from || (telegramUserId ? 'tg' : 'site'),
         },
         // Чек согласно 54-ФЗ с обязательными полями payment_subject и payment_mode
         receipt: {
           customer: {
-            email: email, // теперь email гарантированно не пустой
+            email: email,
           },
           items: [
             {
