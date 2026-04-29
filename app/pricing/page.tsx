@@ -1,6 +1,12 @@
 import Link from 'next/link';
 import { ArrowLeft, Zap, Sparkles, Crown, Image } from 'lucide-react';
 
+export const metadata = {
+  title: 'Тарифы — KLEX.PRO',
+  description:
+    'Стоимость генерации изображений на сервисе KLEX.PRO. Пополнение баланса от 100 ₽, цены за генерацию для различных моделей ИИ.',
+};
+
 const MODELS = [
   {
     name: 'Nano Banano 2',
@@ -69,7 +75,7 @@ export default function PricingPage() {
           <ul className="space-y-2 text-sm text-white/60">
             <li className="flex items-start gap-2">
               <span className="text-white/30 mt-0.5">—</span>
-              Валюта сервиса — бананы (🍌). 1 рубль = 1 банан.
+              Валюта сервиса — бананы (🍌). Курс фиксированный: 1 ₽ = 1 банан.
             </li>
             <li className="flex items-start gap-2">
               <span className="text-white/30 mt-0.5">—</span>
@@ -130,8 +136,8 @@ export default function PricingPage() {
                 <p className="text-xs text-white/40 truncate">{model.desc}</p>
               </div>
               <div className="text-right shrink-0">
-                <p className="font-bold text-lg">{model.price}</p>
-                <p className="text-xs text-white/40">🍌 / раз</p>
+                <p className="font-bold text-lg">{model.price} ₽</p>
+                <p className="text-xs text-white/40">{model.price} 🍌 / раз</p>
               </div>
             </div>
           ))}
@@ -152,7 +158,11 @@ export default function PricingPage() {
             },
             {
               q: 'Есть ли минимальная сумма пополнения?',
-              a: 'Минимальная сумма — 50 ₽, максимальная — 10 000 ₽ за одну транзакцию.',
+              a: 'Минимальная сумма пополнения — 100 ₽.',
+            },
+            {
+              q: 'Как оформить возврат?',
+              a: 'Условия возврата средств описаны в Публичной оферте. Для запроса возврата напишите на lxklimenko@gmail.com или в Telegram @AlexCosh1.',
             },
           ].map(({ q, a }) => (
             <div key={q} className="bg-white/5 border border-white/10 rounded-2xl p-4">
@@ -162,8 +172,37 @@ export default function PricingPage() {
           ))}
         </div>
 
-        <p className="mt-10 text-center text-xs text-white/25">
-          По вопросам: <a href="https://t.me/AlexCosh1" className="underline hover:text-white/50">@AlexCosh1</a>
+        {/* Документы */}
+        <div className="mt-10 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          <Link href="/terms" className="text-white/50 hover:text-white transition underline">
+            Публичная оферта
+          </Link>
+          <Link href="/privacy" className="text-white/50 hover:text-white transition underline">
+            Политика конфиденциальности
+          </Link>
+        </div>
+
+        {/* Реквизиты */}
+        <div className="mt-8 bg-white/[0.03] border border-white/10 rounded-2xl p-5 text-sm">
+          <p className="font-semibold mb-2 text-white/80">Реквизиты исполнителя</p>
+          <div className="space-y-0.5 text-white/50">
+            <p>Индивидуальный предприниматель Клименко А. А.</p>
+            <p>ИНН: 234607306390</p>
+            <p>ОГРНИП: 323237500027371</p>
+            <p>
+              Email:{' '}
+              <a href="mailto:lxklimenko@gmail.com" className="hover:text-white transition">
+                lxklimenko@gmail.com
+              </a>
+            </p>
+          </div>
+        </div>
+
+        <p className="mt-8 text-center text-xs text-white/25">
+          По вопросам:{' '}
+          <a href="https://t.me/AlexCosh1" className="underline hover:text-white/50">
+            @AlexCosh1
+          </a>
         </p>
 
       </div>
