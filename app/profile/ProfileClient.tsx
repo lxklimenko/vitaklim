@@ -106,16 +106,31 @@ export default function ProfileClient({ initialProfile }: { initialProfile: Prof
     router.refresh();
   };
 
+  // ИЗМЕНЁННАЯ ФУНКЦИЯ handleTopUp
   const handleTopUp = async () => {
     const numericAmount = parseInt(topUpAmount);
     if (!user) { toast.error('Нужно войти в аккаунт'); return; }
-    if (!numericAmount || numericAmount < 50) { toast.error('Минимальная сумма — 50 ₽'); return; }
+    if (!numericAmount || numericAmount < 100) { toast.error('Минимальная сумма — 100 ₽'); return; }
+
+    // Email для чека: берём из аккаунта пользователя
+    // Для Telegram-пользователей у нас фейковый email вида telegram_<id>@telegram.local — его нельзя использовать для чека
+    const userEmail = user.email && !user.email.endsWith('@telegram.local') ? user.email : null;
+    if (!userEmail) {
+      toast.error('Для пополнения нужен email в профиле. Войдите через email или напишите в поддержку.');
+      return;
+    }
+
     try {
       setIsTopUpLoading(true);
       const res = await fetch('/api/payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: numericAmount, userId: user.id }),
+        body: JSON.stringify({
+          amount: numericAmount,
+          userId: user.id,
+          email: userEmail,
+          from: 'site',
+        }),
       });
       const data = await res.json();
       if (!res.ok) { toast.error(data.error || 'Ошибка оплаты'); return; }
