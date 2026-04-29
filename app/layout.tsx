@@ -4,6 +4,7 @@ import "./globals.css";
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/600.css';
 import ClientProviders from './ClientProviders'
+import Footer from './components/Footer'
 
 export const metadata: Metadata = {
   title: "KLEX.PRO | Маркетплейс премиальных промптов",
@@ -39,6 +40,7 @@ export default function RootLayout({
             <div className="flex-1 pb-[env(safe-area-inset-bottom)]">
               {children}
             </div>
+            <Footer />
           </div>
         </ClientProviders>
 
