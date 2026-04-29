@@ -7,18 +7,18 @@ import { Home, Tv, Plus, Clock, User } from 'lucide-react';
 
 export const Navigation: React.FC = () => {
   const pathname = usePathname();
-  
+
   const isHomePage = pathname === '/';
   const isFeedPage = pathname === '/feed';
   const isHistoryPage = pathname === '/history';
   const isProfilePage = pathname === '/profile';
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden pb-safe">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-xl border-t border-white/10"></div>
+    <nav className="fixed bottom-0 left-0 right-0 z-50 pb-safe md:bottom-6 md:left-1/2 md:-translate-x-1/2 md:right-auto md:w-[420px] md:rounded-3xl md:overflow-hidden md:shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-xl border-t border-white/10 md:border md:border-white/10 md:rounded-3xl"></div>
 
       <div className="relative h-20 px-6 flex items-center justify-between">
-        
+
         {/* 1. ГЛАВНАЯ */}
         <Link href="/" className="min-w-12.5 flex justify-center">
           <NavItem icon={<Home size={22} />} label="Главная" active={isHomePage} />

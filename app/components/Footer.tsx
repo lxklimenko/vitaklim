@@ -46,8 +46,8 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Дополнительный отступ снизу для мобильной нижней навигации */}
-      <div className="md:hidden h-20" aria-hidden="true" />
+      {/* Отступ снизу для нижней навигации (на всех экранах) */}
+      <div className="h-24 md:h-28" aria-hidden="true" />
     </footer>
   );
 }
