@@ -301,7 +301,6 @@ export async function generateImageCore({
 
   // ✅ Ждём VPS upload перед тем как использовать VPS URL
   let vpsUploadSuccess = false;
-  const vpsImageName = fileName.replace("/", "_");
 
   if (process.env.VPS_SYNC_URL && process.env.VPS_IMAGES_URL) {
     try {
@@ -320,7 +319,7 @@ export async function generateImageCore({
 
       if (vpsRes.ok) {
         vpsUploadSuccess = true;
-        console.log("VPS UPLOAD SUCCESS:", vpsImageName);
+        console.log("VPS UPLOAD SUCCESS:", fileName);
       } else {
         const errText = await vpsRes.text();
         console.error("VPS UPLOAD FAILED:", vpsRes.status, errText);
@@ -334,7 +333,7 @@ export async function generateImageCore({
   let publicUrl: string;
 
   if (vpsUploadSuccess) {
-    publicUrl = `${process.env.VPS_IMAGES_URL}/prompts-images/${vpsImageName}`;
+    publicUrl = `${process.env.VPS_IMAGES_URL}/prompts-images/${fileName}`;
     console.log("USING VPS URL:", publicUrl);
   } else {
     const { data: signedUrlData, error: signedError } =
